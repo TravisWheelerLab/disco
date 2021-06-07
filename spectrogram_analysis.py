@@ -11,7 +11,6 @@ from collections import defaultdict
 from glob import glob
 from sklearn.cluster import KMeans
 
-
 class BeetleFile:
 
     def __init__(self,
@@ -178,7 +177,7 @@ if __name__ == '__main__':
     CLASS_KEYS = ['X', 'Y', 'A', 'B']
     BINARY_CMAP = matplotlib.colors.ListedColormap(['blue', 'red'])
 
-    data_dir = './wav-files-and-annotations-1/'
+    data_dir = './wav-files-and-annotations/'
     csvs_and_wav = load_csv_and_wav_files_from_directory(data_dir)
 
     beetle_files = {}
@@ -186,7 +185,7 @@ if __name__ == '__main__':
     for filename, (wav, csv) in csvs_and_wav.items():
         spectrogram, label_to_spectrogram = process_wav_file(wav, csv)
         beetle_files[filename] = BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram)
-
+    print(beetle_files.keys())
     chosen_file = '2_M12F31_8_24'
     bf = beetle_files[chosen_file] # creates beetle file object
     bci = 35  # begin cutoff index
