@@ -12,11 +12,12 @@ class Sound:
                  sound_type,
                  file_name,
                  spectrogram_clip,
-                 unix_time):
+                 unix_time,
+                 test=False):
         self.sound_type = sound_type
         self.file_name = file_name
         self.spectrogram_clip = spectrogram_clip
-        self.test_set = False
+        self.test = test
         self.trimmed = False
         self.unix_time = unix_time
         # self.trimmed_spectrogram = None
@@ -27,23 +28,21 @@ class Sound:
 
 
 def split_train_test(beetle_files_dict, train_pct=80, file_wise=False):
-    if file_wise:           # the case of reserving an extra file as the test data set.
-        train, test = split_filewise(beetle_files_dict, train_pct)
-    else:                   # the case of shuffling all examples within files, random chirps will go into each test set.
-        train, test = split_examplewise(beetle_files_dict, train_pct)
-    return train, test
+    if file_wise:  # the case of reserving an extra file as the test data set.
+        sound_objects = split_filewise(beetle_files_dict, train_pct)
+    else:  # the case of shuffling all examples within files, random chirps will go into each test set.
+        sound_objects = split_examplewise(beetle_files_dict, train_pct)
+    return sound_objects
 
 
 def split_filewise(beetle_files_dict, train_pct):
-
     if len(beetle_files_dict) == 0:
         raise ValueError("File splitter expected at least 1 file but was given 0 files.")
     if len(beetle_files_dict) == 1:
         warnings.warn("File splitter expected more than 1 file but was given 1. Test and training data will not split.")
 
-    test = []
-    train = []
-    test_files_num = max(1, math.floor((1-train_pct/100)*len(beetle_files_dict)))
+    sound_objects = []
+    test_files_num = max(1, math.floor((1 - train_pct / 100) * len(beetle_files_dict)))
 
     filename_keys = list(beetle_files_dict.keys())
     random.shuffle(filename_keys)
@@ -54,18 +53,16 @@ def split_filewise(beetle_files_dict, train_pct):
         for sound_type, spectrogram_list in beetlefile_object.label_to_spectrogram.items():
             for example in spectrogram_list:
                 if i < test_files_num:
-                    test.append(Sound(sound_type, file, example, t.time()))
+                    sound_objects.append(Sound(sound_type, file, example, t.time(), test=True))
                 else:
-                    train.append(Sound(sound_type, file, example, t.time()))
-    return train, test
+                    sound_objects.append(Sound(sound_type, file, example, t.time()))
+    return sound_objects
 
 
 def split_examplewise(beetle_files_dict, train_pct):
-
     if len(beetle_files_dict) == 0:
         raise ValueError("File splitter expected at least 1 file but was given 0 files.")
 
-    test = []
     sound_objects = []
 
     for file, beetlefile_object in beetle_files_dict.items():
@@ -73,17 +70,17 @@ def split_examplewise(beetle_files_dict, train_pct):
             for example in spectrogram_list:
                 sound_objects.append(Sound(sound_type, file, example, t.time()))
     random.shuffle(sound_objects)
-    test_data_cutoff = round(len(sound_objects)*(100-train_pct)/100)
+    test_data_cutoff = round(len(sound_objects) * (100 - train_pct) / 100)
     for example_index in range(test_data_cutoff):
-        test_set.append(sound_objects.pop(example_index))
-        test_set[example_index].test_set = True
-    train = sound_objects
-    return train, test
+        sound_objects[example_index].test = True
+
+    return sound_objects
+
 
 if __name__ == '__main__':
     begin_time = t.time()
 
-    data_dir = './wav-files-and-annotations/'
+    data_dir = './wav-files-and-annotations-1/'
     csvs_and_wav = sa.load_csv_and_wav_files_from_directory(data_dir)
 
     beetle_files = {}
@@ -92,7 +89,8 @@ if __name__ == '__main__':
         spectrogram, label_to_spectrogram = sa.process_wav_file(wav, csv)
         beetle_files[filename] = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram)
 
-    train_set, test_set = split_train_test(beetle_files, file_wise=False)
+    sounds = split_train_test(beetle_files, file_wise=False)
 
     end_time = t.time()
     print('Elapsed time is %f seconds.' % (end_time - begin_time))
+    print("Test")
