@@ -3,6 +3,8 @@ import random
 import math
 import warnings
 import torch
+import numpy as np
+import os
 
 import spectrogram_analysis as sa
 
@@ -13,7 +15,7 @@ class Sound:
                  file_name,
                  spectrogram_clip,
                  unix_time,
-                 dataset="train"):
+                 dataset="train_data"):
         self.sound_type = sound_type
         self.file_name = file_name
         self.spectrogram_clip = spectrogram_clip
@@ -22,25 +24,29 @@ class Sound:
         self.unix_time = unix_time
 
     def save(self):
+        # saves an individual sound as a .npy file in the path <data_set>/spect/ so they can be
+        # read in by the neural network
         if isinstance(self.spectrogram_clip, torch.Tensor):
             self.spectrogram_clip = self.spectrogram_clip.numpy()
-        # todo: look up string formatting
-        pass
+        arr = np.array([1, 2, 3, 4, 5])
+        np.save(
+            os.path.join(self.dataset + "/spect", self.sound_type + "." + self.file_name + "." + str(self.unix_time)),
+            arr)
 
 
 def split_train_test(beetle_files_dict, train_pct=80, file_wise=False, k_means_cutoff=False, bci=45, eci=65):
     # places beetle files' individual labeled sounds into an array holding marked train and test labels
-    # designated by each sound object's "dataset" attribute so they can eventually be fed into directories
+    # designated by each sound object's "dataset" attribute so they can eventually be fed into directories.
     if file_wise:  # the case of reserving an extra file as the test data set
         sound_objects = split_filewise(beetle_files_dict, train_pct, cutoff=k_means_cutoff, bci=bci, eci=eci)
-    else:  # the case of shuffling all examples within files, random chirps will go into each test set
+    else:  # the case of shuffling all examples within files, random chirps will go into each test set.
         sound_objects = split_examplewise(beetle_files_dict, train_pct, cutoff=k_means_cutoff, bci=bci, eci=eci)
     return sound_objects
 
 
 def split_filewise(beetle_files_dict, train_pct, cutoff, bci, eci):
     # used if it is more desirable to reserve an entire beetle courtship as the test data rather than examples from
-    # multiple courtships that the neural network would have seen before
+    # multiple courtships that the neural network would have seen before.
     if len(beetle_files_dict) == 0:
         raise ValueError("File splitter expected at least 1 file but was given 0 files.")
     if len(beetle_files_dict) == 1:
@@ -62,14 +68,14 @@ def split_filewise(beetle_files_dict, train_pct, cutoff, bci, eci):
                 if isinstance(example, torch.Tensor):
                     example = example.numpy()
                 if i < test_files_num:
-                    sound_objects.append(Sound(sound_type, file, example, t.time(), dataset="test"))
+                    sound_objects.append(Sound(sound_type, file, example, t.time(), dataset="test_data"))
                 else:
                     sound_objects.append(Sound(sound_type, file, example, t.time()))
     return sound_objects
 
 
 def split_examplewise(beetle_files_dict, train_pct, cutoff, bci, eci):
-    # used if it is more desirable to shuffle all chirps across beetles and split them into the train and test sets
+    # used if it is more desirable to shuffle all chirps across beetles and split them into the train and test sets.
     if len(beetle_files_dict) == 0:
         raise ValueError("File splitter expected at least 1 file but was given 0 files.")
 
@@ -84,7 +90,7 @@ def split_examplewise(beetle_files_dict, train_pct, cutoff, bci, eci):
     random.shuffle(sound_objects)
     test_data_cutoff = round(len(sound_objects) * (100 - train_pct) / 100)
     for example_index in range(test_data_cutoff):
-        sound_objects[example_index].dataset = "test"
+        sound_objects[example_index].dataset = "test_data"
 
     return sound_objects
 
@@ -98,20 +104,6 @@ def cutoff_kmeans_spectrograms(bf_obj, bci, eci):
 
     for sound_type, spectrogram_list in bf_obj.label_to_spectrogram.items():
         if sound_type != 'X' or 'Y':
-
-            # length_of_list = len(spectrogram_list[0])
-            # for i in range(len(spectrogram_list[0])):
-            #     spectrogram_list[i] = spectrogram_list[i].numpy()
-            #     classified_points_list = bf_obj.classify_subset(spectrogram_list[i], bci, eci)
-            #     first_hi = None
-            #     k = 0
-            #     for point in classified_points_list:
-            #         if point:
-            #             first_hi = k
-            #             break
-            #         k += 1
-            #     spectrogram_list[i] = spectrogram_list[i][:, first_hi:]
-
             i = 0
             for index, spect in enumerate(spectrogram_list):
                 spect = spect.numpy()
@@ -126,10 +118,16 @@ def cutoff_kmeans_spectrograms(bf_obj, bci, eci):
                 bf_obj.label_to_spectrogram[sound_type][index] = spect[:, first_hi:]
 
 
+def export_all_sounds(sound_objects_list):
+    # simple function that calls save for each sound file in a list of sound objects.
+    for sound in sound_objects_list:
+        sound.save()
+
+
 if __name__ == '__main__':
     begin_time = t.time()
 
-    data_dir = './wav-files-and-annotations-1/'
+    data_dir = './wav-files-and-annotations/'
     csvs_and_wav = sa.load_csv_and_wav_files_from_directory(data_dir)
 
     beetle_files = {}
@@ -139,6 +137,7 @@ if __name__ == '__main__':
         beetle_files[filename] = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram)
 
     sounds = split_train_test(beetle_files, file_wise=False, k_means_cutoff=True)
+    export_all_sounds(sounds)
 
     end_time = t.time()
     print('Elapsed time is %f seconds.' % (end_time - begin_time))
