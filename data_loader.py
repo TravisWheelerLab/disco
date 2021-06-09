@@ -28,10 +28,9 @@ class Sound:
         # read in by the neural network
         if isinstance(self.spectrogram_clip, torch.Tensor):
             self.spectrogram_clip = self.spectrogram_clip.numpy()
-        arr = np.array([1, 2, 3, 4, 5])
         np.save(
             os.path.join(self.dataset + "/spect", self.sound_type + "." + self.file_name + "." + str(self.unix_time)),
-            arr)
+            self.spectrogram_clip)
 
 
 def split_train_test(beetle_files_dict, train_pct=80, file_wise=False, k_means_cutoff=False, bci=45, eci=65):
@@ -104,7 +103,6 @@ def cutoff_kmeans_spectrograms(bf_obj, bci, eci):
 
     for sound_type, spectrogram_list in bf_obj.label_to_spectrogram.items():
         if sound_type != 'X' or 'Y':
-            i = 0
             for index, spect in enumerate(spectrogram_list):
                 spect = spect.numpy()
                 classified_points_list = bf_obj.classify_subset(spect, bci, eci)
