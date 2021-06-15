@@ -2,8 +2,7 @@ from glob import glob
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-from collections import defaultdict
-
+from collections import defaultdict, OrderedDict
 
 class SpectrogramDataset:
     def __init__(self,
@@ -26,7 +25,8 @@ class SpectrogramDataset:
                 class_counter[label] += 1
                 max_length = min(max_length, spect.shape[1])
                 spectrograms_list.append([label, spect])
-        return spectrograms_list, max_length, class_counter
+        sorted_class_counter = OrderedDict(sorted(class_counter.items()))
+        return spectrograms_list, max_length, sorted_class_counter
 
     def __getitem__(self, idx):
         label = self.spectrograms_list[idx][0]
