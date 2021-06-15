@@ -86,6 +86,7 @@ def split_examplewise(beetle_files_dict, train_pct, cutoff, bci, eci):
         for sound_type, spectrogram_list in beetlefile_object.label_to_spectrogram.items():
             for example in spectrogram_list:
                 sound_objects.append(Sound(sound_type, file, example, t.time()))
+        print(file, "done appending.")
     random.shuffle(sound_objects)
     test_data_cutoff = round(len(sound_objects) * (100 - train_pct) / 100)
     for example_index in range(test_data_cutoff):
@@ -102,7 +103,7 @@ def cutoff_kmeans_spectrograms(bf_obj, bci, eci):
     bf_obj.fit_kmeans_subset(sound_types, 2, bci, eci)
 
     for sound_type, spectrogram_list in bf_obj.label_to_spectrogram.items():
-        if sound_type != 'X' or 'Y':
+        if sound_type != 'X' or 'Y' or 'C':
             for index, spect in enumerate(spectrogram_list):
                 spect = spect.numpy()
                 classified_points_list = bf_obj.classify_subset(spect, bci, eci)
@@ -127,12 +128,14 @@ if __name__ == '__main__':
 
     data_dir = './wav-files-and-annotations/'
     csvs_and_wav = sa.load_csv_and_wav_files_from_directory(data_dir)
+    print("csvs and wav files loaded in.")
 
     beetle_files = {}
 
     for filename, (wav, csv) in csvs_and_wav.items():
         spectrogram, label_to_spectrogram = sa.process_wav_file(wav, csv)
         beetle_files[filename] = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram)
+        print(filename, "done processing.")
 
     sounds = split_train_test(beetle_files, file_wise=False, k_means_cutoff=True)
     export_all_sounds(sounds)
