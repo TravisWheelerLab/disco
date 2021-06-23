@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="Stylesheet" type="text/css" href="../../style.css">
+<title>training-models-and-making-a-fcnn</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+<p>
+<span id="-Tasks for kayla for the next week"></span><strong id="Tasks for kayla for the next week">Tasks for kayla for the next week</strong>
+</p>
+
+<div id="Concrete Todo"><h3 id="Concrete Todo" class="header"><a href="#Concrete Todo">Concrete Todo</a></h3></div>
+
+<ul>
+<li>
+Make histograms of spectrogram lengths for test/train/valid, send them to
+      Tommy
+
+<li>
+Implement architecture (FCNN) <span id="Concrete Todo-priority"></span><strong id="priority">priority</strong> (don't create the model all at
+      once, debug it layer by layer)
+
+<li>
+Make column-wise labels (instead of labels being a single number, make
+      them a vector of the same number) <span id="Concrete Todo-priority"></span><strong id="priority">priority</strong>
+
+<li>
+Read/watch the papers and videos if you want
+
+<li>
+Figure out some metrics we can use to quantify classification accuracy in
+      general
+
+<li>
+Think about how to quantify confidence in prediction (using a model
+      ensemble)
+
+<li>
+Think about how we'll use the NN to bootstrap labels (make a little app
+      once we've got predictions from our FCNN).
+
+</ul>
+
+
+<p>
+<span id="Concrete Todo-Determining much data we have and if we need more data"></span><strong id="Determining much data we have and if we need more data">Determining much data we have and if we need more data</strong>
+</p>
+
+<p>
+Currently we oversample by getting length 40 sequences. Is this enough data?
+Let's look at a histogram of train lengths to see if this will be enough.
+</p>
+
+<p>
+We have 1334 train examples (histogram of lengths
+<a href="/Users/mac/Dropbox/notebook/beetle-songs/2021-06-23/histogram-of-train-lengths.png">here</a>).
+</p>
+
+<p>
+There is plenty of data to train a good model, especially if we sample
+overlapping chunks of 40 from each spectrogram. However, this assumes that
+chirps have a relatively constant non-time-dependent signal across their length
+(which we know is not true for C chirps).
+</p>
+
+<p>
+<span id="Concrete Todo-Model improvements"></span><strong id="Model improvements">Model improvements</strong>
+</p>
+
+<p>
+Currently, the model is only giving us a single classification for a given
+length 40 sequence. This would be very slow if we had to apply it across a whole
+image, since we'd need to slice the image into overlapping chunks of 40 and run
+the model on each chunk (actually, I'm interested to see how this performs...).
+</p>
+
+<p>
+To get around this, we need to change the model architecture and labels such
+that we can predict a single label for a entire column in a spectrogram. This
+will require a 'fully-convolutional neural network'. 
+</p>
+
+<p>
+<span id="Concrete Todo-Read this"></span><strong id="Read this">Read this</strong>
+FCNNs, Long and Shelhamer: <a href="https://arxiv.org/abs/1411.4038">https://arxiv.org/abs/1411.4038</a>
+UNet: <a href="https://arxiv.org/abs/1505.04597">https://arxiv.org/abs/1505.04597</a> Possibly read U-Time (it's a paper), and
+think about how we can apply similar concepts to this problem (the Utime paper
+is in the group chat w/ Travis, kayla, and Tommy).
+</p>
+
+<p>
+<span id="Concrete Todo-&amp; possibly watch this"></span><strong id="&amp; possibly watch this">&amp; possibly watch this</strong>
+Lecture 13 from Andrej Karpathy
+Lecture 7 from Andrej Karpathy
+</p>
+
+<p>
+<span id="Concrete Todo-Pseudocode for the improved model"></span><strong id="Pseudocode for the improved model">Pseudocode for the improved model</strong>
+</p>
+
+<p>
+What we need to do is take an image (size <a href="1xHxL.html">1xHxL</a>), and convert it to predictions
+of size L.
+</p>
+
+<pre python>
+
+conv2d() 1xHxL
+conv2d() 1xHxL 1xHxL
+conv2d() 1xHxL
+maxPoolAlongColumnDimension() 1xH//2xL
+conv2d() 1xH//2xL
+conv2d() 1xH//2xL
+conv2d() 1xH//2xL
+conv2d() 1xH//2xL
+
+globalPoolAlongColumnDimension() 1x1xL # (maybe a max or an average or something)
+# (or a sum or something to reduce the number of rows to 1)
+# finally, 
+output = conv2d() 3x1xL # 3 classes, one row for each class prediction.
+</pre>
+
+</body>
+</html>

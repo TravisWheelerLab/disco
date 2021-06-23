@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="Stylesheet" type="text/css" href="../../style.css">
+<title>setting-up-a-platform-for-remote-development</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+<p>
+<span id="-in person!"></span><strong id="in person!">in person!</strong>
+</p>
+
+<div id="PyCharm"><h2 id="PyCharm" class="header"><a href="#PyCharm">PyCharm</a></h2></div>
+<p>
+We downloaded pycharm professional with a student license.
+</p>
+
+<p>
+Then, we followed the steps on
+<a href="https://stackoverflow.com/questions/32211813/pycharm-remote-development">https://stackoverflow.com/questions/32211813/pycharm-remote-development</a> to get
+pycharm connected to bioinfo and gscc.
+</p>
+
+<p>
+Kayla's password for bioinfo: beetles
+Kayla's password for gscc: netid password
+</p>
+
+<div id="running files on bioinfo"><h2 id="running files on bioinfo" class="header"><a href="#running files on bioinfo">running files on bioinfo</a></h2></div>
+
+<ul>
+<li>
+open up a mac terminal, and ssh into bioinfo
+
+<li>
+cd into the beetles/ directory
+
+<li>
+<span id="running files on bioinfo-make sure the relevant files are uploaded with PyCharm"></span><strong id="make sure the relevant files are uploaded with PyCharm">make sure the relevant files are uploaded with PyCharm</strong>
+
+<li>
+If you get errors, make absolute paths relative, and make sure they're the
+  right ones for the remote machine
+
+<li>
+make sure the (base) environment is activated on bioinfo
+
+<li>
+run your code with ''python &lt;my-code-here&gt;''
+
+</ul>
+
+
+<div id="GSCC Cheatsheet"><h2 id="GSCC Cheatsheet" class="header"><a href="#GSCC Cheatsheet">GSCC Cheatsheet</a></h2></div>
+
+<ul>
+<li>
+Logging in: ssh &lt;netid&gt;@login.gscc.umt.edu
+
+<li>
+Setting up passwordless authentication with ssh keys
+
+<ul>
+<li>
+ssh-copy-id [remote_username]@[server_ip_address] (we did this)
+
+</ul>
+<li>
+<span class="todo">TODO</span>: get a job running after data has been extracted
+
+</ul>
+
+</body>
+</html>
