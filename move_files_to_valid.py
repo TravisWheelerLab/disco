@@ -3,6 +3,8 @@ import os
 
 from random import shuffle
 
+# this script moves half of our test data files to a validation directory.
+
 go = False
 
 files = glob(os.path.join('./test_data/spect', "*npy"))
