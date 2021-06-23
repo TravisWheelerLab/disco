@@ -11,7 +11,6 @@ from collections import defaultdict
 from glob import glob
 from sklearn.cluster import KMeans
 
-
 class BeetleFile:
 
     def __init__(self,
@@ -133,7 +132,7 @@ def w2s_idx(idx, hop_length):
     return idx // hop_length
 
 
-def create_label_to_spectrogram(spect, labels):
+def create_label_to_spectrogram(spect, labels, hop_length):
     # takes in a specific spectrogram dictated by process_wav_file and returns a dictionary with a key as
     # a song type and a list of tensors of those spectrograms as a value. e.g.:
     # len(label_to_spectrogram['A']) = 49 (number of sounds of this subtype)
@@ -144,10 +143,10 @@ def create_label_to_spectrogram(spect, labels):
     # The defaultdict in contrast will simply create any items that you try to access (provided they do not exist yet).
     label_to_spectrograms = defaultdict(list)
     for _, row in labels.iterrows():
-        bi = w2s_idx(int(row['begin idx']), hop_length=200)  # waveform index to spectrogram index conversion
-        ei = w2s_idx(int(row['end idx']), hop_length=200)
-        label_to_spectrograms[row['Sound_Type']].append(spect[0, :, bi:ei])
-
+        bi = w2s_idx(int(row['begin idx']), hop_length)  # waveform index to spectrogram index conversion
+        ei = w2s_idx(int(row['end idx']), hop_length)
+        label_to_spectrograms[row['Sound_Type']].append(spect[0, 15:, bi:ei])
+    print("labels appended")
     return label_to_spectrograms
 
 
@@ -160,10 +159,13 @@ def process_wav_file(wav_filename, csv_filename):
     labels['end idx'] = convert_time_to_index(labels['End Time (s)'], sample_rate)
 
     # creates a spectrogram with a log2 transform
-    spect = torchaudio.transforms.MelSpectrogram(sample_rate)(waveform).log2()
+    hop_length = 200
+    print("Creating spectrogram for", wav_filename)
+    spect = torchaudio.transforms.MelSpectrogram(sample_rate, n_fft=1600, hop_length=hop_length)(waveform).log2()
+    print("Full spectrogram created for", wav_filename)
 
     # dictionary containing all pre-labeled chirps and their associated spectrograms
-    label_to_spectrograms = create_label_to_spectrogram(spect, labels)
+    label_to_spectrograms = create_label_to_spectrogram(spect, labels, hop_length=hop_length)
 
     return spect.numpy(), label_to_spectrograms
 
@@ -175,8 +177,6 @@ def fit_kmeans(spect, begin_cutoff_idx, end_cutoff_idx, n_clusters=2):
 
 
 if __name__ == '__main__':
-    CLASS_KEYS = ['X', 'Y', 'A', 'B']
-    BINARY_CMAP = matplotlib.colors.ListedColormap(['blue', 'red'])
 
     data_dir = './wav-files-and-annotations-1/'
     csvs_and_wav = load_csv_and_wav_files_from_directory(data_dir)
@@ -186,11 +186,8 @@ if __name__ == '__main__':
     for filename, (wav, csv) in csvs_and_wav.items():
         spectrogram, label_to_spectrogram = process_wav_file(wav, csv)
         beetle_files[filename] = BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram)
-
-    chosen_file = '2_M12F31_8_24'
-    bf = beetle_files[chosen_file] # creates beetle file object
-    bci = 35  # begin cutoff index
-    eci = 45  # end cutoff index
-
-    bf.fit_kmeans_subset(['A', 'B'], 2, bci, eci)  # fit 2 kmeans on slice of data, using A and B
-    print(bf.k_subset.cluster_centers_)
+    print(beetle_files.keys())
+    chosen_file = 'trial24_M9_F73_062520'
+    bf = beetle_files[chosen_file]
+    plt.imshow(bf.random_sample_from_class('C'))
+    plt.show()
