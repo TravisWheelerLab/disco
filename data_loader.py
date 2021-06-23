@@ -33,6 +33,42 @@ class Sound:
             self.spectrogram_clip)
 
 
+def offload_data(csvs_and_wav_files, file_wise=False, classes_excluded=[], cutoff=True, train_pct=80):
+    # this function ensures that the function saving these files (offload) has the correct information about where each
+    # sound from each file goes.
+    test_set_marker = determine_filewise_locations(csvs_and_wav_files.keys(), train_pct)
+
+    idx_test_arr = 0
+    for filename, (wav, csv) in csvs_and_wav.items():
+        spectrogram, label_to_spectrogram = sa.process_wav_file(wav, csv)
+        file = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram)
+        if cutoff and file != '1_M14F15_8_7':
+            cutoff_kmeans_spectrograms(file)
+        if file_wise:
+            if test_set_marker[idx_test_arr]:
+                data_set = "test_data"
+            else:
+                data_set = "train_data"
+        else:
+            data_set = None
+        offload(file, file_wise, classes_excluded=classes_excluded, train_pct=train_pct, data_set=data_set)
+        print(filename, "done processing.")
+        idx_test_arr += 1
+
+
+def determine_filewise_locations(filenames, train_pct):
+    # if filewise, creates a boolean array that determines which file(s) will be test/train.
+    test_set_marker = []
+    n_test_files = max(1, math.floor((1 - train_pct / 100) * len(csvs_and_wav.keys())))
+    for i in range(len(filenames)):
+        if i < n_test_files:
+            test_set_marker.append(True)
+        else:
+            test_set_marker.append(False)
+    random.shuffle(test_set_marker)
+    return test_set_marker
+
+
 def cutoff_kmeans_spectrograms(bf_obj, bci=45, eci=65):
     # locates the first spectrogram column of high intensity in a given spectrogram using 2-means clustering
     # and clips the spectrogram at that spot. This removes the milliseconds of human error background at the beginning
@@ -53,12 +89,6 @@ def cutoff_kmeans_spectrograms(bf_obj, bci=45, eci=65):
                         break
                     k += 1
                 bf_obj.label_to_spectrogram[sound_type][index] = spect[:, first_hi:]
-
-
-def save_all_sounds(sound_objects_list):
-    # simple function that calls save for each sound file in a list of sound objects.
-    for sound in sound_objects_list:
-        sound.save()
 
 
 def offload(beetle_object, file_wise, classes_excluded, train_pct, data_set):
@@ -86,40 +116,10 @@ def offload(beetle_object, file_wise, classes_excluded, train_pct, data_set):
     save_all_sounds(sound_objects)
 
 
-def determine_filewise_locations(filenames, train_pct):
-    # if filewise, creates a boolean array that determines which file(s) will be test/train.
-    test_set_marker = []
-    n_test_files = max(1, math.floor((1 - train_pct / 100) * len(csvs_and_wav.keys())))
-    for i in range(len(filenames)):
-        if i < n_test_files:
-            test_set_marker.append(True)
-        else:
-            test_set_marker.append(False)
-    random.shuffle(test_set_marker)
-    return test_set_marker
-
-
-def offload_data(csvs_and_wav_files, file_wise=False, classes_excluded=[], cutoff=True, train_pct=80):
-    # this function ensures that the function saving these files (offload) has the correct information about where each
-    # sound from each file goes.
-    test_set_marker = determine_filewise_locations(csvs_and_wav_files.keys(), train_pct)
-
-    idx_test_arr = 0
-    for filename, (wav, csv) in csvs_and_wav.items():
-        spectrogram, label_to_spectrogram = sa.process_wav_file(wav, csv)
-        file = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram)
-        if cutoff and file != '1_M14F15_8_7':
-            cutoff_kmeans_spectrograms(file)
-        if file_wise:
-            if test_set_marker[idx_test_arr]:
-                data_set = "test_data"
-            else:
-                data_set = "train_data"
-        else:
-            data_set = None
-        offload(file, file_wise, classes_excluded=classes_excluded, train_pct=train_pct, data_set=data_set)
-        print(filename, "done processing.")
-        idx_test_arr += 1
+def save_all_sounds(sound_objects_list):
+    # simple function that calls save for each sound file in a list of sound objects.
+    for sound in sound_objects_list:
+        sound.save()
 
 
 if __name__ == '__main__':
