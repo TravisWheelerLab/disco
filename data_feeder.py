@@ -47,9 +47,9 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         spect = self.spectrograms_list[idx][1]
         num_col = spect.shape[1]
         random_index = round(random.uniform(0, num_col - self.max_spec_length))
-        # breakpoint()
-        return torch.tensor(spect[:, random_index:random_index + self.max_spec_length]).unsqueeze(0), torch.tensor(
-            LABEL_TO_INDEX[label])
+        spect_slice = torch.tensor(spect[:, random_index:random_index + self.max_spec_length]).unsqueeze(0)
+        label_tensor = torch.tensor(np.repeat(a=LABEL_TO_INDEX[label], repeats=self.max_spec_length))
+        return spect_slice, label_tensor
 
     def __len__(self):
         return len(self.spectrograms_list)
@@ -69,4 +69,3 @@ if __name__ == '__main__':
     train_data = SpectrogramDataset(directory_name="train_data")
     train_data.generate_bar_chart()
     print(len(train_data))
-    print(train_data[1])
