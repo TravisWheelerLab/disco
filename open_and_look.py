@@ -3,8 +3,6 @@ import os
 import matplotlib.pyplot as plt
 from glob import glob
 
-# this function offloads spectrograms from a given root directory as images into a given folder
-# for viewing remotely plotted images.
 
 if __name__ == '__main__':
     target = 'A'
@@ -21,5 +19,4 @@ if __name__ == '__main__':
         plt.imshow(arr[:, 35:])
         plt.show()
         i += 1
-
         plt.savefig('image_offload/'+target+str(i)+'.png')
