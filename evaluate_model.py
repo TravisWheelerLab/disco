@@ -11,6 +11,20 @@ import matplotlib
 
 INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
 
+
+def save_sample(i, spectrogram, predicted_classes):
+    plt.imshow(spectrogram.numpy().squeeze())
+    plt.scatter(np.arange(len(predicted_classes.squeeze())),
+                np.asarray(predicted_classes[:]).squeeze(),
+                c=predicted_classes.squeeze(),
+                cmap='rainbow',
+                s=3)
+    plt.colorbar()
+    plt.savefig('image_offload/' + 'prediction' + str(i) + '.png')
+    plt.close()
+    print(i, "saved.")
+
+
 if __name__ == '__main__':
 
     spectrograms_list = []
@@ -32,6 +46,10 @@ if __name__ == '__main__':
 
     cmap = matplotlib.colors.ListedColormap(['hotpink', 'orange', 'aquamarine'])
 
+    save_spect_image_samples = True
+
+    conf_mt = torch.zeros(3, 3, dtype=torch.int64)
+
     with torch.no_grad():
         # 1. convert spectrograms for evaluation into torch tensors
         # 2. load the saved model with torch.load (oh I did that)
@@ -41,16 +59,9 @@ if __name__ == '__main__':
             data, target = data.to(device), target.to(device)
             output = model(data)
             pred = output.argmax(dim=1, keepdim=False)  # get the index of the max log-probability
-            correct = torch.sum(pred == target)
-            total = torch.numel(target)
-            title = i
-            plt.imshow(data.numpy().squeeze())
-            plt.scatter(np.arange(len(pred.squeeze())), np.asarray(pred[:]).squeeze(), c=pred.squeeze(), cmap='rainbow', s=3)
-            plt.colorbar()
-            plt.savefig('image_offload/' + 'prediction' + str(title) + '.png')
-            plt.close()
-            print('prediction:', pred)
-            print(title, "saved.")
-            if i == 15:
-                break
+            if i < 15 and save_spect_image_samples:
+                save_sample(i, data, pred)
             i += 1
+
+            stacked = torch.stack((target, pred), dim=1)
+            # breakpoint()
