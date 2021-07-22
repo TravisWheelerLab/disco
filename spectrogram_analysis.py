@@ -5,7 +5,6 @@ import pandas as pd
 import torch
 import torchaudio
 import matplotlib.pyplot as plt
-import matplotlib.colors
 
 from collections import defaultdict
 from glob import glob
@@ -78,6 +77,16 @@ class BeetleFile:
         ax1.hist(np.sum(a, axis=0), bins=75, histtype='step', color='r', label=' and '.join(keys_to_plot))
         ax1.legend()
         ax.legend(loc='upper left')
+        plt.show()
+
+    def plot_subclass_histogram(self, keys_to_plot, begin_cutoff_idx=None, end_cutoff_idx=None):
+        labeled_data_from_keys = []
+        for key in keys_to_plot:
+            x = [k[begin_cutoff_idx:end_cutoff_idx] for k in self.label_to_spectrogram[key]]
+            labeled_data_from_keys.extend(x)
+        a = np.column_stack(labeled_data_from_keys)
+        a_and_b = np.sum(a, axis=0)
+        plt.hist(a_and_b, bins=50, histtype='step', color='r')
         plt.show()
 
     def classify(self, spectrogram, begin_cutoff_idx, end_cutoff_idx):
@@ -178,16 +187,25 @@ def fit_kmeans(spect, begin_cutoff_idx, end_cutoff_idx, n_clusters=2):
 
 if __name__ == '__main__':
 
-    data_dir = './wav-files-and-annotations-1/'
+    data_dir = './wav-files-and-annotations/'
     csvs_and_wav = load_csv_and_wav_files_from_directory(data_dir)
 
     beetle_files = {}
-
+    i = 0
+    plt.style.use("dark_background")
     for filename, (wav, csv) in csvs_and_wav.items():
-        spectrogram, label_to_spectrogram = process_wav_file(wav, csv)
-        beetle_files[filename] = BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram)
-    print(beetle_files.keys())
-    chosen_file = 'trial24_M9_F73_062520'
-    bf = beetle_files[chosen_file]
-    plt.imshow(bf.random_sample_from_class('C'))
-    plt.show()
+        if i == 1:
+            spectrogram, label_to_spectrogram = process_wav_file(wav, csv)
+            beetle_files[filename] = BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram)
+            bf = beetle_files[filename]
+            sounds_list = ['Y']
+            for j in range(4):
+                for sound_type in sounds_list:
+                    if sound_type in bf.label_to_spectrogram.keys():
+                        plt.imshow(bf.label_to_spectrogram[sound_type][j])
+                        title = sound_type + str(j)
+                        plt.title(title)
+                        plt.show()
+                        plt.savefig('image_offload/' + title + '_1600' + '.png')
+                        print(title, "saved.")
+        i += 1
