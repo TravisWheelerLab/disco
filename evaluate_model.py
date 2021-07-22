@@ -36,21 +36,21 @@ if __name__ == '__main__':
         # 1. convert spectrograms for evaluation into torch tensors
         # 2. load the saved model with torch.load (oh I did that)
         # 3. get predictions with model(spectrogram)
-        i = 1
+        i = 0
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
-            breakpoint()
             output = model(data)
-            breakpoint()
             pred = output.argmax(dim=1, keepdim=False)  # get the index of the max log-probability
             correct = torch.sum(pred == target)
             total = torch.numel(target)
-            title = random.randint(0, 1000)
+            title = i
             plt.imshow(data.numpy().squeeze())
-            breakpoint()
-            plt.scatter(np.arange(len(pred.squeeze())), np.asarray(len(pred.squeeze()))+5, c=pred.squeeze(), cmap=cmap, s=3)
+            plt.scatter(np.arange(len(pred.squeeze())), np.asarray(pred[:]).squeeze(), c=pred.squeeze(), cmap='rainbow', s=3)
+            plt.colorbar()
             plt.savefig('image_offload/' + 'prediction' + str(title) + '.png')
+            plt.close()
+            print('prediction:', pred)
             print(title, "saved.")
-            if i == 2:
+            if i == 15:
                 break
             i += 1
