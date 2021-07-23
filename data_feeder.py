@@ -15,10 +15,12 @@ class SpectrogramDataset(torch.utils.data.Dataset):
     def __init__(self,
                  directory_name,
                  max_spec_length=40,
-                 filtered_sounds=['C', 'Y']):
+                 filtered_sounds=['C', 'Y'],
+                 clip_spects=True):
         self.directory_name = directory_name
         self.max_spec_length = max_spec_length
         self.filtered_sounds = filtered_sounds
+        self.clip_spects = clip_spects
         # spectrograms_list[i][0] is the label, [i][1] is the spect.
         self.spectrograms_list, self.unique_labels = self.load_in_all_files(self.directory_name, self.filtered_sounds)
 
@@ -26,7 +28,7 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         # saves spectrograms into a list and creates a sorted dictionary (sorted_class_counter) of the counts of each
         # sound class, which is mainly meant for creating the bar chart. also ensures filtering of unwanted labels.
         spectrograms_list = []
-        root = './' + directory_name + "/spect"
+        root = './' + directory_name + '/spect'
         # root = os.path.join(directory_name, 'spect')
         files = glob(os.path.join(root, "*"))
         class_counter = defaultdict(int)
@@ -47,8 +49,12 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         spect = self.spectrograms_list[idx][1]
         num_col = spect.shape[1]
         random_index = round(random.uniform(0, num_col - self.max_spec_length))
-        spect_slice = torch.tensor(spect[:, random_index:random_index + self.max_spec_length]).unsqueeze(0)
-        label_tensor = torch.tensor(np.repeat(a=LABEL_TO_INDEX[label], repeats=self.max_spec_length))
+        if self.clip_spects:
+            spect_slice = torch.tensor(spect[:, random_index:random_index + self.max_spec_length]).unsqueeze(0)
+            label_tensor = torch.tensor(np.repeat(a=LABEL_TO_INDEX[label], repeats=self.max_spec_length))
+        else:
+            spect_slice = torch.tensor(spect).unsqueeze(0)
+            label_tensor = torch.tensor(np.repeat(a=LABEL_TO_INDEX[label], repeats=len(spect[1])))
         return spect_slice, label_tensor
 
     def __len__(self):
@@ -66,6 +72,8 @@ class SpectrogramDataset(torch.utils.data.Dataset):
 
 
 if __name__ == '__main__':
-    train_data = SpectrogramDataset(directory_name="train_data")
+    train_data = SpectrogramDataset(directory_name="train_data", clip_spects=False)
     train_data.generate_bar_chart()
     print(len(train_data))
+    print(train_data[25])
+    print('spect size:', train_data[25][0].shape)
