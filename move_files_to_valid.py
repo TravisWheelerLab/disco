@@ -3,9 +3,7 @@ import os
 
 from random import shuffle
 
-# this script moves half of our test data files to a validation directory.
-
-go = False
+# this script moves half of the test data files to a validation directory.
 
 files = glob(os.path.join('./test_data/spect', "*npy"))
 shuffle(files)
@@ -17,5 +15,5 @@ for uid in ['X', 'A', 'B']:
     for valid in valid_set:
         out_filename = os.path.join('validation_data/spect/', os.path.basename(valid))
         print(valid, out_filename)
-        if go:
-            os.rename(valid, out_filename)
+        os.rename(valid, out_filename)
+        print(valid + ' moved.')
