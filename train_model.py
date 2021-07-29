@@ -1,16 +1,46 @@
-import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import pdb
 from data_feeder import SpectrogramDataset
+import confusion_matrix as cm
+
+
+class CNN1D(nn.Module):
+
+    def __init__(self):
+        super(CNN1D, self).__init__()
+        self.conv1 = nn.Conv1d(in_channels=201, out_channels=256, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv1d(256, 512, 3, padding=1)
+        self.conv3 = nn.Conv1d(512, 512, 3, padding=1)
+        self.conv4 = nn.Conv1d(512, 1024, 3, padding=1)
+        self.conv5 = nn.Conv1d(1024, 512, 1, padding=0)
+        self.conv6 = nn.Conv1d(512, 512, 3, padding=1)
+        self.conv7 = nn.Conv1d(512, 256, 3, padding=1)
+        self.conv8 = nn.Conv1d(in_channels=1024, out_channels=32, kernel_size=1, padding=0)
+        self.conv9 = nn.Conv1d(in_channels=32, out_channels=3, kernel_size=1, padding=0)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = self.conv4(x)
+        x = F.relu(x)
+        x = self.conv8(x)
+        x = F.relu(x)
+        x = self.conv9(x)
+        # todo: add one more conv before output. it is 1d.
+        output = F.log_softmax(x, dim=1)
+        return output
 
 
 class FCNNSmaller(nn.Module):
 
     def __init__(self):
-
         super(FCNNSmaller, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(32, 64, 3, padding=1)
@@ -24,22 +54,22 @@ class FCNNSmaller(nn.Module):
         self.conv9 = nn.Conv1d(in_channels=32, out_channels=3, kernel_size=1, padding=0)
 
     def forward(self, x):
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = self.maxPoolColDim(x)
+        x = self.conv4(x)
+        x = torch.mean(x, dim=2)
+        x = self.conv8(x)
+        x = F.relu(x)
+        x = self.conv9(x)
+        # todo: add one more conv before output. it is 1d.
+        output = F.log_softmax(x, dim=1)
+        return output
 
-         x = self.conv1(x)
-         x = F.relu(x)
-         x = self.conv2(x)
-         x = F.relu(x)
-         x = self.conv3(x)
-         x = F.relu(x)
-         x = self.maxPoolColDim(x)
-         x = self.conv4(x)
-         x = torch.mean(x, dim=2)
-         x = self.conv8(x)
-         x = F.relu(x)
-         x = self.conv9(x)
-         # todo: add one more conv before output. it is 1d.
-         output = F.log_softmax(x, dim=1)
-         return output
 
 class FCNN(nn.Module):
 
@@ -136,6 +166,7 @@ def test(model, device, test_loader):
     test_loss = 0
     correct = 0
     total = 0
+    conf_mat = cm.ConfusionMatrix()
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
@@ -143,7 +174,9 @@ def test(model, device, test_loader):
             test_loss += F.nll_loss(output, target, reduction='sum').item()  # sum up batch loss
             pred = output.argmax(dim=1, keepdim=False)  # get the index of the max log-probability
             correct += torch.sum(pred == target)
-
+            total += torch.numel(target)
+            conf_mat.increment(target, pred, device)
+    conf_mat.plot(classes=['A', 'B', 'X'], save_images=False)
 
     test_loss /= len(test_loader.dataset)
 
@@ -152,48 +185,52 @@ def test(model, device, test_loader):
         100. * correct / total))
 
 
+def overfit_on_batch(model, device, data_loader):
+    for b in data_loader:
+        features, labels = b
+        break
+    optim = torch.optim.Adam(model.parameters())
+    features, labels = features.to(device), labels.to(device)
+    for _ in range(10000):
+        optim.zero_grad()
+        logits = model(features)
+        loss = F.nll_loss(logits, labels, reduction='sum')
+        loss.backward()
+        optim.step()
+        preds = logits.argmax(dim=1)
+        correct = torch.sum(preds == labels)
+        total = torch.numel(labels)
+        print('overfit accuracy: {}'.format(correct/total))
+
 def main():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     train_dataset = SpectrogramDataset(directory_name='train_data')
-    test_dataset = SpectrogramDataset(directory_name='test_data')
+    test_dataset = SpectrogramDataset(directory_name='test_data', clip_spects=False)
+    print("datasets loaded in.")
 
-    batch_size = 32
+    batch_size = 256
     shuffle = True
     learning_rate = 1e-4
     epochs = 1000
-    save_model = False
+    save_model = True
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=shuffle)
+    print("dataloaders created.")
 
-    model = FCNN().to(device)
+    model = CNN1D().to(device)
+
+
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-    for batch in train_loader:
-        b = batch
-        break
-    features = b[0].to(device)
-    labels = b[1].to(device)
-    for _ in range(1000):
-
-        optimizer.zero_grad()
-        output = model(features)
-        preds = output.argmax(dim=1)
-        acc = torch.sum(preds == labels)/torch.numel(preds)
-        loss= F.nll_loss(output, labels)
-        loss.backward()
-        optimizer.step()
-        print(acc, loss)
 
     for epoch in range(1, epochs + 1):
         train(model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
 
     if save_model:
-        torch.save(model.state_dict(), "beetles_cnn.pt")
+        torch.save(model.state_dict(), "beetles_cnn_1D_noMel_400.pt")
 
 
 if __name__ == '__main__':
-    save_model = True
     main()
