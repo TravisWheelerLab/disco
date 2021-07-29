@@ -3,9 +3,8 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from collections import defaultdict, OrderedDict
-import random
 import torch
-import pdb
+import spectrogram_analysis as sa
 
 LABEL_TO_INDEX = {'A': 0, 'B': 1, 'X': 2}
 INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
@@ -14,24 +13,26 @@ INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
 class SpectrogramDataset(torch.utils.data.Dataset):
 
     def __init__(self,
-                 directory_name,
+                 dataset_type,
+                 spect_type,
                  max_spec_length=40,
                  filtered_sounds=['C', 'Y'],
                  clip_spects=True):
         self.spect_lengths = defaultdict(list)
-        self.directory_name = directory_name
+        self.dataset_type = dataset_type
+        self.spect_type = spect_type
         self.max_spec_length = max_spec_length
         self.filtered_sounds = filtered_sounds
         self.clip_spects = clip_spects
         # spectrograms_list[i][0] is the label, [i][1] is the spect.
-        self.spectrograms_list, self.unique_labels = self.load_in_all_files(self.directory_name, self.filtered_sounds)
+        self.spectrograms_list, self.unique_labels = self.load_in_all_files(self.dataset_type, self.spect_type,
+                                                                            self.filtered_sounds)
 
-    def load_in_all_files(self, directory_name, filtered_labels):
+    def load_in_all_files(self, dataset_type, spect_type, filtered_labels):
         # saves spectrograms into a list and creates a sorted dictionary (sorted_class_counter) of the counts of each
         # sound class, which is mainly meant for creating the bar chart. also ensures filtering of unwanted labels.
         spectrograms_list = []
-        root = './' + directory_name + '/spect'
-        # root = os.path.join(directory_name, 'spect')
+        root = os.path.join('data', dataset_type, spect_type, 'spect')
         files = glob(os.path.join(root, "*"))
         class_counter = defaultdict(int)
         for filepath in files:
@@ -49,7 +50,6 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         # returns a tuple with [0] the class label and [1] a slice of the spectrogram or the entire image.
         label = self.spectrograms_list[idx][0]
         spect = self.spectrograms_list[idx][1]
-        num_col = spect.shape[1]
         # random_index = round(random.uniform(0, num_col - self.max_spec_length))
         random_index = 0
         if self.clip_spects:
@@ -69,17 +69,17 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         counts = list(self.unique_labels.values())
         plt.style.use("dark_background")
         plt.bar(labels, counts, color='hotpink')
-        plt.title('Bar chart of counts of each class in ' + self.directory_name)
-        plt.savefig('image_offload/' + "bar_chart_" + self.directory_name + '.png')
+        plt.title('Bar chart of counts of each class in ' + self.dataset_type)
+        plt.savefig('image_offload/' + "bar_chart_" + self.dataset_type + '.png')
         plt.close()
 
     def generate_lengths_histograms(self, plotted_sound_types=['A','B','X'], plot_all=True):
         for sound_type in plotted_sound_types:
             plt.style.use("dark_background")
             plt.hist(self.spect_lengths[sound_type], bins=25, color='lightskyblue')
-            plt.title('lengths histogram of ' + sound_type + ' in ' + self.directory_name)
+            plt.title('lengths histogram of ' + sound_type + ' in ' + self.dataset_type)
             plt.show()
-            file_title = 'lengths_histogram_' + sound_type + '_' + self.directory_name + '.png'
+            file_title = 'lengths_histogram_' + sound_type + '_' + self.dataset_type + '.png'
             plt.savefig('image_offload/' + file_title)
             print('saved ' + file_title + '.')
             plt.close()
@@ -91,9 +91,9 @@ class SpectrogramDataset(torch.utils.data.Dataset):
                     all_lengths.append(length)
             plt.style.use("dark_background")
             plt.hist(all_lengths, bins=25, color='aquamarine')
-            plt.title('histogram, all lengths in ' + self.directory_name)
+            plt.title('histogram, all lengths in ' + self.dataset_type)
             plt.show()
-            file_title = 'lengths_histogram_' + 'all_lengths_' + self.directory_name + '.png'
+            file_title = 'lengths_histogram_' + 'all_lengths_' + self.dataset_type + '.png'
             plt.savefig('image_offload/' + file_title)
             print('saved ' + file_title)
             plt.close()
@@ -107,9 +107,16 @@ class SpectrogramDataset(torch.utils.data.Dataset):
 
 
 if __name__ == '__main__':
-    train_data = SpectrogramDataset(directory_name="train_data", clip_spects=False)
+    mel = True
+    log = True
+    n_fft = 1600
+
+    spect_type = sa.form_spectrogram_type(mel, n_fft, log)
+
+    train_data = SpectrogramDataset(dataset_type="train", spect_type=spect_type, clip_spects=False)
     train_data.generate_bar_chart()
+    exit()
     train_data.generate_lengths_histograms()
-    test_data = SpectrogramDataset(directory_name="test_data", clip_spects=False)
+    test_data = SpectrogramDataset(dataset_type="test", spect_type=spect_type, clip_spects=False)
     test_data.generate_bar_chart()
     test_data.generate_lengths_histograms()
