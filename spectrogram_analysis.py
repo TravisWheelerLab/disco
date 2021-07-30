@@ -21,7 +21,8 @@ class BeetleFile:
                  label_to_spectrogram,
                  mel,
                  n_fft,
-                 log):
+                 log,
+                 vert_trim):
         self.name = name
         self.csv_path = csv_path
         self.wav_path = wav_path
@@ -29,7 +30,7 @@ class BeetleFile:
         self.label_to_spectrogram = label_to_spectrogram
         self.k = None
         self.k_subset = None
-        self.spectrogram_type = form_spectrogram_type(mel, n_fft, log)
+        self.spectrogram_type = form_spectrogram_type(mel, n_fft, log, vert_trim)
 
     def __str__(self):
         # returns filename for the beetle object
@@ -116,23 +117,36 @@ class BeetleFile:
     def random_sample_from_entire_spectrogram(self, length_of_sample):
         # takes a random spot on the spectrogram of a given file with a given length
         center = int(np.random.rand() * self.spectrogram.shape[-1])
-        return self.spectrogram[15:, center - length_of_sample // 2:center + length_of_sample // 2]
+        return self.spectrogram[:, center - length_of_sample // 2:center + length_of_sample // 2]
 
 
-def form_spectrogram_type(mel, n_fft, log):
+def form_spectrogram_type(mel, n_fft, log, vert_trim):
     # creates a string to attach to the BeetleFile object that will allow for offloading the files in data_loader
     # to go in the correct directory that matches the type of spectrogram we created.
     directory_location = ''
+
+    # add mel information
     if mel:
         directory_location = directory_location + 'mel_'
     else:
         directory_location = directory_location + 'no_mel_'
+
+    # add logged information
     if log:
         directory_location = directory_location + 'log_'
     else:
         directory_location = directory_location + 'no_log_'
-    directory_location = directory_location + str(n_fft)
+
+    directory_location = directory_location + str(n_fft) + '_'
+
+    # add information about desired vertical cutoff
+    if vert_trim == 0:
+        directory_location = directory_location + 'no_vert_trim'
+    else:
+        directory_location = directory_location + 'vert_trim_' + str(vert_trim)
+
     return directory_location
+
 
 def load_csv_and_wav_files_from_directory(data_dir):
     # takes in a directory String and returns a dictionary with a key as the file label and a value
@@ -160,7 +174,7 @@ def w2s_idx(idx, hop_length):
     return idx // hop_length
 
 
-def create_label_to_spectrogram(spect, labels, hop_length):
+def create_label_to_spectrogram(spect, labels, hop_length, vertical_trim):
     # takes in a specific spectrogram dictated by process_wav_file and returns a dictionary with a key as
     # a song type and a list of tensors of those spectrograms as a value. e.g.:
     # len(label_to_spectrogram['A']) = 49 (number of sounds of this subtype)
@@ -173,12 +187,12 @@ def create_label_to_spectrogram(spect, labels, hop_length):
     for _, row in labels.iterrows():
         bi = w2s_idx(int(row['begin idx']), hop_length)  # waveform index to spectrogram index conversion
         ei = w2s_idx(int(row['end idx']), hop_length)
-        label_to_spectrograms[row['Sound_Type']].append(spect[0, :, bi:ei])
-    print("labels appended")
+        label_to_spectrograms[row['Sound_Type']].append(spect[0, vertical_trim:, bi:ei])
+    print("labels appended to dictionary.")
     return label_to_spectrograms
 
 
-def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, log_spectrogram):
+def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, log_spectrogram, vertical_trim=None):
     # reads the csv into a pandas df called labels, extracts waveform and sample_rate.
     labels = pd.read_csv(csv_filename)
     waveform, sample_rate = torchaudio.load(wav_filename)
@@ -204,7 +218,8 @@ def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, log_spectrogr
     print("Full spectrogram created for", wav_filename)
 
     # dictionary containing all pre-labeled chirps and their associated spectrograms
-    label_to_spectrograms = create_label_to_spectrogram(spect, labels, hop_length=hop_length)
+    label_to_spectrograms = create_label_to_spectrogram(spect, labels, hop_length=hop_length,
+                                                        vertical_trim=vertical_trim)
 
     return spect.numpy(), label_to_spectrograms
 
@@ -215,34 +230,61 @@ def fit_kmeans(spect, begin_cutoff_idx, end_cutoff_idx, n_clusters=2):
     return k
 
 
+def determine_default_vert_trim(mel, log, n_fft):
+    vertical_index = 0
+    if mel:
+        if log:
+            if n_fft >= 1400:
+                vertical_index = 15
+            elif n_fft >= 600:
+                vertical_index = 20
+            else:
+                vertical_index = 35
+        # unsure about what contributes best to accuracy if it is unlogged.
+    else:
+        if log:
+            vertical_index = 5
+    return vertical_index
+
+
 if __name__ == '__main__':
+
+    mel = True
+    log = True
+    n_fft = 1400
+    vert_trim = None
+
+    if vert_trim is None:
+        vert_trim = determine_default_vert_trim(mel, log, n_fft)
 
     data_dir = './wav-files-and-annotations/'
     csvs_and_wav = load_csv_and_wav_files_from_directory(data_dir)
 
     beetle_files = {}
 
-    mel = True
-    log = True
-    n_fft = 1024
-
     i = 0
-    savefig = True
+    savefig = False
     plt.style.use("dark_background")
     for filename, (wav, csv) in csvs_and_wav.items():
         if i == 2:
-            spectrogram, label_to_spectrogram = process_wav_file(wav, csv, n_fft, mel, log)
-            beetle_files[filename] = BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram, mel, n_fft, log)
+            spectrogram, label_to_spectrogram = process_wav_file(wav, csv, n_fft, mel, log, vert_trim)
+            beetle_files[filename] = BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram, mel, n_fft, log,
+                                                vert_trim)
             bf = beetle_files[filename]
             sounds_list = ['A', 'B']
             for j in range(3):
                 for sound_type in sounds_list:
                     if sound_type in bf.label_to_spectrogram.keys():
-                        plt.imshow(bf.label_to_spectrogram[sound_type][j].log2())
+                        if not log:
+                            plt.imshow(bf.label_to_spectrogram[sound_type][j].log2())
+                        else:
+                            plt.imshow(bf.label_to_spectrogram[sound_type][j])
                         title = sound_type + str(j)
                         plt.title(title)
+                        plt.colorbar()
                         plt.show()
                         if savefig:
-                            plt.savefig('image_offload/' + title + '_nonMel' + '_cutoff' + '.png')
+                            plt.savefig('image_offload/' + title + bf.spectrogram_type + '.png')
                         print(title, "saved.")
+                        plt.close()
         i += 1

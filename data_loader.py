@@ -29,20 +29,20 @@ class Sound:
         # read in by the neural network
         if isinstance(self.spectrogram_clip, torch.Tensor):
             self.spectrogram_clip = self.spectrogram_clip.numpy()
-        np.save(
-            os.path.join('data', self.dataset, self.spectrogram_type, "spect", self.sound_type + "." + self.file_name + "." + str(self.unix_time)),
-            self.spectrogram_clip)
+        filename = self.sound_type + '.' + self.file_name + '.' + str(self.unix_time)
+        filepath = os.path.join('data', self.dataset, self.spectrogram_type, 'spect', filename)
+        np.save(filepath, self.spectrogram_clip)
 
 
-def offload_data(csvs_and_wav_files, cutoff, mel, log, n_fft, file_wise=False, classes_excluded=[], train_pct=80):
+def offload_data(csvs_and_wav_files, cutoff, mel, log, n_fft, vert_trim, file_wise=False, classes_excluded=[], train_pct=80):
     # this function ensures that the function saving these files (offload) has the correct information about where each
     # sound from each file goes.
     test_set_marker = determine_filewise_locations(csvs_and_wav_files.keys(), train_pct)
 
     idx_test_arr = 0
     for filename, (wav, csv) in csvs_and_wav.items():
-        spectrogram, label_to_spectrogram = sa.process_wav_file(wav, csv, n_fft, mel, log)
-        file = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram, mel, n_fft, log)
+        spectrogram, label_to_spectrogram = sa.process_wav_file(wav, csv, n_fft, mel, log, vert_trim)
+        file = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram, mel, n_fft, log, vert_trim)
         if cutoff and file != '1_M14F15_8_7':
             cutoff_kmeans_spectrograms(file)
         if file_wise:
@@ -134,15 +134,20 @@ if __name__ == '__main__':
     mel = True
     log = True
     n_fft = 1600
+    vert_trim = None
+
+    if vert_trim is None:
+        vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
 
     data_dir = './wav-files-and-annotations/'
     csvs_and_wav = sa.load_csv_and_wav_files_from_directory(data_dir)
     print("csvs and wav files loaded in.")
 
-    cutoff = False
+    cutoff = True
     print("cutoff 2-means spectrograms has been set to", cutoff)
 
-    offload_data(csvs_and_wav, cutoff=cutoff, mel=mel, log=log, n_fft=n_fft, file_wise=False, classes_excluded=['C', 'Y'])
+    offload_data(csvs_and_wav, cutoff=cutoff, mel=mel, log=log, n_fft=n_fft, vert_trim=vert_trim, file_wise=False,
+                 classes_excluded=['C', 'Y'])
 
     end_time = t.time()
     print('Elapsed time is %f seconds.' % (end_time - begin_time))

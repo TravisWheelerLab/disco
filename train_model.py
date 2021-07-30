@@ -5,20 +5,21 @@ import torch.optim as optim
 import pdb
 from data_feeder import SpectrogramDataset
 import confusion_matrix as cm
+import spectrogram_analysis as sa
 
 
 class CNN1D(nn.Module):
 
     def __init__(self):
         super(CNN1D, self).__init__()
-        self.conv1 = nn.Conv1d(in_channels=201, out_channels=256, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv1d(in_channels=128, out_channels=256, kernel_size=3, padding=1)
         self.conv2 = nn.Conv1d(256, 512, 3, padding=1)
         self.conv3 = nn.Conv1d(512, 512, 3, padding=1)
         self.conv4 = nn.Conv1d(512, 1024, 3, padding=1)
         self.conv5 = nn.Conv1d(1024, 512, 1, padding=0)
         self.conv6 = nn.Conv1d(512, 512, 3, padding=1)
         self.conv7 = nn.Conv1d(512, 256, 3, padding=1)
-        self.conv8 = nn.Conv1d(in_channels=1024, out_channels=32, kernel_size=1, padding=0)
+        self.conv8 = nn.Conv1d(in_channels=256, out_channels=32, kernel_size=1, padding=0)
         self.conv9 = nn.Conv1d(in_channels=32, out_channels=3, kernel_size=1, padding=0)
 
     def forward(self, x):
@@ -29,6 +30,12 @@ class CNN1D(nn.Module):
         x = self.conv3(x)
         x = F.relu(x)
         x = self.conv4(x)
+        x = F.relu(x)
+        x = self.conv5(x)
+        x = F.relu(x)
+        x = self.conv6(x)
+        x = F.relu(x)
+        x = self.conv7(x)
         x = F.relu(x)
         x = self.conv8(x)
         x = F.relu(x)
@@ -176,7 +183,7 @@ def test(model, device, test_loader):
             correct += torch.sum(pred == target)
             total += torch.numel(target)
             conf_mat.increment(target, pred, device)
-    conf_mat.plot(classes=['A', 'B', 'X'], save_images=False)
+    # conf_mat.plot(classes=['A', 'B', 'X'], save_images=False)
 
     test_loss /= len(test_loader.dataset)
 
@@ -203,17 +210,29 @@ def overfit_on_batch(model, device, data_loader):
         print('overfit accuracy: {}'.format(correct/total))
 
 def main():
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    train_dataset = SpectrogramDataset(directory_name='train_data')
-    test_dataset = SpectrogramDataset(directory_name='test_data', clip_spects=False)
-    print("datasets loaded in.")
 
     batch_size = 256
     shuffle = True
     learning_rate = 1e-4
-    epochs = 1000
+    epochs = 130
     save_model = True
+    overfit = False
+    mel = True
+    log = True
+    n_fft = 1600
+    vert_trim = None
+
+    if vert_trim is None:
+        vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
+
+    spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
+
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    train_dataset = SpectrogramDataset(dataset_type='train', spect_type=spect_type)
+    test_dataset = SpectrogramDataset(dataset_type='test', spect_type=spect_type, clip_spects=False)
+    print("datasets loaded in.")
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=shuffle)
@@ -221,6 +240,9 @@ def main():
 
     model = CNN1D().to(device)
 
+    if overfit:
+        overfit_on_batch(model, device, train_loader)
+        exit()
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -229,7 +251,7 @@ def main():
         test(model, device, test_loader)
 
     if save_model:
-        torch.save(model.state_dict(), "beetles_cnn_1D_noMel_400.pt")
+        torch.save(model.state_dict(), 'beetles_cnn_1D_' + spect_type + '.pt')
 
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from collections import defaultdict, OrderedDict
 import torch
+import random
 import spectrogram_analysis as sa
 
 LABEL_TO_INDEX = {'A': 0, 'B': 1, 'X': 2}
@@ -50,8 +51,9 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         # returns a tuple with [0] the class label and [1] a slice of the spectrogram or the entire image.
         label = self.spectrograms_list[idx][0]
         spect = self.spectrograms_list[idx][1]
-        # random_index = round(random.uniform(0, num_col - self.max_spec_length))
-        random_index = 0
+        num_col = len(label)
+        random_index = round(random.uniform(0, num_col - self.max_spec_length))
+        # random_index = 0
         if self.clip_spects:
             spect_slice = torch.tensor(spect[:, random_index:random_index + self.max_spec_length])
             label_tensor = torch.tensor(np.repeat(a=LABEL_TO_INDEX[label], repeats=self.max_spec_length))
@@ -110,12 +112,17 @@ if __name__ == '__main__':
     mel = True
     log = True
     n_fft = 1600
+    vert_trim = None
 
-    spect_type = sa.form_spectrogram_type(mel, n_fft, log)
+    if vert_trim is None:
+        vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
+
+    spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
 
     train_data = SpectrogramDataset(dataset_type="train", spect_type=spect_type, clip_spects=False)
-    train_data.generate_bar_chart()
     exit()
+    train_data.generate_bar_chart()
+
     train_data.generate_lengths_histograms()
     test_data = SpectrogramDataset(dataset_type="test", spect_type=spect_type, clip_spects=False)
     test_data.generate_bar_chart()
