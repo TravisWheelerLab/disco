@@ -25,7 +25,8 @@ if __name__ == '__main__':
         if i > number_of_samples:
             break
         arr = np.load(f)
-        # arr = np.log2(arr)
+        if not log:
+            arr = np.log2(arr)
         plt.imshow(arr)
         plt.colorbar()
         plt.show()
