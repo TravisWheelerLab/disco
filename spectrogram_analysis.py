@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import pandas as pd
+import argparse
 
 import torch
 import torchaudio
@@ -246,13 +247,24 @@ def determine_default_vert_trim(mel, log, n_fft):
             vertical_index = 5
     return vertical_index
 
+def parser():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--mel_scale', required=True, type=bool)
+    ap.add_argument('--log_scale', required=True, type=bool)
+    ap.add_argument('--n_fft', required=True, type=int)
+    ap.add_argument('--vert_trim', required=False, default=None)
+    ap.add_argument('--save_fig', required=True, type=bool)
+    return ap.parse_args()
 
 if __name__ == '__main__':
 
-    mel = True
-    log = True
-    n_fft = 1400
-    vert_trim = None
+    args = parser()
+
+    mel = args.mel_scale
+    log = args.log_scale
+    n_fft = args.n_fft
+    vert_trim = args.vert_trim
+    savefig = args.save_fig
 
     if vert_trim is None:
         vert_trim = determine_default_vert_trim(mel, log, n_fft)
@@ -263,7 +275,6 @@ if __name__ == '__main__':
     beetle_files = {}
 
     i = 0
-    savefig = False
     plt.style.use("dark_background")
     for filename, (wav, csv) in csvs_and_wav.items():
         if i == 2:
@@ -285,6 +296,6 @@ if __name__ == '__main__':
                         plt.show()
                         if savefig:
                             plt.savefig('image_offload/' + title + bf.spectrogram_type + '.png')
-                        print(title, "saved.")
+                            print(title, "saved.")
                         plt.close()
         i += 1
