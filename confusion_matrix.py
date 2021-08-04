@@ -8,18 +8,30 @@ class ConfusionMatrix:
 
     def __init__(self, num_classes=3):
         self.matrix = np.zeros((num_classes, num_classes), dtype=np.int64)
+        self.correct_labels = 0
+        self.total = 0
 
-    def increment(self, target, pred, device):
+    def increment(self, target, pred, device, is_a=False):
+
         # takes in target, the true labels, and pred, the predicted labels, for each time point in a given
         # spectrogram, and maps those labels to their correct places in the confusion matrix.
         if device == 'cuda':
             stacked = torch.stack((target, pred), dim=1).squeeze().cpu().numpy()
         else:
             stacked = torch.stack((target, pred), dim=1).squeeze().numpy()
+
+        if is_a:
+            count_stop_idx = round(target.shape[1]*1/2)
+
         for i in range(stacked.shape[1]):
+            if is_a and i >= count_stop_idx:
+                break
             true_label = stacked[0][i]
             predicted_label = stacked[1][i]
             self.matrix[true_label, predicted_label] += 1
+
+            self.correct_labels += torch.sum(pred == target)
+            self.total += torch.numel(target)
 
     def plot(self, classes, save_images):
         # this function generates and saves images of the three confusion matrices: counts and normalized across
@@ -44,7 +56,6 @@ class ConfusionMatrix:
 
                 plt.imshow(matrices_to_save[matrix_idx], interpolation='nearest', cmap='Blues')
                 plt.title(name)
-                plt.colorbar()
                 tick_marks = np.arange(len(classes))
                 plt.xticks(tick_marks, classes)
                 plt.yticks(tick_marks, classes)
