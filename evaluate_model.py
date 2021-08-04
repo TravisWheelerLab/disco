@@ -35,7 +35,7 @@ def save_sample(image_idx, spectrogram_image, predicted_classes, title=None):
         title = "pre-labeled-sample"
     fig_title = "Index predictions for " + title + " image " + str(image_idx)
     plt.title(fig_title)
-    plt.savefig('image_offload/' + title + str(image_idx) + '.png')
+    plt.savefig('image_offload/' + title + '_' + str(image_idx) + '.png')
     plt.close()
     print(title, image_idx, "saved.")
 
@@ -46,17 +46,21 @@ if __name__ == '__main__':
     # 1. create the confusion matrices
     # 2. predict pre-labeled areas
     # 3. predict random unlabeled areas
-    generate_confusion_matrix = False
+    generate_confusion_matrix = True
     # the next boolean will generally stay false unless it is desired to assess accuracy of pre-labeled sounds
     # generate_confusion_matrix needs to be true for not_in_the_wild predictions to run.
     predict_not_in_the_wild = False
-    predict_in_the_wild = True
+    predict_in_the_wild = False
     num_predictions = 20
     mel = True
     log = True
-    n_fft = 1600
+    n_fft = 800
+    vert_trim = 30
+    modified_a_chirp_assessment = True
 
-    spect_type = sa.form_spectrogram_type(mel, n_fft, log)
+    if vert_trim is None:
+        vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
+    spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
 
     # get data based on the booleans set above
     if generate_confusion_matrix:
@@ -82,14 +86,16 @@ if __name__ == '__main__':
             # generate 12 random samples from wav files
             if i in random_file_indices:
                 spectrogram, label_to_spectrogram = sa.process_wav_file(wav, csv, n_fft, mel, log)
-                random_file = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram, mel, n_fft, log)
+                random_file = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram, mel, n_fft, log,
+                                            vert_trim=vert_trim)
                 for j in range(num_predictions // 2):
-                    spects_list.append([random_file.random_sample_from_entire_spectrogram(300), random_file.name, j])
+                    spects_list.append([random_file.random_sample_from_entire_spectrogram(300, vert_trim),
+                                        random_file.name, j])
                 print("Appended random samples from", random_file.name + '.')
             i += 1
 
     # load in trained model
-    path = "beetles_cnn_1D_mel_log_1600_no_vert_trim.pt"
+    path = "beetles_cnn_1D_mel_log_800_vert_trim_30_325_epochs.pt"
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = tm.CNN1D().to(device)
     model.load_state_dict(torch.load(path, map_location=torch.device(device)))
@@ -106,15 +112,20 @@ if __name__ == '__main__':
                 if i < num_predictions and predict_not_in_the_wild:
                     save_sample(image_idx=i, spectrogram_image=data, predicted_classes=pred)
                 i += 1
-                conf_mat.increment(target, pred, device)
+                count_stop_idx = round(target.shape[1] * 1 / 2)
+                if target[0][0].item() == 0:
+                    conf_mat.increment(target, pred, device, is_a=True)
+                else:
+                    conf_mat.increment(target, pred, device, is_a=False)
+            print('Accuracy:', round(conf_mat.correct_labels.item()/conf_mat.total, 2))
             conf_mat.plot(classes=INDEX_TO_LABEL.values(), save_images=True)
+
         if predict_in_the_wild:
             # Generates predictions from spectrograms "in the wild"
             for spect, file, idx in spects_list:
-                spect = torch.tensor(spect)  #.unsqueeze(0).unsqueeze(0)
-                breakpoint()
+                spect = torch.tensor(spect)
+                spect = spect.unsqueeze(0)
                 spect = spect.to(device)
-                breakpoint()
                 output = model(spect)
                 pred = output.argmax(dim=1, keepdim=False)
                 save_sample(image_idx=idx, spectrogram_image=spect, predicted_classes=pred, title=file)
