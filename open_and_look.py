@@ -13,7 +13,7 @@ def parser():
     ap.add_argument('--mel_scale', required=True, type=bool)
     ap.add_argument('--log_scale', required=True, type=bool)
     ap.add_argument('--n_fft', required=True, type=int)
-    ap.add_argument('--debugger', required=True, type=bool)
+    ap.add_argument('--debugger', required=False, type=bool, default=False)
     ap.add_argument('--vert_trim', required=False, default=None)
     ap.add_argument('--optional_path_argument', required=False, default=None)
     return ap.parse_args()
@@ -23,14 +23,23 @@ if __name__ == '__main__':
 
     args = parser()
 
-    target_sound_type = args.target_sound_type
-    mel = args.mel_scale
-    log = args.log_scale
-    n_fft = args.n_fft
-    vert_trim = args.vert_trim
-    debugger = args.debugger
-    number_of_samples = args.number_of_samples
-    optional_path_argument = args.optional_path_argument
+    # target_sound_type = args.target_sound_type
+    # mel = args.mel_scale
+    # log = args.log_scale
+    # n_fft = args.n_fft
+    # vert_trim = args.vert_trim
+    # debugger = args.debugger
+    # number_of_samples = args.number_of_samples
+    # optional_path_argument = args.optional_path_argument
+
+    target_sound_type = 'A'
+    mel = True
+    log = True
+    n_fft = 800
+    vert_trim = 30
+    debugger = False
+    number_of_samples = 15
+    optional_path_argument = None
 
     if vert_trim is None:
         vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
@@ -62,6 +71,8 @@ if __name__ == '__main__':
             plt.colorbar()
             plt.show()
             i += 1
-            plt.savefig('image_offload/' + target_sound_type + str(i) + '.png')
+            if i == 19:
+                print(f)
+            # plt.savefig('image_offload/' + target_sound_type + str(i) + '.png')
             plt.close()
             print('image', str(i), 'saved to offload directory.')
