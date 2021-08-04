@@ -51,7 +51,7 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         # returns a tuple with [0] the class label and [1] a slice of the spectrogram or the entire image.
         label = self.spectrograms_list[idx][0]
         spect = self.spectrograms_list[idx][1]
-        num_col = len(label)
+        num_col = spect.shape[1]
         random_index = round(random.uniform(0, num_col - self.max_spec_length))
         # random_index = 0
         if self.clip_spects:
