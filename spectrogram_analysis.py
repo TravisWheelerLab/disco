@@ -115,10 +115,10 @@ class BeetleFile:
         random_idx = int(np.random.rand() * len(samp))
         return samp[random_idx]
 
-    def random_sample_from_entire_spectrogram(self, length_of_sample):
+    def random_sample_from_entire_spectrogram(self, length_of_sample, vertical_trim):
         # takes a random spot on the spectrogram of a given file with a given length
         center = int(np.random.rand() * self.spectrogram.shape[-1])
-        return self.spectrogram[:, center - length_of_sample // 2:center + length_of_sample // 2]
+        return self.spectrogram[vertical_trim:, center - length_of_sample // 2:center + length_of_sample // 2]
 
 
 def form_spectrogram_type(mel, n_fft, log, vert_trim):
@@ -247,27 +247,35 @@ def determine_default_vert_trim(mel, log, n_fft):
             vertical_index = 5
     return vertical_index
 
+
 def parser():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--mel_scale', required=True, type=bool)
-    ap.add_argument('--log_scale', required=True, type=bool)
+    ap.add_argument('--mel_scale', action='store_true')
+    ap.add_argument('--log_scale', required=True, action='store_true')
     ap.add_argument('--n_fft', required=True, type=int)
     ap.add_argument('--vert_trim', required=False, default=None)
-    ap.add_argument('--save_fig', required=True, type=bool)
+    ap.add_argument('--save_fig', required=True, action='store_false')
     return ap.parse_args()
+
 
 if __name__ == '__main__':
 
     args = parser()
+    # mel = args.mel_scale
+    # log = args.log_scale
+    # n_fft = args.n_fft
+    # vert_trim = args.vert_trim
+    # savefig = args.save_fig
 
-    mel = args.mel_scale
-    log = args.log_scale
-    n_fft = args.n_fft
-    vert_trim = args.vert_trim
-    savefig = args.save_fig
+    mel = True
+    log = True
+    n_fft = 800
+    vert_trim = 30
+    savefig = False
 
     if vert_trim is None:
         vert_trim = determine_default_vert_trim(mel, log, n_fft)
+        print('vert trim has been set to', vert_trim)
 
     data_dir = './wav-files-and-annotations/'
     csvs_and_wav = load_csv_and_wav_files_from_directory(data_dir)
@@ -277,7 +285,7 @@ if __name__ == '__main__':
     i = 0
     plt.style.use("dark_background")
     for filename, (wav, csv) in csvs_and_wav.items():
-        if i == 2:
+        if i == 3:
             spectrogram, label_to_spectrogram = process_wav_file(wav, csv, n_fft, mel, log, vert_trim)
             beetle_files[filename] = BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram, mel, n_fft, log,
                                                 vert_trim)
