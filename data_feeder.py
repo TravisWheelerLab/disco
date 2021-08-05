@@ -122,6 +122,7 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         spect_size = int(np.floor(lower_bin_edge)) if self.bin_spects else self.max_spec_length
 
         random_index = round(random.uniform(0, num_col - spect_size))
+
         if self.clip_spects:
             spect_slice = torch.tensor(spect[:, random_index:random_index + spect_size])
             label_tensor = torch.tensor(np.repeat(a=LABEL_TO_INDEX[label], repeats=spect_size))
@@ -143,7 +144,12 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         plt.savefig('image_offload/' + "bar_chart_" + self.dataset_type + '.png')
         plt.close()
 
-    def generate_lengths_histograms(self, plotted_sound_types=['A', 'B', 'X'], plot_all=True):
+
+    def generate_lengths_histograms(self, plotted_sound_types=['A','B','X'], plot_all=True):
+        # saves histograms of lengths for each plotted_sound_type or every labeled sound into 'image_offload' directory.
+        if not (plotted_sound_types or plot_all):
+            raise ValueError('No plot requirements given. Designate specific sound types or to plot all types.')
+
         for sound_type in plotted_sound_types:
             plt.style.use("dark_background")
             plt.hist(self.spect_lengths[sound_type], bins=25, color='lightskyblue')
@@ -170,10 +176,6 @@ class SpectrogramDataset(torch.utils.data.Dataset):
 
     def get_unique_labels(self):
         return self.unique_labels.keys()
-
-    def generate_data_graphs(self):
-        self.generate_bar_chart()
-        self.generate_lengths_histograms()
 
 
 if __name__ == '__main__':

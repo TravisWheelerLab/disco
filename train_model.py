@@ -12,7 +12,7 @@ class CNN1D(nn.Module):
 
     def __init__(self):
         super(CNN1D, self).__init__()
-        self.conv1 = nn.Conv1d(in_channels=128, out_channels=256, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv1d(in_channels=98, out_channels=256, kernel_size=3, padding=1)
         self.conv2 = nn.Conv1d(256, 512, 3, padding=1)
         self.conv3 = nn.Conv1d(512, 512, 3, padding=1)
         self.conv4 = nn.Conv1d(512, 1024, 3, padding=1)
@@ -148,8 +148,7 @@ class NetSinglePrediction(nn.Module):
         return output
 
 
-def train(model, device, train_loader, optimizer, epoch,
-          log_interval=2):
+def train(model, device, train_loader, optimizer, epoch, log_interval=2):
     model.train()
     correct = 0
     total = 0
@@ -214,13 +213,13 @@ def main():
     batch_size = 256
     shuffle = True
     learning_rate = 1e-4
-    epochs = 130
+    epochs = 325
     save_model = True
     overfit = False
     mel = True
     log = True
-    n_fft = 1600
-    vert_trim = None
+    n_fft = 800
+    vert_trim = 30
 
     if vert_trim is None:
         vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
@@ -251,8 +250,8 @@ def main():
         test(model, device, test_loader)
 
     if save_model:
-        torch.save(model.state_dict(), 'beetles_cnn_1D_' + spect_type + '.pt')
-
+        torch.save(model.state_dict(), 'beetles_cnn_1D_' + spect_type + '_' + str(epochs) + '_epochs.pt')
+        print('saved model.')
 
 if __name__ == '__main__':
     main()
