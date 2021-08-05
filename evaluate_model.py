@@ -47,6 +47,7 @@ if __name__ == '__main__':
     # 2. predict pre-labeled areas
     # 3. predict random unlabeled areas
     generate_confusion_matrix = True
+    save_confusion_matrix = True
     # the next boolean will generally stay false unless it is desired to assess accuracy of pre-labeled sounds
     # generate_confusion_matrix needs to be true for not_in_the_wild predictions to run.
     predict_not_in_the_wild = False
@@ -56,7 +57,6 @@ if __name__ == '__main__':
     log = True
     n_fft = 800
     vert_trim = 30
-    modified_a_chirp_assessment = True
 
     if vert_trim is None:
         vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
@@ -112,13 +112,15 @@ if __name__ == '__main__':
                 if i < num_predictions and predict_not_in_the_wild:
                     save_sample(image_idx=i, spectrogram_image=data, predicted_classes=pred)
                 i += 1
-                count_stop_idx = round(target.shape[1] * 1 / 2)
-                if target[0][0].item() == 0:
-                    conf_mat.increment(target, pred, device, is_a=True)
-                else:
-                    conf_mat.increment(target, pred, device, is_a=False)
-            print('Accuracy:', round(conf_mat.correct_labels.item()/conf_mat.total, 2))
-            conf_mat.plot(classes=INDEX_TO_LABEL.values(), save_images=True)
+
+                is_a = True if target[0][0].item() == 0 else False
+
+                conf_mat.increment(target, pred, device, is_a)
+
+            print('Uncorrected accuracy:', round(conf_mat.correct.item()/conf_mat.total, 3))
+            print('Corrected accuracy:', round(conf_mat.doctored_correct.item() / conf_mat.doctored_total, 3))
+            conf_mat.plot_matrices(classes=INDEX_TO_LABEL.values(), save_images=save_confusion_matrix,
+                                   plot_undoctored=True, plot_doctored=True)
 
         if predict_in_the_wild:
             # Generates predictions from spectrograms "in the wild"
