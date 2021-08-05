@@ -90,6 +90,8 @@ def cutoff_kmeans_spectrograms(bf_obj, bci=45, eci=65):
                         first_hi = k
                         break
                     k += 1
+                if first_hi >= 2:
+                    first_hi -= 1
                 bf_obj.label_to_spectrogram[sound_type][index] = spect[:, first_hi:]
 
 
@@ -133,8 +135,12 @@ if __name__ == '__main__':
 
     mel = True
     log = True
-    n_fft = 1600
-    vert_trim = None
+    n_fft = 800
+    vert_trim = 30
+    cutoff = True
+    file_wise = False
+
+    print("cutoff 2-means spectrograms has been set to", cutoff)
 
     if vert_trim is None:
         vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
@@ -143,10 +149,7 @@ if __name__ == '__main__':
     csvs_and_wav = sa.load_csv_and_wav_files_from_directory(data_dir)
     print("csvs and wav files loaded in.")
 
-    cutoff = True
-    print("cutoff 2-means spectrograms has been set to", cutoff)
-
-    offload_data(csvs_and_wav, cutoff=cutoff, mel=mel, log=log, n_fft=n_fft, vert_trim=vert_trim, file_wise=False,
+    offload_data(csvs_and_wav, cutoff=cutoff, mel=mel, log=log, n_fft=n_fft, vert_trim=vert_trim, file_wise=file_wise,
                  classes_excluded=['C', 'Y'])
 
     end_time = t.time()
