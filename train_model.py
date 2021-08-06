@@ -7,12 +7,14 @@ from data_feeder import SpectrogramDataset
 import confusion_matrix as cm
 import spectrogram_analysis as sa
 
+from argparse import ArgumentParser
+
 
 class CNN1D(nn.Module):
 
     def __init__(self):
         super(CNN1D, self).__init__()
-        self.conv1 = nn.Conv1d(in_channels=98, out_channels=256, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv1d(in_channels=113, out_channels=256, kernel_size=3, padding=1)
         self.conv2 = nn.Conv1d(256, 512, 3, padding=1)
         self.conv3 = nn.Conv1d(512, 512, 3, padding=1)
         self.conv4 = nn.Conv1d(512, 1024, 3, padding=1)
@@ -208,33 +210,65 @@ def overfit_on_batch(model, device, data_loader):
         total = torch.numel(labels)
         print('overfit accuracy: {}'.format(correct/total))
 
-def main():
+def parser():
 
-    batch_size = 256
-    shuffle = True
-    learning_rate = 1e-4
-    epochs = 325
-    save_model = True
-    overfit = False
-    mel = True
-    log = True
-    n_fft = 800
-    vert_trim = 30
+    ap = ArgumentParser()
+    ap.add_argument('--batch-size', required=True, type=int)
+    ap.add_argument('--shuffle', action='store_true', required=True)
+    ap.add_argument('--learning_rate', type=float, required=True)
+    ap.add_argument('--epochs', type=int, required=True)
+    ap.add_argument('--save_model', action='store_true', required=True)
+    ap.add_argument('--overfit', action='store_true')
+    ap.add_argument('--mel', action='store_true', required=True)
+    ap.add_argument('--log', action='store_true', required=True)
+    ap.add_argument('--n_fft', type=int, required=True)
+    ap.add_argument('--vert_trim', type=int, required=True)
+    ap.add_argument('--bin_spects', action='store_true')
+
+    return ap.parse_args()
+
+
+
+def main(args):
+
+    batch_size = args.batch_size
+    shuffle = args.shuffle
+    learning_rate = args.learning_rate
+    epochs = args.epochs
+    save_model = args.save_model
+    overfit = args.overfit
+    mel = args.mel
+    log = args.log
+    n_fft = args.n_fft
+    vert_trim = args.vert_trim
+    bin_spects = args.bin_spects
 
     if vert_trim is None:
         vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
 
     spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
 
-
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    train_dataset = SpectrogramDataset(dataset_type='train', spect_type=spect_type)
-    test_dataset = SpectrogramDataset(dataset_type='test', spect_type=spect_type, clip_spects=False)
+    train_dataset = SpectrogramDataset(dataset_type='train',
+                                       spect_type=spect_type,
+                                       batch_size=batch_size,
+                                       bin_spects=bin_spects)
+
+    test_dataset = SpectrogramDataset(dataset_type='test',
+                                      spect_type=spect_type,
+                                      clip_spects=False,
+                                      batch_size=batch_size)
     print("datasets loaded in.")
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=shuffle)
+    train_loader = torch.utils.data.DataLoader(train_dataset,
+                                               batch_size=batch_size,
+                                               shuffle=shuffle,
+                                               drop_last=True)
+
+    test_loader = torch.utils.data.DataLoader(test_dataset,
+                                              batch_size=1,
+                                              shuffle=shuffle)
     print("dataloaders created.")
 
     model = CNN1D().to(device)
@@ -247,11 +281,13 @@ def main():
 
     for epoch in range(1, epochs + 1):
         train(model, device, train_loader, optimizer, epoch)
-        test(model, device, test_loader)
+        # test(model, device, test_loader)
 
     if save_model:
         torch.save(model.state_dict(), 'beetles_cnn_1D_' + spect_type + '_' + str(epochs) + '_epochs.pt')
         print('saved model.')
 
+
 if __name__ == '__main__':
-    main()
+    args = parser()
+    main(args)

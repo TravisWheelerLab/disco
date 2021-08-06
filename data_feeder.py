@@ -42,13 +42,16 @@ class SpectrogramDataset(torch.utils.data.Dataset):
             self.clip_spects = True
             self.bin_edges, self.bin_index_to_spectogram_index = self.bin_spectrograms(self.spectrograms_list,
                                                                                        n_bins=n_bins)
+            self.n_bins = len(self.bin_index_to_spectogram_index)
+
             self.global_iter = 0
 
     def bin_spectrograms(self, list_of_spectrograms, n_bins):
         # sort spectrograms by length, then record lower bin edges?
         # TODO: specify bins that are denser in the lower end of the lengths
-        lengths = [x[1].shape[-1] for x in list_of_spectrograms]
-        hist, bin_edges = np.histogram(lengths, bins=100)
+        log_lengths = np.log10([x[1].shape[-1] for x in list_of_spectrograms])
+        hist, bin_edges = np.histogram(log_lengths, bins=n_bins)
+        bin_edges = 10**bin_edges
         bin_edges = np.round(bin_edges)
         bin_index_to_spectrogram_index = defaultdict(list)
 
@@ -60,7 +63,6 @@ class SpectrogramDataset(torch.utils.data.Dataset):
                 bin_index_to_spectrogram_index[bin_index].append(idx)
 
         # for looking @ number of members in each (raw) bin
-        # x = list(map(len, bin_index_to_spectrogram_index.values()))
         # print(x)
         # remove bins with less than batch_size number of members for ease
         bin_index_to_spectrogram_index_ = {}
@@ -70,6 +72,7 @@ class SpectrogramDataset(torch.utils.data.Dataset):
 
         bin_index_to_spectrogram_index = bin_index_to_spectrogram_index_
 
+        # code to debug errors on batch
         # for looking @ number of members in each bin
         # x = list(map(len, bin_index_to_spectrogram_index.values()))
         print('different length bins:', bin_edges[:len(bin_index_to_spectrogram_index)])
@@ -103,11 +106,10 @@ class SpectrogramDataset(torch.utils.data.Dataset):
             # could implement some frequency-based sampling on the bins
             # currently there's a uniform distribution on which bins are sampled
             if self.global_iter % self.batch_size == 0:
-
-                self.stateful_random_bin_choice = round(random.uniform(0, self.n_bins+1))
+                self.stateful_random_bin_choice = int(np.random.uniform()*self.n_bins)
 
             n_bin_members = len(self.bin_index_to_spectogram_index[self.stateful_random_bin_choice])
-            random_idx = round(random.uniform(0, n_bin_members-1))
+            random_idx = int(np.random.uniform()*n_bin_members)
             random_spect_idx_from_bin = self.bin_index_to_spectogram_index[self.stateful_random_bin_choice][random_idx]
             label = self.spectrograms_list[random_spect_idx_from_bin][0]
             spect = self.spectrograms_list[random_spect_idx_from_bin][1]
@@ -189,14 +191,19 @@ if __name__ == '__main__':
 
     spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
 
-    batch_size = 2
-    train_data = SpectrogramDataset(dataset_type="train",
-                                    spect_type=spect_type,
-                                    batch_size=batch_size,
-                                    clip_spects=False,
-                                    bin_spects=True)
+    for batch_size in range(1, 256, 32):
 
-    dataset = torch.utils.data.DataLoader(train_data, batch_size=batch_size)
+        train_data = SpectrogramDataset(dataset_type="train",
+                                        spect_type=spect_type,
+                                        batch_size=batch_size,
+                                        clip_spects=False,
+                                        bin_spects=True)
 
-    for d in dataset:
-        print(d[0].shape, d[1].shape)
+        dataset = torch.utils.data.DataLoader(train_data,
+                                              batch_size=batch_size,
+                                              drop_last=True)
+
+        for _ in range(10):
+            for d in dataset:
+                # print(d[0].shape)
+                pass
