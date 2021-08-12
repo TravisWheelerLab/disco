@@ -15,25 +15,26 @@ INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
 def save_sample(image_idx, spectrogram_image, predicted_classes, title=None):
     # saves sample spectrogram with its predicted labels into an image for easier viewing.
     plt.style.use("dark_background")
+    cmap = 'jet'
 
     if device == 'cuda':
-        plt.imshow(spectrogram_image.cpu().numpy().squeeze())
-        plt.scatter(np.arange(len(predicted_classes.squeeze().cpu())),
-                    np.asarray(predicted_classes[:].cpu()).squeeze() + 2,
-                    c=predicted_classes.squeeze().cpu(),
-                    cmap='jet',
-                    s=4)
+        spect_image = spectrogram_image.cpu().numpy().squeeze()
+        x = np.arange(len(predicted_classes.squeeze().cpu()))
+        y = np.asarray(predicted_classes[:].cpu()).squeeze() + 2
+        c = predicted_classes.squeeze().cpu()
     else:
-        plt.imshow(spectrogram_image.numpy().squeeze())
-        plt.scatter(np.arange(len(predicted_classes.squeeze())),
-                    np.asarray(predicted_classes[:]).squeeze() + 2,
-                    c=predicted_classes.squeeze(),
-                    cmap='jet',
-                    s=4)
+        spect_image = spectrogram_image.numpy().squeeze()
+        x = np.arange(len(predicted_classes.squeeze()))
+        y = np.asarray(predicted_classes[:]).squeeze() + 2
+        c = predicted_classes.squeeze()
+
+    plt.imshow(spect_image)
+    plt.scatter(x, y, c=c, cmap=cmap, s=4)
+    plt.scatter(x, y+15, c=c, cmap=cmap, s=4)
     plt.colorbar()
     if title is None:
         title = "pre-labeled-sample"
-    fig_title = "Index predictions for " + title + " image " + str(image_idx)
+    fig_title = "Smoothed predictions for " + title + " image " + str(image_idx)
     plt.title(fig_title)
     plt.savefig('image_offload/' + title + '_' + str(image_idx) + '.png')
     plt.close()
@@ -42,24 +43,20 @@ def save_sample(image_idx, spectrogram_image, predicted_classes, title=None):
 
 if __name__ == '__main__':
 
-    # choices to make when assessing the model:
-    # 1. create the confusion matrices
-    # 2. predict pre-labeled areas
-    # 3. predict random unlabeled areas
-    generate_confusion_matrix = True
-    save_confusion_matrix = True
-    # the next boolean will generally stay false unless it is desired to assess accuracy of pre-labeled sounds
-    # generate_confusion_matrix needs to be true for not_in_the_wild predictions to run.
+    generate_confusion_matrix = False
+    save_confusion_matrix = False
     predict_not_in_the_wild = False
-    predict_in_the_wild = False
-    num_predictions = 20
+    predict_in_the_wild = True
+    plot_confidences = False
+    num_predictions = 5
     mel = True
-    log = True
+    log = False
     n_fft = 800
     vert_trim = 30
+    batch_size = num_predictions
+    path = "beetles_cnn_1D_mel_no_log_800_vert_trim_30_600_epochs.pt"
 
-    if vert_trim is None:
-        vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
+    vert_trim = sa.determine_default_vert_trim(mel, log, n_fft) if None else vert_trim
     spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
 
     # get data based on the booleans set above
@@ -67,10 +64,11 @@ if __name__ == '__main__':
         # creates  dataloader object and conf matrix to be used for statistical evaluation
         root = os.path.join('data/test', 'spect')
         files = glob(os.path.join(root, "*"))
-        test_loader = torch.utils.data.DataLoader(SpectrogramDataset(dataset_type='test', spect_type=spect_type,
-                                                                     clip_spects=False),
-                                                  batch_size=1,
-                                                  shuffle=True)
+        test_dataset = SpectrogramDataset(dataset_type='test',
+                                          spect_type=spect_type,
+                                          clip_spects=False,
+                                          batch_size=num_predictions)
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=True)
         conf_mat = cm.ConfusionMatrix(num_classes=3)
 
     if predict_in_the_wild:
@@ -95,7 +93,6 @@ if __name__ == '__main__':
             i += 1
 
     # load in trained model
-    path = "beetles_cnn_1D_mel_log_800_vert_trim_30_325_epochs.pt"
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = tm.CNN1D().to(device)
     model.load_state_dict(torch.load(path, map_location=torch.device(device)))
@@ -104,14 +101,17 @@ if __name__ == '__main__':
     with torch.no_grad():
         if generate_confusion_matrix:
             # Assesses accuracy of the model
-            i = 0
             for data, target in test_loader:
                 data, target = data.to(device), target.to(device)
                 output = model(data)
                 pred = output.argmax(dim=1, keepdim=False)  # get the index of the max log-probability
-                if i < num_predictions and predict_not_in_the_wild:
-                    save_sample(image_idx=i, spectrogram_image=data, predicted_classes=pred)
-                i += 1
+                if predict_not_in_the_wild:
+                    if not log:
+                        data = data.log2()
+                    if plot_confidences:
+                        save_confidence_figure(spectrogram_image=data, predicted_classes=pred, softmaxes=output)
+                    else:
+                        save_sample(image_idx=0, spectrogram_image=data, predicted_classes=pred)
 
                 is_a = True if target[0][0].item() == 0 else False
 
@@ -130,4 +130,6 @@ if __name__ == '__main__':
                 spect = spect.to(device)
                 output = model(spect)
                 pred = output.argmax(dim=1, keepdim=False)
+                if not log:
+                    spect = spect.log2()
                 save_sample(image_idx=idx, spectrogram_image=spect, predicted_classes=pred, title=file)
