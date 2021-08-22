@@ -40,9 +40,9 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         if self.bin_spects:
 
             self.clip_spects = True
-            self.bin_edges, self.bin_index_to_spectogram_index = self.bin_spectrograms(self.spectrograms_list,
+            self.bin_edges, self.bin_index_to_spectrogram_index = self.bin_spectrograms(self.spectrograms_list,
                                                                                        n_bins=n_bins)
-            self.n_bins = len(self.bin_index_to_spectogram_index)
+            self.n_bins = len(self.bin_index_to_spectrogram_index)
 
             self.global_iter = 0
 
@@ -108,9 +108,9 @@ class SpectrogramDataset(torch.utils.data.Dataset):
             if self.global_iter % self.batch_size == 0:
                 self.stateful_random_bin_choice = int(np.random.uniform()*self.n_bins)
 
-            n_bin_members = len(self.bin_index_to_spectogram_index[self.stateful_random_bin_choice])
+            n_bin_members = len(self.bin_index_to_spectrogram_index[self.stateful_random_bin_choice])
             random_idx = int(np.random.uniform()*n_bin_members)
-            random_spect_idx_from_bin = self.bin_index_to_spectogram_index[self.stateful_random_bin_choice][random_idx]
+            random_spect_idx_from_bin = self.bin_index_to_spectrogram_index[self.stateful_random_bin_choice][random_idx]
             label = self.spectrograms_list[random_spect_idx_from_bin][0]
             spect = self.spectrograms_list[random_spect_idx_from_bin][1]
             lower_bin_edge = self.bin_edges[self.stateful_random_bin_choice]
