@@ -23,8 +23,8 @@ class SpectrogramDataset(torch.utils.data.Dataset):
                  filtered_sounds=['C', 'Y'],
                  bin_spects=False,
                  clip_spects=True,
-                 n_bins=10):
-
+                 n_bins=10,
+                 bootstrap_sample=False):
         self.spect_lengths = defaultdict(list)
         self.dataset_type = dataset_type
         self.spect_type = spect_type
@@ -34,9 +34,10 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         self.bin_spects = bin_spects
         self.clip_spects = clip_spects
         self.n_bins = n_bins
+        self.bootstrap_sample = bootstrap_sample
         # spectrograms_list[i][0] is the label, [i][1] is the spect.
         self.spectrograms_list, self.unique_labels = self.load_in_all_files(self.dataset_type, self.spect_type,
-                                                                            self.filtered_sounds)
+                                                                            self.filtered_sounds, self.bootstrap_sample)
         if self.bin_spects:
 
             self.clip_spects = True
@@ -80,7 +81,7 @@ class SpectrogramDataset(torch.utils.data.Dataset):
 
         return bin_edges, bin_index_to_spectrogram_index
 
-    def load_in_all_files(self, dataset_type, spect_type, filtered_labels):
+    def load_in_all_files(self, dataset_type, spect_type, filtered_labels, bootstrap_sample):
         # saves spectrograms into a list and creates a sorted dictionary (sorted_class_counter) of the counts of each
         # sound class, which is mainly meant for creating the bar chart. also ensures filtering of unwanted labels.
 
@@ -97,6 +98,16 @@ class SpectrogramDataset(torch.utils.data.Dataset):
                 spectrograms_list.append([label, spect])
             self.spect_lengths[label].append(spect.shape[1])
         sorted_class_counter = OrderedDict(sorted(class_counter.items()))
+
+        if bootstrap_sample:
+            indices = np.random.choice(len(spectrograms_list), size=len(spectrograms_list), replace=True)
+            bootstrapped_spects = []
+            for i in range(indices.shape[-1]):
+                spect_to_add_label = spectrograms_list[indices[i]][0]
+                spect_to_add = spectrograms_list[indices[i]][1]
+                bootstrapped_spects.append([spect_to_add_label, spect_to_add])
+            spectrograms_list = bootstrapped_spects
+
         return spectrograms_list, sorted_class_counter
 
     def __getitem__(self, idx):
@@ -197,7 +208,8 @@ if __name__ == '__main__':
                                         spect_type=spect_type,
                                         batch_size=batch_size,
                                         clip_spects=False,
-                                        bin_spects=True)
+                                        bin_spects=True,
+                                        bootstrap_sample=True)
 
         dataset = torch.utils.data.DataLoader(train_data,
                                               batch_size=batch_size,

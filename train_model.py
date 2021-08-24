@@ -7,8 +7,6 @@ from data_feeder import SpectrogramDataset
 import confusion_matrix as cm
 import spectrogram_analysis as sa
 
-from argparse import ArgumentParser
-
 
 class CNN1D(nn.Module):
 
@@ -23,6 +21,10 @@ class CNN1D(nn.Module):
         self.conv7 = nn.Conv1d(512, 256, 3, padding=1)
         self.conv8 = nn.Conv1d(in_channels=256, out_channels=32, kernel_size=1, padding=0)
         self.conv9 = nn.Conv1d(in_channels=32, out_channels=3, kernel_size=1, padding=0)
+
+        self.lowest_test_loss = 9999999999999
+        self.epoch_of_lowest_test_loss = None
+        self.accuracy_of_lowest_test_loss = None
 
     def forward(self, x):
         x = self.conv1(x)
@@ -169,7 +171,7 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=2):
                        100. * batch_idx / len(train_loader), loss.item(), correct / total))
 
 
-def test(model, device, test_loader):
+def test(model, device, test_loader, save_model, spect_type, epoch):
     model.eval()
     test_loss = 0
     correct = 0
@@ -184,13 +186,20 @@ def test(model, device, test_loader):
             correct += torch.sum(pred == target)
             total += torch.numel(target)
             conf_mat.increment(target, pred, device)
-    # conf_mat.plot(classes=['A', 'B', 'X'], save_images=False)
 
     test_loss /= len(test_loader.dataset)
 
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         test_loss, correct, total,
         100. * correct / total))
+
+    if save_model:
+        if test_loss < model.lowest_test_loss:
+            torch.save(model.state_dict(), 'models/beetles_cnn_1D_' + spect_type + '.pt')
+            print('Saved model.')
+            model.lowest_test_loss = test_loss
+            model.epoch_of_lowest_test_loss = epoch
+            model.accuracy_of_lowest_test_loss = correct / total
 
 
 def overfit_on_batch(model, device, data_loader):
@@ -210,38 +219,19 @@ def overfit_on_batch(model, device, data_loader):
         total = torch.numel(labels)
         print('overfit accuracy: {}'.format(correct/total))
 
-def parser():
+def main():
 
-    ap = ArgumentParser()
-    ap.add_argument('--batch-size', required=True, type=int)
-    ap.add_argument('--shuffle', action='store_true', required=True)
-    ap.add_argument('--learning_rate', type=float, required=True)
-    ap.add_argument('--epochs', type=int, required=True)
-    ap.add_argument('--save_model', action='store_true', required=True)
-    ap.add_argument('--overfit', action='store_true')
-    ap.add_argument('--mel', action='store_true', required=True)
-    ap.add_argument('--log', action='store_true', required=True)
-    ap.add_argument('--n_fft', type=int, required=True)
-    ap.add_argument('--vert_trim', type=int, required=True)
-    ap.add_argument('--bin_spects', action='store_true')
-
-    return ap.parse_args()
-
-
-
-def main(args):
-
-    batch_size = args.batch_size
-    shuffle = args.shuffle
-    learning_rate = args.learning_rate
-    epochs = args.epochs
-    save_model = args.save_model
-    overfit = args.overfit
-    mel = args.mel
-    log = args.log
-    n_fft = args.n_fft
-    vert_trim = args.vert_trim
-    bin_spects = args.bin_spects
+    batch_size = 256
+    shuffle = True
+    learning_rate = 1e-4
+    epochs = 600
+    save_model = True
+    overfit = False
+    mel = True
+    log = True
+    n_fft = 512
+    vert_trim = 35
+    bin_spects = True
 
     if vert_trim is None:
         vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
@@ -281,13 +271,12 @@ def main(args):
 
     for epoch in range(1, epochs + 1):
         train(model, device, train_loader, optimizer, epoch)
-        # test(model, device, test_loader)
+        test(model, device, test_loader, save_model, spect_type, epoch)
 
-    if save_model:
-        torch.save(model.state_dict(), 'beetles_cnn_1D_' + spect_type + '_' + str(epochs) + '_epochs.pt')
-        print('saved model.')
+    print('Final model saved: epoch {}, loss: {:.4f} and accuracy: {:.0f}%.'.format(model.epoch_of_lowest_test_loss,
+                                                                                    model.lowest_test_loss,
+                                                                                    model.accuracy_of_lowest_test_loss))
 
 
 if __name__ == '__main__':
-    args = parser()
-    main(args)
+    main()
