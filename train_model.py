@@ -13,7 +13,7 @@ class CNN1D(nn.Module):
 
     def __init__(self):
         super(CNN1D, self).__init__()
-        self.conv1 = nn.Conv1d(in_channels=93, out_channels=256, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv1d(in_channels=98, out_channels=256, kernel_size=3, padding=1)
         self.conv2 = nn.Conv1d(256, 512, 3, padding=1)
         self.conv3 = nn.Conv1d(512, 512, 3, padding=1)
         self.conv4 = nn.Conv1d(512, 1024, 3, padding=1)
@@ -194,14 +194,14 @@ def test(model, device, test_loader, save_model, spect_type, epoch, ensemble, mo
 
     if save_model:
         if test_loss < model.lowest_test_loss:
-            ensemble_title_addition = ''
-            directory_path = 'models'
             if ensemble:
-                ensemble_title_addition = 'm_' + str(model_number)
-                directory_path = os.path.join('models', spect_type + '_ensemble')
-            model_savepath = os.path.join(directory_path, 'beetles_cnn_1D_' + spect_type + ensemble_title_addition + '.pt')
-            torch.save(model.state_dict(), model_savepath)
-            print('Saved model.')
+                directory_savepath = os.path.join('models', spect_type + '_ensemble')
+                model_filename = 'm_' + str(model_number) + '.pt'
+                save_path = os.path.join(directory_savepath, model_filename)
+            else:
+                save_path = os.path.join('models', spect_type + '.pt')
+            torch.save(model.state_dict(), save_path)
+            print('Saved model.\n')
             model.lowest_test_loss = test_loss
             model.epoch_of_lowest_test_loss = epoch
             model.accuracy_lowest_test_loss = correct / total
@@ -224,18 +224,18 @@ def overfit_on_batch(model, device, data_loader):
         total = torch.numel(labels)
         print('overfit accuracy: {}'.format(correct/total))
 
-def main():
 
+def main():
     batch_size = 256
     shuffle = True
     learning_rate = 1e-4
-    epochs = 600
+    epochs = 500
     save_model = True
     overfit = False
     mel = True
     log = True
-    n_fft = 512
-    vert_trim = 35
+    n_fft = 800
+    vert_trim = 30
     bin_spects = True
     ensemble = True
     num_models = 10
@@ -249,6 +249,13 @@ def main():
     spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    if ensemble:
+        # create a directory to save new ensembled models
+        directory_path = os.path.join('models', spect_type + '_ensemble')
+        if not os.path.exists(directory_path):
+            os.makedirs(directory_path)
+            print("Created directory for ensemble.")
 
     for model_idx in range(1, num_models+1):
         train_dataset = SpectrogramDataset(dataset_type='train',
@@ -278,11 +285,6 @@ def main():
             exit()
 
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-        if ensemble:
-            directory_path = os.path.join('models', spect_type + '_ensemble')
-            if not os.path.exists(directory_path):
-                os.makedirs(directory_path)
 
         for epoch in range(1, epochs + 1):
             train(model, device, train_loader, optimizer, epoch)
