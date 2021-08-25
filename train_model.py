@@ -258,15 +258,18 @@ def main():
             print("Created directory for ensemble.")
 
     for model_idx in range(1, num_models+1):
+        print('Training model number {}.'.format(model_idx))
         train_dataset = SpectrogramDataset(dataset_type='train',
                                            spect_type=spect_type,
                                            batch_size=batch_size,
-                                           bin_spects=bin_spects)
+                                           bin_spects=bin_spects,
+                                           bootstrap_sample=ensemble)
 
         test_dataset = SpectrogramDataset(dataset_type='test',
                                           spect_type=spect_type,
                                           clip_spects=False,
-                                          batch_size=batch_size)
+                                          batch_size=batch_size,
+                                          bootstrap_sample=ensemble)
 
         train_loader = torch.utils.data.DataLoader(train_dataset,
                                                    batch_size=batch_size,
@@ -293,7 +296,7 @@ def main():
         print('Final model saved: epoch {}, loss: {:.4f} and accuracy: {:.0f}%.'.format(
             model.epoch_of_lowest_test_loss,
             model.lowest_test_loss,
-            model.accuracy_lowest_test_loss))
+            100 * model.accuracy_lowest_test_loss))
 
 
 if __name__ == '__main__':
