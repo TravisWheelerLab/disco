@@ -8,8 +8,60 @@ import matplotlib.pyplot as plt
 import confusion_matrix as cm
 import spectrogram_analysis as sa
 import random
+from scipy import stats
 
 INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
+
+
+def get_mean_and_median_confs(median_of_all_softmaxes, mean_of_all_softmaxes, modes, length_of_spect):
+    median_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
+    mean_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
+    # make a median softmax for each class value
+    # need an array that is 3x20 for this
+
+    for i in range(length_of_spect):
+        median_confidences_of_winning_labels[i] = median_of_all_softmaxes[modes[i]][i]
+        mean_confidences_of_winning_labels[i] = mean_of_all_softmaxes[modes[i]][i]
+    # use modes value to index into it to get the final array
+    return mean_confidences_of_winning_labels, median_confidences_of_winning_labels
+
+
+def get_iqrs(all_softmaxes, number_of_classes, length_of_spect):
+    # finds the interquartile range for the softmax values given by all of the models for each class,
+    # index-wise over the entire spectrogram.
+    iqrs = np.zeros((number_of_classes, length_of_spect))
+    for iqr_class in range(iqrs.shape[0]):
+        for spect_idx in range(length_of_spect):
+            q75, q25 = np.percentile(all_softmaxes[iqr_class][:, spect_idx], [75, 25])
+            iqrs[iqr_class][spect_idx] = q75 - q25
+    # iqrs_added takes a sum over the iqrs of each class. So the IQR for the 0th index of the
+    # spectrogram is the iqr of the 0th class + the 1st class + the 2nd class, and so on,
+    # which tells us the overall certainty for all 10 models altogether for that individual timepoint.
+    iqrs_added = np.sum(iqrs, axis=0)
+    return iqrs, iqrs_added
+
+
+def get_softmaxes_and_preds(ensemble):
+    for index, model in enumerate(ensemble):
+        model.eval()
+        output = model(spect)
+        number_of_classes = output.shape[1]
+        length_of_spect = output.shape[-1]
+        pred = output.argmax(dim=1, keepdim=False).squeeze().cpu().numpy()
+        softmaxes = np.exp(output.squeeze().cpu()).numpy()
+
+        if index == 0:
+            # indexing for reference:
+            # all_softmaxes[class][model (index)][spectrogram index]
+            # all_predictions[model (index)][spectrogram index]
+            all_softmaxes = np.zeros(shape=(number_of_classes, len(models), length_of_spect))
+            all_predictions = np.zeros(shape=(len(models), length_of_spect))
+
+        # add these softmaxes and predictions to the multidimensional numpy arrays
+        for label in range(softmaxes.shape[0]):
+            all_softmaxes[label][index] = softmaxes[label]
+        all_predictions[index] = pred
+    return all_softmaxes, all_predictions, number_of_classes, length_of_spect
 
 
 def save_confidence_figure(idx, spectrogram_image, predicted_classes, log_softmaxes, title):
@@ -35,7 +87,7 @@ def save_confidence_figure(idx, spectrogram_image, predicted_classes, log_softma
     ax[1].set_yticklabels(['0', '1', '2'])
     timepoints = np.array(range(0, softmaxes.shape[-1], 50))
     ax[1].set_xticks(timepoints)
-    ax[1].set_xticklabels(['{:d}'.format(timepoint+1) for timepoint in timepoints])
+    ax[1].set_xticklabels(['{:d}'.format(timepoint + 1) for timepoint in timepoints])
     ax[1].set_xlabel('Spectrogram Index')
     ax[1].set_title('Softmaxes')
     cbar = fig.colorbar(ax=ax[1], mappable=im, orientation='horizontal')
@@ -74,27 +126,45 @@ def save_sample(image_idx, spectrogram_image, predicted_classes, title=None):
 
 
 if __name__ == '__main__':
+    ensemble = True
     generate_confusion_matrix = False
     save_confusion_matrix = False
     predict_not_in_the_wild = False
-    predict_in_the_wild = False
-    plot_confidences = True
+    predict_in_the_wild = True
+    plot_confidences = False
+    plot_IQR_confidences = False
     num_predictions = 30
     mel = True
     log = True
-    n_fft = 1024
-    vert_trim = 20
+    n_fft = 800
+    vert_trim = 30
     batch_size = num_predictions
     path = None
-    random_spect_length = 100
+    random_spect_length = 20
 
     vert_trim = sa.determine_default_vert_trim(mel, log, n_fft) if None else vert_trim
     spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
-    if path is None:
-        path = 'beetles_cnn_1D_' + spect_type + '.pt'
 
-    # get data based on the booleans set above
+    if path is None:
+        if ensemble:
+            path = os.path.join('models', spect_type + '_ensemble')
+            models = glob(os.path.join(path, '*'))
+        else:
+            models = [os.path.join('models', 'beetles_cnn_1D_' + spect_type + '.pt')]
+    else:
+        models = path
+    # load in trained model
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    # load in trained models
+    ensemble = []
+    for model_path in models:
+        model = tm.CNN1D().to(device)
+        model.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
+        ensemble.append(model)
+
     if generate_confusion_matrix or predict_not_in_the_wild:
+        # get data based on the booleans set above
         # creates  dataloader object and conf matrix to be used for statistical evaluation
         test_dataset = SpectrogramDataset(dataset_type='test',
                                           spect_type=spect_type,
@@ -119,16 +189,11 @@ if __name__ == '__main__':
                 random_file = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram, mel, n_fft, log,
                                             vert_trim=vert_trim)
                 for j in range(num_predictions // 2):
-                    spects_list.append([random_file.random_sample_from_entire_spectrogram(random_spect_length, vert_trim),
-                                        random_file.name, j])
+                    spects_list.append(
+                        [random_file.random_sample_from_entire_spectrogram(random_spect_length, vert_trim),
+                         random_file.name, j])
                 print("Appended random samples from", random_file.name + '.')
             i += 1
-
-    # load in trained model
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = tm.CNN1D().to(device)
-    model.load_state_dict(torch.load(path, map_location=torch.device(device)))
-    model.eval()
 
     with torch.no_grad():
         if generate_confusion_matrix or predict_not_in_the_wild:
@@ -150,7 +215,7 @@ if __name__ == '__main__':
                 i += 1
 
             if generate_confusion_matrix:
-                print('Uncorrected accuracy:', round(conf_mat.correct.item()/conf_mat.total, 3))
+                print('Uncorrected accuracy:', round(conf_mat.correct.item() / conf_mat.total, 3))
                 print('Corrected accuracy:', round(conf_mat.doctored_correct.item() / conf_mat.doctored_total, 3))
                 conf_mat.plot_matrices(classes=INDEX_TO_LABEL.values(), save_images=save_confusion_matrix,
                                        plot_undoctored=True, plot_doctored=True)
@@ -161,12 +226,25 @@ if __name__ == '__main__':
                 spect = torch.tensor(spect)
                 spect = spect.unsqueeze(0)
                 spect = spect.to(device)
-                output = model(spect)
-                pred = output.argmax(dim=1, keepdim=False)
-                if not log:
-                    spect = spect.log2()
-                if predict_in_the_wild:
-                    save_sample(image_idx=idx, spectrogram_image=spect, predicted_classes=pred, title=file)
-                if plot_confidences:
-                    save_confidence_figure(idx=idx, spectrogram_image=spect, predicted_classes=pred,
-                                           log_softmaxes=output, title=file)
+                if ensemble:
+                    # this ensembling uses majority rule. The class with the highest mode, or "votes", out of all of the
+                    # models is the ultimate ensemble label.
+                    all_softmaxes, all_predictions, number_of_classes, length_of_spect = get_softmaxes_and_preds(ensemble)
+                    iqrs, iqrs_added = get_iqrs(all_softmaxes, number_of_classes, length_of_spect)
+                    # todo: make all_predictions be int before calling modes
+                    modes = stats.mode(all_predictions)[0].squeeze().astype(int)
+                    all_predictions = all_predictions.astype(int)
+                    median_of_all_softmaxes = np.median(all_softmaxes, axis=1)
+                    mean_of_all_softmaxes = np.mean(all_softmaxes, axis=1)
+                    median_confidences_of_mode, mean_confidences_of_mode = get_mean_and_median_confs(
+                        median_of_all_softmaxes, mean_of_all_softmaxes, modes, length_of_spect)
+                else:
+                    output = model(spect)
+                    pred = output.argmax(dim=1, keepdim=False)
+                    if not log:
+                        spect = spect.log2()
+                    if predict_in_the_wild:
+                        save_sample(image_idx=idx, spectrogram_image=spect, predicted_classes=pred, title=file)
+                    if plot_confidences:
+                        save_confidence_figure(idx=idx, spectrogram_image=spect, predicted_classes=pred,
+                                               log_softmaxes=output, title=file)
