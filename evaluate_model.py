@@ -13,55 +13,73 @@ from scipy import stats
 INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
 
 
-def get_mean_and_median_confs(median_of_all_softmaxes, mean_of_all_softmaxes, modes, length_of_spect):
-    median_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
-    mean_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
-    # make a median softmax for each class value
-    # need an array that is 3x20 for this
 
-    for i in range(length_of_spect):
-        median_confidences_of_winning_labels[i] = median_of_all_softmaxes[modes[i]][i]
-        mean_confidences_of_winning_labels[i] = mean_of_all_softmaxes[modes[i]][i]
-    # use modes value to index into it to get the final array
-    return mean_confidences_of_winning_labels, median_confidences_of_winning_labels
+class EnsembleEvaluator:
 
-
-def get_iqrs(all_softmaxes, number_of_classes, length_of_spect):
-    # finds the interquartile range for the softmax values given by all of the models for each class,
-    # index-wise over the entire spectrogram.
-    iqrs = np.zeros((number_of_classes, length_of_spect))
-    for iqr_class in range(iqrs.shape[0]):
-        for spect_idx in range(length_of_spect):
-            q75, q25 = np.percentile(all_softmaxes[iqr_class][:, spect_idx], [75, 25])
-            iqrs[iqr_class][spect_idx] = q75 - q25
-    # iqrs_added takes a sum over the iqrs of each class. So the IQR for the 0th index of the
-    # spectrogram is the iqr of the 0th class + the 1st class + the 2nd class, and so on,
-    # which tells us the overall certainty for all 10 models altogether for that individual timepoint.
-    iqrs_added = np.sum(iqrs, axis=0)
-    return iqrs, iqrs_added
+    def __init__(self, ensemble, spect):
+        self.ensemble = ensemble
+        self.length_of_spect = spect.shape[-1]
+        self.all_softmaxes, self.all_predictions, self.number_of_classes, = self.get_softmaxes_and_preds(ensemble, spect)
+        self.iqrs, self.iqrs_added = self.get_iqrs(self.all_softmaxes, self.number_of_classes, self.length_of_spect)
+        self.modes = stats.mode(self.all_predictions)[0].squeeze().astype(int)
+        self.all_predictions = self.all_predictions.astype(int)
+        self.median_of_all_softmaxes = np.median(self.all_softmaxes, axis=1)
+        self.mean_of_all_softmaxes = np.mean(self.all_softmaxes, axis=1)
+        self.median_confidences_of_mode, self.mean_confidences_of_mode = self.get_mean_and_median_confs(
+            self.median_of_all_softmaxes, self.mean_of_all_softmaxes, self.modes, self.length_of_spect)
 
 
-def get_softmaxes_and_preds(ensemble):
-    for index, model in enumerate(ensemble):
-        model.eval()
-        output = model(spect)
-        number_of_classes = output.shape[1]
-        length_of_spect = output.shape[-1]
-        pred = output.argmax(dim=1, keepdim=False).squeeze().cpu().numpy()
-        softmaxes = np.exp(output.squeeze().cpu()).numpy()
+    def get_mean_and_median_confs(self, median_of_all_softmaxes, mean_of_all_softmaxes, modes, length_of_spect):
+        median_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
+        mean_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
+        # make a median softmax for each class value
+        # need an array that is 3x20 for this
 
-        if index == 0:
-            # indexing for reference:
-            # all_softmaxes[class][model (index)][spectrogram index]
-            # all_predictions[model (index)][spectrogram index]
-            all_softmaxes = np.zeros(shape=(number_of_classes, len(models), length_of_spect))
-            all_predictions = np.zeros(shape=(len(models), length_of_spect))
+        for i in range(length_of_spect):
+            median_confidences_of_winning_labels[i] = median_of_all_softmaxes[modes[i]][i]
+            mean_confidences_of_winning_labels[i] = mean_of_all_softmaxes[modes[i]][i]
+        # use modes value to index into it to get the final array
+        return mean_confidences_of_winning_labels, median_confidences_of_winning_labels
 
-        # add these softmaxes and predictions to the multidimensional numpy arrays
-        for label in range(softmaxes.shape[0]):
-            all_softmaxes[label][index] = softmaxes[label]
-        all_predictions[index] = pred
-    return all_softmaxes, all_predictions, number_of_classes, length_of_spect
+
+    def get_iqrs(self, all_softmaxes, number_of_classes, length_of_spect):
+        # finds the interquartile range for the softmax values given by all of the models for each class,
+        # index-wise over the entire spectrogram.
+        iqrs = np.zeros((number_of_classes, length_of_spect))
+        for iqr_class in range(iqrs.shape[0]):
+            for spect_idx in range(length_of_spect):
+                q75, q25 = np.percentile(all_softmaxes[iqr_class][:, spect_idx], [75, 25])
+                iqrs[iqr_class][spect_idx] = q75 - q25
+        # iqrs_added takes a sum over the iqrs of each class. So the IQR for the 0th index of the
+        # spectrogram is the iqr of the 0th class + the 1st class + the 2nd class, and so on,
+        # which tells us the overall certainty for all 10 models altogether for that individual timepoint.
+        iqrs_added = np.sum(iqrs, axis=0)
+        return iqrs, iqrs_added
+
+
+    def get_softmaxes_and_preds(self, ensemble, spect):
+        for index, model in enumerate(ensemble):
+            model.eval()
+            output = model(spect)
+            number_of_classes = output.shape[1]
+            length_of_spect = output.shape[-1]
+            pred = output.argmax(dim=1, keepdim=False).squeeze().cpu().numpy()
+            softmaxes = np.exp(output.squeeze().cpu()).numpy()
+
+            if index == 0:
+                # indexing for reference:
+                # all_softmaxes[class][model (index)][spectrogram index]
+                # all_predictions[model (index)][spectrogram index]
+                all_softmaxes = np.zeros(shape=(number_of_classes, len(models), length_of_spect))
+                all_predictions = np.zeros(shape=(len(models), length_of_spect))
+
+            # add these softmaxes and predictions to the multidimensional numpy arrays
+            for label in range(softmaxes.shape[0]):
+                all_softmaxes[label][index] = softmaxes[label]
+            all_predictions[index] = pred
+
+        all_predictions = all_predictions.astype(int)
+        return all_softmaxes, all_predictions, number_of_classes
 
 
 def save_confidence_figure(idx, spectrogram_image, predicted_classes, log_softmaxes, title):
@@ -227,17 +245,9 @@ if __name__ == '__main__':
                 spect = spect.unsqueeze(0)
                 spect = spect.to(device)
                 if ensemble:
+                    ensemble_eval = EnsembleEvaluator(ensemble, spect)
                     # this ensembling uses majority rule. The class with the highest mode, or "votes", out of all of the
                     # models is the ultimate ensemble label.
-                    all_softmaxes, all_predictions, number_of_classes, length_of_spect = get_softmaxes_and_preds(ensemble)
-                    iqrs, iqrs_added = get_iqrs(all_softmaxes, number_of_classes, length_of_spect)
-                    # todo: make all_predictions be int before calling modes
-                    modes = stats.mode(all_predictions)[0].squeeze().astype(int)
-                    all_predictions = all_predictions.astype(int)
-                    median_of_all_softmaxes = np.median(all_softmaxes, axis=1)
-                    mean_of_all_softmaxes = np.mean(all_softmaxes, axis=1)
-                    median_confidences_of_mode, mean_confidences_of_mode = get_mean_and_median_confs(
-                        median_of_all_softmaxes, mean_of_all_softmaxes, modes, length_of_spect)
                 else:
                     output = model(spect)
                     pred = output.argmax(dim=1, keepdim=False)
