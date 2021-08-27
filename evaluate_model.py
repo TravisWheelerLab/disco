@@ -16,33 +16,74 @@ INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
 
 class EnsembleEvaluator:
 
-    def __init__(self, ensemble, spect):
+    def __init__(self, ensemble, spect, file):
         self.ensemble = ensemble
+        self.spect = spect
         self.length_of_spect = spect.shape[-1]
-        self.all_softmaxes, self.all_predictions, self.number_of_classes, = self.get_softmaxes_and_preds(ensemble, spect)
-        self.iqrs, self.iqrs_added = self.get_iqrs(self.all_softmaxes, self.number_of_classes, self.length_of_spect)
+        self.all_softmaxes, self.all_predictions, self.number_of_classes, = get_softmaxes_and_preds(ensemble, spect)
+        self.iqrs, self.iqrs_added = get_iqrs(self.all_softmaxes, self.number_of_classes, self.length_of_spect)
         self.modes = stats.mode(self.all_predictions)[0].squeeze().astype(int)
         self.all_predictions = self.all_predictions.astype(int)
-        self.median_of_all_softmaxes = np.median(self.all_softmaxes, axis=1)
-        self.mean_of_all_softmaxes = np.mean(self.all_softmaxes, axis=1)
-        self.median_confidences_of_mode, self.mean_confidences_of_mode = self.get_mean_and_median_confs(
-            self.median_of_all_softmaxes, self.mean_of_all_softmaxes, self.modes, self.length_of_spect)
+        self.medians_of_softmaxes = np.median(self.all_softmaxes, axis=1)
+        self.ensemble_pred = np.argmax(self.medians_of_softmaxes, axis=0)
+        self.means_of_softmaxes = np.mean(self.all_softmaxes, axis=1)
+        self.median_confidences_of_winner, self.mean_confidences_of_winner = get_mean_and_median_confs(
+            self.medians_of_softmaxes, self.means_of_softmaxes, self.modes, self.length_of_spect)
+        self.filename = file
+
+    def generate_and_save_image(self, image_number, overlay_preds=True, overlay_iqrs=True, overlay_all_median_softmaxes=True):
+        plt.style.use("dark_background")
+
+        if device == 'cuda':
+            self.spect = self.spect.cpu()
+        self.spect = self.spect.numpy().squeeze()
+        plt.imshow(self.spect)
+
+        if overlay_preds:
+            cmap = 'jet'
+            x = np.arange(len(self.ensemble_pred))
+            y = np.zeros(self.ensemble_pred.shape[0]) + 2
+            c = self.ensemble_pred
+            plt.scatter(x, y, c=c, cmap=cmap, s=4, vmin=0, vmax=2)
+            fig_title = "predictions for image " + str(image_number)
+            plt.title(fig_title)
+
+        if overlay_iqrs:
+            cmap = 'plasma'
+            x = np.arange(len(self.iqrs_added))
+            y = np.full(shape=len(self.iqrs_added), fill_value=self.spect.shape[0] - 60)
+            c = self.iqrs_added
+            plt.scatter(x, y, c=c, cmap=cmap, s=4, vmin=0, vmax=1.3)
+            # plt.colorbar(location='bottom')
+
+        if overlay_all_median_softmaxes:
+            cmap = 'plasma'
+            for smax_class in range(self.medians_of_softmaxes.shape[0]):
+                x = np.arange(self.medians_of_softmaxes.shape[-1])
+                y = np.full(shape=self.medians_of_softmaxes.shape[-1], fill_value=self.spect.shape[0] - (15-(smax_class+1)*5))
+                c = self.medians_of_softmaxes[smax_class]
+                plt.scatter(x, y, c=c, cmap=cmap, s=4, vmin=0, vmax=1)
+            plt.colorbar(location='bottom')
+
+        plt.savefig('image_offload/ensemble_preds_' + file + '_' + str(image_number) + '.png')
+        plt.close()
+        print("Image {} saved.".format(image_number))
 
 
-    def get_mean_and_median_confs(self, median_of_all_softmaxes, mean_of_all_softmaxes, modes, length_of_spect):
+def get_mean_and_median_confs(medians_of_softmaxes, means_of_softmaxes, modes, length_of_spect):
         median_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
         mean_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
         # make a median softmax for each class value
         # need an array that is 3x20 for this
 
         for i in range(length_of_spect):
-            median_confidences_of_winning_labels[i] = median_of_all_softmaxes[modes[i]][i]
-            mean_confidences_of_winning_labels[i] = mean_of_all_softmaxes[modes[i]][i]
+            median_confidences_of_winning_labels[i] = medians_of_softmaxes[modes[i]][i]
+            mean_confidences_of_winning_labels[i] = means_of_softmaxes[modes[i]][i]
         # use modes value to index into it to get the final array
         return mean_confidences_of_winning_labels, median_confidences_of_winning_labels
 
 
-    def get_iqrs(self, all_softmaxes, number_of_classes, length_of_spect):
+def get_iqrs(all_softmaxes, number_of_classes, length_of_spect):
         # finds the interquartile range for the softmax values given by all of the models for each class,
         # index-wise over the entire spectrogram.
         iqrs = np.zeros((number_of_classes, length_of_spect))
@@ -57,7 +98,7 @@ class EnsembleEvaluator:
         return iqrs, iqrs_added
 
 
-    def get_softmaxes_and_preds(self, ensemble, spect):
+def get_softmaxes_and_preds(ensemble, spect):
         for index, model in enumerate(ensemble):
             model.eval()
             output = model(spect)
@@ -158,7 +199,7 @@ if __name__ == '__main__':
     vert_trim = 30
     batch_size = num_predictions
     path = None
-    random_spect_length = 20
+    random_spect_length = 500
 
     vert_trim = sa.determine_default_vert_trim(mel, log, n_fft) if None else vert_trim
     spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
@@ -225,7 +266,6 @@ if __name__ == '__main__':
                         if not log:
                             data = data.log2()
                         save_sample(image_idx=i, spectrogram_image=data, predicted_classes=pred)
-
                     is_a = True if target[0][0].item() == 0 else False
 
                     if generate_confusion_matrix:
@@ -245,7 +285,8 @@ if __name__ == '__main__':
                 spect = spect.unsqueeze(0)
                 spect = spect.to(device)
                 if ensemble:
-                    ensemble_eval = EnsembleEvaluator(ensemble, spect)
+                    ensemble_eval = EnsembleEvaluator(ensemble, spect, file)
+                    ensemble_eval.generate_and_save_image(idx)
                     # this ensembling uses majority rule. The class with the highest mode, or "votes", out of all of the
                     # models is the ultimate ensemble label.
                 else:
