@@ -6,13 +6,14 @@ import pdb
 from data_feeder import SpectrogramDataset
 import confusion_matrix as cm
 import spectrogram_analysis as sa
+import os
 
 
 class CNN1D(nn.Module):
 
     def __init__(self):
         super(CNN1D, self).__init__()
-        self.conv1 = nn.Conv1d(in_channels=113, out_channels=256, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv1d(in_channels=98, out_channels=256, kernel_size=3, padding=1)
         self.conv2 = nn.Conv1d(256, 512, 3, padding=1)
         self.conv3 = nn.Conv1d(512, 512, 3, padding=1)
         self.conv4 = nn.Conv1d(512, 1024, 3, padding=1)
@@ -24,7 +25,7 @@ class CNN1D(nn.Module):
 
         self.lowest_test_loss = 9999999999999
         self.epoch_of_lowest_test_loss = None
-        self.accuracy_of_lowest_test_loss = None
+        self.accuracy_lowest_test_loss = None
 
     def forward(self, x):
         x = self.conv1(x)
@@ -171,12 +172,11 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=2):
                        100. * batch_idx / len(train_loader), loss.item(), correct / total))
 
 
-def test(model, device, test_loader, save_model, spect_type, epoch):
+def test(model, device, test_loader, save_model, spect_type, epoch, ensemble, model_number):
     model.eval()
     test_loss = 0
     correct = 0
     total = 0
-    conf_mat = cm.ConfusionMatrix()
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
@@ -185,7 +185,6 @@ def test(model, device, test_loader, save_model, spect_type, epoch):
             pred = output.argmax(dim=1, keepdim=False)  # get the index of the max log-probability
             correct += torch.sum(pred == target)
             total += torch.numel(target)
-            conf_mat.increment(target, pred, device)
 
     test_loss /= len(test_loader.dataset)
 
@@ -195,11 +194,17 @@ def test(model, device, test_loader, save_model, spect_type, epoch):
 
     if save_model:
         if test_loss < model.lowest_test_loss:
-            torch.save(model.state_dict(), 'models/beetles_cnn_1D_' + spect_type + '.pt')
-            print('Saved model.')
+            if ensemble:
+                directory_savepath = os.path.join('models', spect_type + '_ensemble')
+                model_filename = 'm_' + str(model_number) + '.pt'
+                save_path = os.path.join(directory_savepath, model_filename)
+            else:
+                save_path = os.path.join('models', spect_type + '.pt')
+            torch.save(model.state_dict(), save_path)
+            print('Saved model.\n')
             model.lowest_test_loss = test_loss
             model.epoch_of_lowest_test_loss = epoch
-            model.accuracy_of_lowest_test_loss = correct / total
+            model.accuracy_lowest_test_loss = correct / total
 
 
 def overfit_on_batch(model, device, data_loader):
@@ -219,19 +224,24 @@ def overfit_on_batch(model, device, data_loader):
         total = torch.numel(labels)
         print('overfit accuracy: {}'.format(correct/total))
 
-def main():
 
+def main():
     batch_size = 256
     shuffle = True
     learning_rate = 1e-4
-    epochs = 600
+    epochs = 500
     save_model = True
     overfit = False
     mel = True
     log = True
-    n_fft = 512
-    vert_trim = 35
+    n_fft = 800
+    vert_trim = 30
     bin_spects = True
+    ensemble = True
+    num_models = 10
+
+    if not ensemble:
+        num_models = 1
 
     if vert_trim is None:
         vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
@@ -240,42 +250,53 @@ def main():
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    train_dataset = SpectrogramDataset(dataset_type='train',
-                                       spect_type=spect_type,
-                                       batch_size=batch_size,
-                                       bin_spects=bin_spects)
+    if ensemble:
+        # create a directory to save new ensembled models
+        directory_path = os.path.join('models', spect_type + '_ensemble')
+        if not os.path.exists(directory_path):
+            os.makedirs(directory_path)
+            print("Created directory for ensemble.")
 
-    test_dataset = SpectrogramDataset(dataset_type='test',
-                                      spect_type=spect_type,
-                                      clip_spects=False,
-                                      batch_size=batch_size)
-    print("datasets loaded in.")
+    for model_idx in range(1, num_models+1):
+        print('Training model number {}.'.format(model_idx))
+        train_dataset = SpectrogramDataset(dataset_type='train',
+                                           spect_type=spect_type,
+                                           batch_size=batch_size,
+                                           bin_spects=bin_spects,
+                                           bootstrap_sample=ensemble)
 
-    train_loader = torch.utils.data.DataLoader(train_dataset,
-                                               batch_size=batch_size,
-                                               shuffle=shuffle,
-                                               drop_last=True)
+        test_dataset = SpectrogramDataset(dataset_type='test',
+                                          spect_type=spect_type,
+                                          clip_spects=False,
+                                          batch_size=batch_size,
+                                          bootstrap_sample=ensemble)
 
-    test_loader = torch.utils.data.DataLoader(test_dataset,
-                                              batch_size=1,
-                                              shuffle=shuffle)
-    print("dataloaders created.")
+        train_loader = torch.utils.data.DataLoader(train_dataset,
+                                                   batch_size=batch_size,
+                                                   shuffle=shuffle,
+                                                   drop_last=True)
 
-    model = CNN1D().to(device)
+        test_loader = torch.utils.data.DataLoader(test_dataset,
+                                                  batch_size=1,
+                                                  shuffle=shuffle)
+        print("Dataloaders created.")
 
-    if overfit:
-        overfit_on_batch(model, device, train_loader)
-        exit()
+        model = CNN1D().to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        if overfit:
+            overfit_on_batch(model, device, train_loader)
+            exit()
 
-    for epoch in range(1, epochs + 1):
-        train(model, device, train_loader, optimizer, epoch)
-        test(model, device, test_loader, save_model, spect_type, epoch)
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    print('Final model saved: epoch {}, loss: {:.4f} and accuracy: {:.0f}%.'.format(model.epoch_of_lowest_test_loss,
-                                                                                    model.lowest_test_loss,
-                                                                                    model.accuracy_of_lowest_test_loss))
+        for epoch in range(1, epochs + 1):
+            train(model, device, train_loader, optimizer, epoch)
+            test(model, device, test_loader, save_model, spect_type, epoch, ensemble, model_idx)
+
+        print('Final model saved: epoch {}, loss: {:.4f} and accuracy: {:.0f}%.'.format(
+            model.epoch_of_lowest_test_loss,
+            model.lowest_test_loss,
+            100 * model.accuracy_lowest_test_loss))
 
 
 if __name__ == '__main__':
