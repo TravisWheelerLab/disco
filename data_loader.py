@@ -90,8 +90,6 @@ def cutoff_kmeans_spectrograms(bf_obj, bci=45, eci=65):
                         first_hi = k
                         break
                     k += 1
-                if first_hi >= 2:
-                    first_hi -= 1
                 bf_obj.label_to_spectrogram[sound_type][index] = spect[:, first_hi:]
 
 
@@ -130,13 +128,20 @@ def save_all_sounds(sound_objects_list):
     print("sounds saved.")
 
 
+def create_directories(spectrogram_type):
+    datasets = ['train', 'test', 'validation']
+    for dataset in datasets:
+        directory_path = os.path.join('data', dataset, spectrogram_type, 'spect')
+        if not os.path.exists(directory_path):
+            os.makedirs(directory_path)
+
 if __name__ == '__main__':
     begin_time = t.time()
 
     mel = True
     log = True
-    n_fft = 800
-    vert_trim = 30
+    n_fft = 900
+    vert_trim = None
     cutoff = True
     file_wise = False
 
@@ -144,6 +149,9 @@ if __name__ == '__main__':
 
     if vert_trim is None:
         vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
+
+    spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
+    create_directories(spect_type)
 
     data_dir = './wav-files-and-annotations/'
     csvs_and_wav = sa.load_csv_and_wav_files_from_directory(data_dir)
