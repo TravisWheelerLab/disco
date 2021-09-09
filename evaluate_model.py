@@ -13,7 +13,6 @@ from scipy import stats
 INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
 
 
-
 class EnsembleEvaluator:
 
     def __init__(self, ensemble, spect, file):
@@ -23,7 +22,6 @@ class EnsembleEvaluator:
         self.all_softmaxes, self.all_predictions, self.number_of_classes, = get_softmaxes_and_preds(ensemble, spect)
         self.iqrs, self.iqrs_added = get_iqrs(self.all_softmaxes, self.number_of_classes, self.length_of_spect)
         self.modes = stats.mode(self.all_predictions)[0].squeeze().astype(int)
-        self.all_predictions = self.all_predictions.astype(int)
         self.medians_of_softmaxes = np.median(self.all_softmaxes, axis=1)
         self.ensemble_pred = np.argmax(self.medians_of_softmaxes, axis=0)
         self.means_of_softmaxes = np.mean(self.all_softmaxes, axis=1)
@@ -31,7 +29,8 @@ class EnsembleEvaluator:
             self.medians_of_softmaxes, self.means_of_softmaxes, self.modes, self.length_of_spect)
         self.filename = file
 
-    def generate_and_save_image(self, image_number, overlay_preds=True, overlay_iqrs=True, overlay_all_median_softmaxes=True):
+    def save_image(self, image_number, overlay_preds=True, overlay_iqrs=True,
+                                overlay_all_median_softmaxes=True):
         plt.style.use("dark_background")
 
         if device == 'cuda':
@@ -60,7 +59,8 @@ class EnsembleEvaluator:
             cmap = 'plasma'
             for smax_class in range(self.medians_of_softmaxes.shape[0]):
                 x = np.arange(self.medians_of_softmaxes.shape[-1])
-                y = np.full(shape=self.medians_of_softmaxes.shape[-1], fill_value=self.spect.shape[0] - (15-(smax_class+1)*5))
+                y = np.full(shape=self.medians_of_softmaxes.shape[-1],
+                            fill_value=self.spect.shape[0] - (15 - (smax_class + 1) * 5))
                 c = self.medians_of_softmaxes[smax_class]
                 plt.scatter(x, y, c=c, cmap=cmap, s=4, vmin=0, vmax=1)
             plt.colorbar(location='bottom')
@@ -71,56 +71,55 @@ class EnsembleEvaluator:
 
 
 def get_mean_and_median_confs(medians_of_softmaxes, means_of_softmaxes, modes, length_of_spect):
-        median_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
-        mean_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
-        # make a median softmax for each class value
-        # need an array that is 3x20 for this
+    median_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
+    mean_confidences_of_winning_labels = np.zeros(shape=length_of_spect)
+    # make a median softmax for each class value
+    # need an array that is 3x20 for this
 
-        for i in range(length_of_spect):
-            median_confidences_of_winning_labels[i] = medians_of_softmaxes[modes[i]][i]
-            mean_confidences_of_winning_labels[i] = means_of_softmaxes[modes[i]][i]
-        # use modes value to index into it to get the final array
-        return mean_confidences_of_winning_labels, median_confidences_of_winning_labels
+    for i in range(length_of_spect):
+        median_confidences_of_winning_labels[i] = medians_of_softmaxes[modes[i]][i]
+        mean_confidences_of_winning_labels[i] = means_of_softmaxes[modes[i]][i]
+    # use modes value to index into it to get the final array
+    return mean_confidences_of_winning_labels, median_confidences_of_winning_labels
 
 
 def get_iqrs(all_softmaxes, number_of_classes, length_of_spect):
-        # finds the interquartile range for the softmax values given by all of the models for each class,
-        # index-wise over the entire spectrogram.
-        iqrs = np.zeros((number_of_classes, length_of_spect))
-        for iqr_class in range(iqrs.shape[0]):
-            for spect_idx in range(length_of_spect):
-                q75, q25 = np.percentile(all_softmaxes[iqr_class][:, spect_idx], [75, 25])
-                iqrs[iqr_class][spect_idx] = q75 - q25
-        # iqrs_added takes a sum over the iqrs of each class. So the IQR for the 0th index of the
-        # spectrogram is the iqr of the 0th class + the 1st class + the 2nd class, and so on,
-        # which tells us the overall certainty for all 10 models altogether for that individual timepoint.
-        iqrs_added = np.sum(iqrs, axis=0)
-        return iqrs, iqrs_added
+    # finds the interquartile range for the softmax values given by all of the models for each class,
+    # index-wise over the entire spectrogram.
+    iqrs = np.zeros((number_of_classes, length_of_spect))
+    for iqr_class in range(iqrs.shape[0]):
+        for spect_idx in range(length_of_spect):
+            q75, q25 = np.percentile(all_softmaxes[iqr_class][:, spect_idx], [75, 25])
+            iqrs[iqr_class][spect_idx] = q75 - q25
+    # iqrs_added takes a sum over the iqrs of each class. So the IQR for the 0th index of the
+    # spectrogram is the iqr of the 0th class + the 1st class + the 2nd class, and so on,
+    # which tells us the overall certainty for all 10 models altogether for that individual timepoint.
+    iqrs_added = np.sum(iqrs, axis=0)
+    return iqrs, iqrs_added
 
 
 def get_softmaxes_and_preds(ensemble, spect):
-        for index, model in enumerate(ensemble):
-            model.eval()
-            output = model(spect)
-            number_of_classes = output.shape[1]
-            length_of_spect = output.shape[-1]
-            pred = output.argmax(dim=1, keepdim=False).squeeze().cpu().numpy()
-            softmaxes = np.exp(output.squeeze().cpu()).numpy()
+    for index, model in enumerate(ensemble):
+        model.eval()
+        output = model(spect)
+        number_of_classes = output.shape[1]
+        length_of_spect = output.shape[-1]
+        pred = output.argmax(dim=1, keepdim=False).squeeze().cpu().numpy()
+        softmaxes = np.exp(output.squeeze().cpu()).numpy()
+        if index == 0:
+            # indexing for reference:
+            # all_softmaxes[class][model (index)][spectrogram index]
+            # all_predictions[model (index)][spectrogram index]
+            all_softmaxes = np.zeros(shape=(number_of_classes, len(models), length_of_spect))
+            all_predictions = np.zeros(shape=(len(models), length_of_spect))
 
-            if index == 0:
-                # indexing for reference:
-                # all_softmaxes[class][model (index)][spectrogram index]
-                # all_predictions[model (index)][spectrogram index]
-                all_softmaxes = np.zeros(shape=(number_of_classes, len(models), length_of_spect))
-                all_predictions = np.zeros(shape=(len(models), length_of_spect))
+        # add these softmaxes and predictions to the multidimensional numpy arrays
+        for label in range(softmaxes.shape[0]):
+            all_softmaxes[label][index] = softmaxes[label]
+        all_predictions[index] = pred
 
-            # add these softmaxes and predictions to the multidimensional numpy arrays
-            for label in range(softmaxes.shape[0]):
-                all_softmaxes[label][index] = softmaxes[label]
-            all_predictions[index] = pred
-
-        all_predictions = all_predictions.astype(int)
-        return all_softmaxes, all_predictions, number_of_classes
+    all_preds_int = all_predictions.astype(int)
+    return all_softmaxes, all_preds_int, number_of_classes
 
 
 def save_confidence_figure(idx, spectrogram_image, predicted_classes, log_softmaxes, title):
@@ -185,7 +184,7 @@ def save_sample(image_idx, spectrogram_image, predicted_classes, title=None):
 
 
 if __name__ == '__main__':
-    ensemble = True
+    model_ensemble = True
     generate_confusion_matrix = False
     save_confusion_matrix = False
     predict_not_in_the_wild = False
@@ -195,23 +194,23 @@ if __name__ == '__main__':
     num_predictions = 30
     mel = True
     log = True
-    n_fft = 800
-    vert_trim = 30
+    n_fft = 900
+    vert_trim = None
     batch_size = num_predictions
     path = None
     random_spect_length = 500
-
-    vert_trim = sa.determine_default_vert_trim(mel, log, n_fft) if None else vert_trim
+    if vert_trim is None:
+        vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
     spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
-
     if path is None:
-        if ensemble:
+        if model_ensemble:
             path = os.path.join('models', spect_type + '_ensemble')
             models = glob(os.path.join(path, '*'))
         else:
             models = [os.path.join('models', 'beetles_cnn_1D_' + spect_type + '.pt')]
     else:
         models = path
+
     # load in trained model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -284,11 +283,8 @@ if __name__ == '__main__':
                 spect = torch.tensor(spect)
                 spect = spect.unsqueeze(0)
                 spect = spect.to(device)
-                if ensemble:
+                if model_ensemble:
                     ensemble_eval = EnsembleEvaluator(ensemble, spect, file)
-                    ensemble_eval.generate_and_save_image(idx)
-                    # this ensembling uses majority rule. The class with the highest mode, or "votes", out of all of the
-                    # models is the ultimate ensemble label.
                 else:
                     output = model(spect)
                     pred = output.argmax(dim=1, keepdim=False)
