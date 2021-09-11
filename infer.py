@@ -1,8 +1,14 @@
-from argparse import ArgumentParser
-
+import pdb
+import warnings
+import numpy as np
 import torch
 
-from inference_utils import SpectrogramIterator
+from argparse import ArgumentParser
+
+from inference_utils import SpectrogramIterator, assemble_ensemble, evaluate_spectrogram
+
+# get rid of torchaudio warning us that our spectrogram calculation needs different parameters
+warnings.filterwarnings("ignore", category=UserWarning)
 
 
 def parser():
@@ -16,44 +22,46 @@ def parser():
     ap.add_argument('--output_csv_path', required=True, type=str,
                     help='where to save the final predictions')
     ap.add_argument('--tile_overlap', default=32, type=int,
-                    help='how much to overlap consecutive predictions')
+                    help='how much to overlap consecutive predictions. Larger values will mean slower performance as '
+                         'there is more repeated computation')
     ap.add_argument('--tile_size', default=256, type=int,
-                    help='model input size')
+                    help='length of input spectrogram')
     ap.add_argument('--batch_size', default=32, type=int,
                     help='batch size')
+    ap.add_argument('--input_channels', default=98, type=int,
+                    help='number of channels of input spectrogram')
     return ap.parse_args()
 
 
 def main(args):
-    # how will this go?
-    # overlap-tile the spectrogram in dataloader
-    tile_overlap = 32
-    x = SpectrogramIterator(256,
-                            tile_overlap,
-                            args.wav_file,
-                            vertical_trim=20,
-                            n_fft=900,
-                            hop_length=200,
-                            log_spect=True,
-                            mel_transform=True)
+    if args.tile_size % 2 != 0:
+        # todo: fix this bug
+        raise ValueError('tile_size must be even, got {}'.format(args.tile_size))
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    models = assemble_ensemble(args.saved_model_directory, args.model_extension, device, args.input_channels)
 
-    dataset = torch.utils.data.DataLoader(x,
-                                          shuffle=False,
-                                          batch_size=args.batch_size,
-                                          drop_last=False)
-    # now I need to splice together the tiled chunks of
-    # spectrogram (do this after each model has predicted
-    # the batch).
-    # i = 0
-    # all = []
-    # for d in dataset:
-    #     stitched_together = [z[:, tile_overlap:-tile_overlap] for z in d]
-    #     a = torch.cat(stitched_together, dim=-1)
-    #     all.append(a.squeeze())
-    # stitched_together = torch.cat(all, dim=1)[:, :x.original_shape[-1]]
-    # print(stitched_together.shape, x.original_shape)
-    # done, this works now.
-    # now evaluate with models.
+    # doesn't work with an uneven tile_size for some reason - it doesn't pad the spectrogram enough
+    spectrogram_iterator = SpectrogramIterator(args.tile_size,
+                                               args.tile_overlap,
+                                               args.wav_file,
+                                               vertical_trim=30,
+                                               n_fft=800,
+                                               hop_length=200,
+                                               log_spect=True,
+                                               mel_transform=True)
+
+    spectrogram_dataset = torch.utils.data.DataLoader(spectrogram_iterator,
+                                                      shuffle=False,
+                                                      batch_size=args.batch_size,
+                                                      drop_last=False)
+
+    # Need to predict our final test dataset with the ensemble.
+    medians, iqrs = evaluate_spectrogram(spectrogram_dataset,
+                                         models,
+                                         spectrogram_iterator.tile_overlap,
+                                         spectrogram_iterator.original_shape,
+                                         device=device)
+    print(np.argmax(medians, axis=0)[:1000])
 
 
 if __name__ == '__main__':
