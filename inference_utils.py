@@ -2,10 +2,42 @@ import os
 import torch
 import torchaudio
 import numpy as np
+import matplotlib.pyplot as plt
 from glob import glob
 
 from models import CNN1D
 
+
+def plot_predictions_and_confidences(original_spectrogram,
+                                     median_predictions,
+                                     prediction_iqrs,
+                                     save_prefix,
+                                     n_samples=10,
+                                     len_sample=300):
+    len_spect = len_sample // 2
+    inits = np.round(np.random.rand(n_samples) * median_predictions.shape[-1] - len_spect).astype(int)
+    for i, center in enumerate(inits):
+        fig, ax = plt.subplots(nrows=2, figsize=(13, 10), sharex=True)
+        ax[0].imshow(original_spectrogram[:, center - len_spect:center + len_spect])
+        med_slice = median_predictions[:, center - len_spect:center + len_spect]
+        iqr_slice = prediction_iqrs[:, center - len_spect:center + len_spect]
+        med_slice = np.transpose(med_slice)
+        iqr_slice = np.transpose(iqr_slice)
+
+        med_slice = np.expand_dims(med_slice, 0)
+        iqr_slice = np.expand_dims(iqr_slice, 0)
+        iqr_empty = np.zeros_like(iqr_slice)
+        iqr_empty[:, :, 0] = np.sum(iqr_slice.squeeze(), axis=-1)
+        ax[1].imshow(np.concatenate((med_slice, iqr_empty / np.max(iqr_empty)),
+                                    axis=0), aspect='auto')
+        ax[1].set_ylabel('iqrs              median predictions')
+        ax[1].set_yticks([])
+        ax[1].set_xticks([])
+        ax[1].set_title('Predictions mapped to RGB values. red: A chirp, g: B chirp, b: background')
+        ax[0].set_title('Random sample from spectrogram')
+        ax[1].set_xlabel('spectrogram record')
+        plt.savefig('{}_{}'.format(save_prefix, i))
+        plt.close()
 
 def assemble_ensemble(model_directory, model_extension, device,
                       in_channels):

@@ -5,7 +5,7 @@ import torch
 
 from argparse import ArgumentParser
 
-from inference_utils import SpectrogramIterator, assemble_ensemble, evaluate_spectrogram
+from inference_utils import SpectrogramIterator, assemble_ensemble, evaluate_spectrogram, plot_predictions_and_confidences
 
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -56,36 +56,14 @@ def main(args):
                                                       drop_last=False)
 
     # Need to predict our final test dataset with the ensemble.
+    # todo
     medians, iqrs = evaluate_spectrogram(spectrogram_dataset,
                                          models,
                                          spectrogram_iterator.tile_overlap,
                                          spectrogram_iterator.original_shape,
                                          device=device)
-    # now I need to make a visualize function
-    len_spect = 150
-    inits = np.round(np.random.rand(10)*medians.shape[-1]-len_spect).astype(int)
-    import matplotlib.pyplot as plt
-    for i, center in enumerate(inits):
-
-        fig, ax = plt.subplots(nrows=2, figsize=(13, 10))
-        ax[0].imshow(spectrogram_iterator.original_spectrogram[:, center-len_spect:center+len_spect])
-        med_slice = medians[:, center-len_spect:center+len_spect]
-        iqr_slice = iqrs[:, center-len_spect:center+len_spect]
-        med_slice = np.transpose(med_slice)
-        iqr_slice = np.transpose(iqr_slice)
-
-        med_slice = np.expand_dims(med_slice, 0)
-        iqr_slice = np.expand_dims(iqr_slice, 0)
-        iqr_empty = np.zeros_like(iqr_slice)
-        iqr_empty[:, :, 0] = np.sum(iqr_slice.squeeze(), axis=-1)
-
-        ax[1].imshow(np.concatenate((med_slice, iqr_empty/np.max(iqr_empty)),
-                                    axis=0), aspect='auto')
-        ax[1].axis('off')
-        ax[1].set_xlabel('median predictions       iqrs')
-        plt.savefig('/home/tc229954/evaluated_spectrograms/{}.png'.format(i))
-        plt.close()
-
+    print(medians.shape, iqrs.shape)
+    plot_predictions_and_confidences(spectrogram_iterator.original_spectrogram, medians, iqrs, '/home/tc229954/testhi', len_sample=300)
 
 
 if __name__ == '__main__':
