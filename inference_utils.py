@@ -4,6 +4,7 @@ import torch
 import torchaudio
 import numpy as np
 import pandas as pd
+import pickle
 np.random.seed(0)
 import matplotlib.pyplot as plt
 from glob import glob
@@ -14,6 +15,7 @@ from hmm_process import load_in_hmm
 
 CLASS_CODE_TO_NAME = {0: 'A', 1: 'B', 2: 'BACKGROUND'}
 NAME_TO_CLASS_CODE = {v: k for k, v in CLASS_CODE_TO_NAME.items()}
+SOUND_TYPE_TO_COLOR = {'A': 'r', 'B': 'g', 'BACKGROUND': 'k'}
 
 
 def aggregate_predictions(predictions):
@@ -34,9 +36,21 @@ def aggregate_predictions(predictions):
     return class_idx_to_prediction_start_and_end
 
 
+
 def convert_spectrogram_index_to_seconds(spect_idx, hop_length, sample_rate):
     seconds_per_hop = hop_length / sample_rate
     return spect_idx*seconds_per_hop
+
+
+def pickle_data(data, path):
+    with open(path, 'wb') as dst:
+        pickle.dump(data, dst)
+
+
+def load_pickle(path):
+    with open(path, 'rb') as src:
+        data = pickle.load(src)
+    return data
 
 
 def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_length):
@@ -75,6 +89,25 @@ def run_hmm(predictions):
     return smoothed_predictions
 
 
+def convert_argmaxed_array_to_rgb(predictions):
+    # data: array of shape 1xN
+    rgb = np.zeros((1, predictions.shape[-1], 3))
+    for class_idx in CLASS_CODE_TO_NAME.keys():
+        rgb[:, np.where(predictions == class_idx), class_idx] = 1
+    return rgb
+
+
+def convert_time_to_spect_index(time, hop_length, sample_rate):
+    return np.round(time * sample_rate).astype(np.int) // hop_length
+
+
+def load_prediction_csv(csv_path, hop_length, sample_rate):
+    df = pd.read_csv(csv_path)
+    df['Begin Spect Index'] = [convert_time_to_spect_index(x, hop_length, sample_rate) for x in df['Begin Time (s)']]
+    df['End Spect Index'] = [convert_time_to_spect_index(x, hop_length, sample_rate) for x in df['End Time (s)']]
+    return df
+
+
 def plot_predictions_and_confidences(original_spectrogram,
                                      median_predictions,
                                      prediction_iqrs,
@@ -98,13 +131,9 @@ def plot_predictions_and_confidences(original_spectrogram,
 
         med_slice = np.expand_dims(med_slice, 0)
         iqr_slice = np.expand_dims(iqr_slice, 0)
-        iqr_slice = iqr_slice / np.max(iqr_slice)
-        hmm_rgb = np.zeros_like(iqr_slice)
-        processed_rgb = np.zeros_like(iqr_slice)
 
-        for class_idx in CLASS_CODE_TO_NAME.keys():
-            hmm_rgb[:, np.where(hmm_slice == class_idx), class_idx] = 1
-            processed_rgb[:, np.where(processed_slice == class_idx), class_idx] = 1
+        hmm_rgb = convert_argmaxed_array_to_rgb(hmm_slice)
+        processed_rgb = convert_argmaxed_array_to_rgb(processed_slice)
 
         ax[1].imshow(np.concatenate((med_slice,
                                      iqr_slice,  # will there be problems with normalization here?
@@ -112,6 +141,7 @@ def plot_predictions_and_confidences(original_spectrogram,
                                      hmm_rgb),
                                     axis=0),
                      aspect='auto', interpolation='nearest')
+
         ax[1].set_yticks([0, 1, 2, 3])
         ax[1].set_yticklabels(['median prediction', 'iqr', 'thresholded predictions',
                                'smoothed w/ hmm'])

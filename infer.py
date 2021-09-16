@@ -36,7 +36,8 @@ def parser():
                     help='where to save the median prediction plot')
     ap.add_argument('--hop_length', type=int, default=200,
                     help='length of hops b/t subsequent spectrogram windows')
-
+    ap.add_argument('--save_for_analysis', type=str, default=None,
+                    help='directory in which to save all relevant variables to be fed into interact.ipynb')
     args = ap.parse_args()
     return args
 
@@ -78,10 +79,6 @@ def main(args):
     hmm_predictions = infer.run_hmm(predictions)
 
     if args.output_csv_path is not None:
-        # I need to figure out how to convert spectrogram index to .wav index.
-        # it'll require a multiplication since each spectrogram index is actually
-        # 200 or so
-        # default window size is n_fft.
         infer.save_csv_from_predictions(args.output_csv_path,
                                         hmm_predictions,
                                         sample_rate=spectrogram_iterator.sample_rate,
@@ -96,6 +93,23 @@ def main(args):
                                                predictions,
                                                plot_prefix,
                                                n_samples=30)
+    if args.save_for_analysis is not None:
+
+        spectrogram_path = os.path.join(args.save_for_analysis, 'raw_spectrogram.pkl')
+        hmm_prediction_path = os.path.join(args.save_for_analysis, 'hmm_predictions.pkl')
+        median_prediction_path = os.path.join(args.save_for_analysis, 'median_predictions.pkl')
+        iqr_path = os.path.join(args.save_for_analysis, 'iqrs.pkl')
+        csv_path = os.path.join(args.save_for_analysis, 'classifications.csv')
+
+        infer.save_csv_from_predictions(csv_path,
+                                        hmm_predictions,
+                                        sample_rate=spectrogram_iterator.sample_rate,
+                                        hop_length=args.hop_length)
+
+        infer.pickle_data(spectrogram_iterator.original_spectrogram, spectrogram_path)
+        infer.pickle_data(hmm_predictions, hmm_prediction_path)
+        infer.pickle_data(medians, median_prediction_path)
+        infer.pickle_data(iqr, iqr_path)
 
 
 if __name__ == '__main__':
