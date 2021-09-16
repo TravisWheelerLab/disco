@@ -1,9 +1,10 @@
 import os
 import pdb
-
 import torch
 import torchaudio
 import numpy as np
+import pandas as pd
+np.random.seed(0)
 import matplotlib.pyplot as plt
 from glob import glob
 from collections import defaultdict
@@ -13,16 +14,6 @@ from hmm_process import load_in_hmm
 
 CLASS_CODE_TO_NAME = {0: 'A', 1: 'B', 2: 'BACKGROUND'}
 NAME_TO_CLASS_CODE = {v: k for k, v in CLASS_CODE_TO_NAME.items()}
-
-
-# def convert_time_to_index(time, sample_rate):
-#     # np.round is good enough for our purposes
-#     # since we have a really high sample rate, and the chirps exist for a second or two
-#     return np.round(time * sample_rate).astype(np.int)
-#
-# def w2s_idx(idx, hop_length):
-#     # waveform to spectrogram index
-#     return idx // hop_length
 
 
 def aggregate_predictions(predictions):
@@ -43,14 +34,31 @@ def aggregate_predictions(predictions):
     return class_idx_to_prediction_start_and_end
 
 
+def convert_spectrogram_index_to_seconds(spect_idx, hop_length, sample_rate):
+    seconds_per_hop = hop_length / sample_rate
+    return spect_idx*seconds_per_hop
 
-def save_csv_from_predictions(predictions, n_fft, hop_length):
-    # to convert from time to spectrogram index we first
-    # convert from the labeled time (in seconds) to waveform index.
-    # then convert that waveform index to spectrogram index by dividing by hop length
-    # So, we just need to get the beginning and end of each chirp and convert those
+
+def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_length):
+    # We just need to get the beginning and end of each chirp and convert those
     # to seconds.
-    pass
+    class_idx_to_prediction_start_end = aggregate_predictions(predictions)
+    # window size by default is n_fft. hop_length is interval b/t consecutive spectrograms
+    # i don't think padding is performed when the spectrogram is calculated
+    list_of_dicts_for_dataframe = []
+    for class_idx, starts_and_ends in class_idx_to_prediction_start_end.items():
+        for start, end in starts_and_ends:
+            dataframe_dict = {'Sound_Type': CLASS_CODE_TO_NAME[class_idx],
+                              'Begin Time (s)': convert_spectrogram_index_to_seconds(start,
+                                                                                     hop_length=hop_length,
+                                                                                     sample_rate=sample_rate),
+                              'End Time (s)': convert_spectrogram_index_to_seconds(end,
+                                                                                   hop_length=hop_length,
+                                                                                   sample_rate=sample_rate)}
+            list_of_dicts_for_dataframe.append(dataframe_dict)
+    df = pd.DataFrame.from_dict(list_of_dicts_for_dataframe)
+    df.to_csv(output_csv_path)
+    return df
 
 
 def run_hmm(predictions):
@@ -77,6 +85,7 @@ def plot_predictions_and_confidences(original_spectrogram,
                                      len_sample=1000):
     len_spect = len_sample // 2
     inits = np.round(np.random.rand(n_samples) * median_predictions.shape[-1] - len_spect).astype(int)
+    # oof lots of plotting code
     for i, center in enumerate(inits):
         fig, ax = plt.subplots(nrows=2, figsize=(13, 10), sharex=True)
         ax[0].imshow(original_spectrogram[:, center - len_spect:center + len_spect])
@@ -101,7 +110,8 @@ def plot_predictions_and_confidences(original_spectrogram,
                                      iqr_slice,  # will there be problems with normalization here?
                                      processed_rgb,
                                      hmm_rgb),
-                                    axis=0), aspect='auto')
+                                    axis=0),
+                     aspect='auto', interpolation='nearest')
         ax[1].set_yticks([0, 1, 2, 3])
         ax[1].set_yticklabels(['median prediction', 'iqr', 'thresholded predictions',
                                'smoothed w/ hmm'])
@@ -135,7 +145,34 @@ def load_wav_file(wav_filename):
     return waveform, sample_rate
 
 
-def evaluate_spectrogram(spectrogram_dataset, models, tile_overlap, original_spectrogram_shape,
+def predict_with_ensemble(ensemble, features):
+    ensemble_preds = []
+
+    for model in ensemble:
+        preds = torch.exp(model(features))
+        ensemble_preds.append(preds.to('cpu').numpy())
+
+    return ensemble_preds
+
+
+def calculate_median_and_iqr(ensemble_preds):
+    # TODO: add docstring
+
+    iqrs = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
+    medians = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
+    for class_idx in range(ensemble_preds.shape[2]):
+        q75, q25 = np.percentile(ensemble_preds[:, :, class_idx, :], [75, 25], axis=0)
+        median = np.median(ensemble_preds[:, :, class_idx, :], axis=0)
+        iqrs[:, class_idx] = q75 - q25
+        medians[:, class_idx] = median
+
+    return iqrs, medians
+
+
+def evaluate_spectrogram(spectrogram_dataset,
+                         models,
+                         tile_overlap,
+                         original_spectrogram_shape,
                          device='cpu'):
     assert_accuracy = False
 
@@ -147,34 +184,21 @@ def evaluate_spectrogram(spectrogram_dataset, models, tile_overlap, original_spe
 
         for features in spectrogram_dataset:
 
-            ensemble_preds = []
             features = features.to(device)
-
-            for model in models:
-                preds = torch.exp(model(features))
-                ensemble_preds.append(preds.to('cpu').numpy())
+            ensemble_preds = predict_with_ensemble(models, features)
 
             if assert_accuracy:
                 all_features.extend(
                     np.stack([seq[:, tile_overlap:-tile_overlap] for seq in features.to('cpu').numpy()]))
 
             ensemble_preds = np.stack([seq[:, :, tile_overlap:-tile_overlap] for seq in ensemble_preds])
-            iqrs = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
-            medians = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
-
-            for class_idx in range(ensemble_preds.shape[2]):
-                q75, q25 = np.percentile(ensemble_preds[:, :, class_idx, :], [75, 25], axis=0)
-                median = np.median(ensemble_preds[:, :, class_idx, :], axis=0)
-                iqrs[:, class_idx] = q75 - q25
-                medians[:, class_idx] = median
-
+            iqrs, medians = calculate_median_and_iqr(ensemble_preds)
             medians_full_sequence.extend(medians)
             iqrs_full_sequence.extend(iqrs)
 
     if assert_accuracy:
         all_features = np.concatenate(all_features, axis=-1)[:, :original_spectrogram_shape[-1]]
-        print(all_features.shape, spectrogram_iterator.original_shape)
-        print(np.all(all_features == spectrogram_iterator.original_spectrogram.numpy()))
+        assert(np.all(all_features == spectrogram_iterator.original_spectrogram.numpy()))
 
     medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
     iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
@@ -206,8 +230,8 @@ class SpectrogramIterator(torch.nn.Module):
         self.log_spect = log_spect
         self.mel_transform = mel_transform
 
-        waveform, sample_rate = load_wav_file(self.wav_file)
-        self.spectrogram = self.create_spectrogram(waveform, sample_rate)[vertical_trim:]
+        waveform, self.sample_rate = load_wav_file(self.wav_file)
+        self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)[vertical_trim:]
         self.original_spectrogram = self.spectrogram.clone()
         self.original_shape = self.spectrogram.shape
 
