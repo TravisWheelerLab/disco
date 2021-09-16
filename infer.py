@@ -6,6 +6,7 @@ import torch
 
 from argparse import ArgumentParser
 
+import heuristics as heuristics
 import inference_utils as infer
 
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
@@ -33,6 +34,8 @@ def parser():
                     help='number of channels of input spectrogram')
     ap.add_argument('--plot_prefix', type=str, default=None,
                     help='where to save the median prediction plot')
+    ap.add_argument('--hop_length', type=int, default=200,
+                    help='length of hops b/t subsequent spectrogram windows')
 
     args = ap.parse_args()
     return args
@@ -68,17 +71,9 @@ def main(args):
                                               spectrogram_iterator.original_shape,
                                               device=device)
 
-    # TODO: add pre-and-post processing based on IQR.
+    # TODO: add pre-and-post processing heuristics based on IQR.
     predictions = np.argmax(medians, axis=0).squeeze()
-    summed_iqr = np.sum(iqr, axis=0)
-    normalized_summed_iqr = summed_iqr / np.max(summed_iqr[predictions == infer.NAME_TO_CLASS_CODE['A']])
-    # We've noticed that true As and Bs are often predicted correctly
-    # with the ensemble. Background is sometimes classified as A by the ensemble but with
-    # a high uncertainty. Below we force A predictions with high uncertainty to background.
-    predictions[
-        (normalized_summed_iqr >= 0.05).astype(bool) & (predictions == infer.NAME_TO_CLASS_CODE['A']).astype(bool)] = \
-    infer.NAME_TO_CLASS_CODE['BACKGROUND']
-    # todo: get confusion matrix on the test data for the model ensemble.
+    predictions = heuristics.threshold_as_on_iqr(predictions, iqr, 0.5)
 
     hmm_predictions = infer.run_hmm(predictions)
 
@@ -87,27 +82,10 @@ def main(args):
         # it'll require a multiplication since each spectrogram index is actually
         # 200 or so
         # default window size is n_fft.
-
-        class_idx_to_prediction_start_and_end = infer.aggregate_predictions(hmm_predictions)
-        import matplotlib.pyplot as plt
-        for j in range(3):
-            i = 0
-            for begin, end in class_idx_to_prediction_start_and_end[j]:
-                fig, ax = plt.subplots(nrows=2, figsize=(13, 10))
-                begin = begin - 10 if begin > 10 else begin
-                ax[0].imshow(spectrogram_iterator.original_spectrogram[:, begin:end+10])
-                hmm_slice = hmm_predictions[begin:end+10]
-                hmm_rgb = np.zeros((1, len(hmm_slice), 3))
-                for class_idx in infer.CLASS_CODE_TO_NAME.keys():
-                    hmm_rgb[:, np.where(hmm_slice == class_idx), class_idx] = 1
-                ax[1].imshow(hmm_rgb, aspect='auto')
-                ax[1].plot([10, len(hmm_slice)-10], [0, 0], 'ko')
-                plt.savefig('/home/tc229954/aggregated_predictions/{}_{}.png'.format(infer.CLASS_CODE_TO_NAME[j], i))
-                plt.close()
-                i += 1
-                if i >= 10:
-                    break
-    exit()
+        infer.save_csv_from_predictions(args.output_csv_path,
+                                        hmm_predictions,
+                                        sample_rate=spectrogram_iterator.sample_rate,
+                                        hop_length=args.hop_length)
 
     if args.plot_prefix is not None:
         plot_prefix = args.plot_prefix + os.path.splitext(os.path.basename(args.wav_file))[0]
@@ -116,7 +94,8 @@ def main(args):
                                                iqr,
                                                hmm_predictions,
                                                predictions,
-                                               plot_prefix)
+                                               plot_prefix,
+                                               n_samples=30)
 
 
 if __name__ == '__main__':
