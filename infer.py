@@ -14,6 +14,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 
 def parser():
+
     ap = ArgumentParser()
     ap.add_argument('--saved_model_directory', required=True, type=str,
                     help='where the ensemble of models is stored')
@@ -36,26 +37,35 @@ def parser():
                     help='where to save the median prediction plot')
     ap.add_argument('--hop_length', type=int, default=200,
                     help='length of hops b/t subsequent spectrogram windows')
-    ap.add_argument('--save_for_analysis', type=str, default=None,
-                    help='directory in which to save all relevant variables to be fed into interact.ipynb')
+    ap.add_argument('--vertical_trim', type=int, default=30,
+                    help='how many rows to remove from the spectrogram ')
+    ap.add_argument('--n_fft', type=int, default=800,
+                    help='size of the fft to use when calculating spectrogram')
+    ap.add_argument('--debug', action='store_true',
+                    help='whether or not to save debug information for inspection with interactive_plot.py')
+    ap.add_argument('--n_images', type=int, default=30,
+                    help='how many images to save when plot_prefix is specified')
+    ap.add_argument('--len_image_sample', type=int, default=1000,
+                    help='how long each image should be')
     args = ap.parse_args()
+
     return args
 
 
 def main(args):
     if args.tile_size % 2 != 0:
-        # todo: fix this bug
         raise ValueError('tile_size must be even, got {}'.format(args.tile_size))
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     models = infer.assemble_ensemble(args.saved_model_directory, args.model_extension, device, args.input_channels)
+    if len(models) < 2:
+        raise ValueError('expected more than 1 model, found {}. Is the model directory and extension correct?'.format(len(models)))
 
-    # doesn't work with an uneven tile_size for some reason - it doesn't pad the spectrogram enough
     spectrogram_iterator = infer.SpectrogramIterator(args.tile_size,
                                                      args.tile_overlap,
                                                      args.wav_file,
-                                                     vertical_trim=30,
-                                                     n_fft=800,
-                                                     hop_length=200,
+                                                     vertical_trim=args.vertical_trim,
+                                                     n_fft=args.n_fft,
+                                                     hop_length=args.hop_length,
                                                      log_spect=True,
                                                      mel_transform=True)
 
@@ -64,17 +74,15 @@ def main(args):
                                                       batch_size=args.batch_size,
                                                       drop_last=False)
 
-    # Need to predict our final test dataset with the ensemble.
-    # todo
     medians, iqr = infer.evaluate_spectrogram(spectrogram_dataset,
                                               models,
                                               spectrogram_iterator.tile_overlap,
                                               spectrogram_iterator.original_shape,
                                               device=device)
 
-    # TODO: add pre-and-post processing heuristics based on IQR.
     predictions = np.argmax(medians, axis=0).squeeze()
-    predictions = heuristics.threshold_as_on_iqr(predictions, iqr, 0.5)
+    for heuristic in heuristics.HEURISTIC_FNS:
+        predictions = heuristic(predictions, iqr)
 
     hmm_predictions = infer.run_hmm(predictions)
 
@@ -92,14 +100,20 @@ def main(args):
                                                hmm_predictions,
                                                predictions,
                                                plot_prefix,
-                                               n_samples=30)
-    if args.save_for_analysis is not None:
+                                               n_images=args.n_images,
+                                               len_sample=args.len_image_sample)
+    if args.debug is not None:
 
-        spectrogram_path = os.path.join(args.save_for_analysis, 'raw_spectrogram.pkl')
-        hmm_prediction_path = os.path.join(args.save_for_analysis, 'hmm_predictions.pkl')
-        median_prediction_path = os.path.join(args.save_for_analysis, 'median_predictions.pkl')
-        iqr_path = os.path.join(args.save_for_analysis, 'iqrs.pkl')
-        csv_path = os.path.join(args.save_for_analysis, 'classifications.csv')
+        debug_path = './debug'
+        if not os.path.isdir(debug_path):
+            os.mkdir(debug_path)
+
+        spectrogram_path = os.path.join(debug_path,       'raw_spectrogram.pkl')
+        hmm_prediction_path = os.path.join(debug_path,    'hmm_predictions.pkl')
+        median_prediction_path = os.path.join(debug_path, 'median_predictions.pkl')
+
+        iqr_path = os.path.join(debug_path,               'iqrs.pkl')
+        csv_path = os.path.join(debug_path,               'classifications.csv')
 
         infer.save_csv_from_predictions(csv_path,
                                         hmm_predictions,
