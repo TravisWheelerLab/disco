@@ -5,6 +5,7 @@ import torchaudio
 import numpy as np
 import pandas as pd
 import pickle
+
 np.random.seed(0)
 import matplotlib.pyplot as plt
 from glob import glob
@@ -16,6 +17,8 @@ from hmm_process import load_in_hmm
 CLASS_CODE_TO_NAME = {0: 'A', 1: 'B', 2: 'BACKGROUND'}
 NAME_TO_CLASS_CODE = {v: k for k, v in CLASS_CODE_TO_NAME.items()}
 SOUND_TYPE_TO_COLOR = {'A': 'r', 'B': 'g', 'BACKGROUND': 'k'}
+RAVEN_CSV_COLUMNS = ['Selection', 'View', 'Channel', 'Begin Time (s)', 'End Time (s)', 'Low Freq (Hz)',
+                    'High Freq (Hz)', 'Sound_Type']
 
 
 def aggregate_predictions(predictions):
@@ -30,16 +33,15 @@ def aggregate_predictions(predictions):
 
     for i in range(len(idx)):
         class_idx_to_prediction_start_and_end[current_class].append([current_idx, idx[i]])
-        current_class = predictions[idx[i]+1]
-        current_idx = idx[i]+1
+        current_class = predictions[idx[i] + 1]
+        current_idx = idx[i] + 1
 
     return class_idx_to_prediction_start_and_end
 
 
-
 def convert_spectrogram_index_to_seconds(spect_idx, hop_length, sample_rate):
     seconds_per_hop = hop_length / sample_rate
-    return spect_idx*seconds_per_hop
+    return spect_idx * seconds_per_hop
 
 
 def pickle_data(data, path):
@@ -60,18 +62,28 @@ def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_len
     # window size by default is n_fft. hop_length is interval b/t consecutive spectrograms
     # i don't think padding is performed when the spectrogram is calculated
     list_of_dicts_for_dataframe = []
+    i = 1
     for class_idx, starts_and_ends in class_idx_to_prediction_start_end.items():
         for start, end in starts_and_ends:
-            dataframe_dict = {'Sound_Type': CLASS_CODE_TO_NAME[class_idx],
+            dataframe_dict = {'Selection': i,
+                              'View': 0,
+                              'Channel': 0,
                               'Begin Time (s)': convert_spectrogram_index_to_seconds(start,
                                                                                      hop_length=hop_length,
                                                                                      sample_rate=sample_rate),
                               'End Time (s)': convert_spectrogram_index_to_seconds(end,
                                                                                    hop_length=hop_length,
-                                                                                   sample_rate=sample_rate)}
+                                                                                   sample_rate=sample_rate),
+                              'Low Freq (Hz)': 0,
+                              'High Freq (Hz)': 0,
+                              'Sound_Type': CLASS_CODE_TO_NAME[class_idx]
+                              }
             list_of_dicts_for_dataframe.append(dataframe_dict)
+            i += 1
+
     df = pd.DataFrame.from_dict(list_of_dicts_for_dataframe)
-    df.to_csv(output_csv_path)
+    df.to_csv(output_csv_path, index=False)
+
     return df
 
 
@@ -114,14 +126,14 @@ def plot_predictions_and_confidences(original_spectrogram,
                                      hmm_predictions,
                                      processed_predictions,
                                      save_prefix,
-                                     n_samples=10,
+                                     n_images=10,
                                      len_sample=1000):
     len_spect = len_sample // 2
-    inits = np.round(np.random.rand(n_samples) * median_predictions.shape[-1] - len_spect).astype(int)
+    inits = np.round(np.random.rand(n_images) * median_predictions.shape[-1] - len_spect).astype(int)
     # oof lots of plotting code
     for i, center in enumerate(inits):
         fig, ax = plt.subplots(nrows=2, figsize=(13, 10), sharex=True)
-        ax[0].imshow(original_spectrogram[:, center - len_spect:center + len_spect])
+        ax[0].imshow(original_spectrogram[:, center - len_spect:center + len_spect], aspect='auto')
         med_slice = median_predictions[:, center - len_spect:center + len_spect]
         iqr_slice = prediction_iqrs[:, center - len_spect:center + len_spect]
         hmm_slice = hmm_predictions[center - len_spect:center + len_spect]
@@ -144,14 +156,16 @@ def plot_predictions_and_confidences(original_spectrogram,
 
         ax[1].set_yticks([0, 1, 2, 3])
         ax[1].set_yticklabels(['median prediction', 'iqr', 'thresholded predictions',
-                               'smoothed w/ hmm'])
+                               'smoothed w/ hmm'], rotation=45)
 
         ax[1].set_xticks([])
         ax[1].set_title('Predictions mapped to RGB values. red: A chirp, green: B chirp, blue: background')
-        ax[0].set_title('Random sample from spectrogram')
+        ax[0].set_title(
+            'Random sample from spectrogram created from {}'.format(os.path.splitext(os.path.basename(save_prefix))[0]))
+        ax[0].set_ylabel('frequency bin')
         ax[1].set_xlabel('spectrogram record')
-        print('{}_{}.png'.format(save_prefix, i))
-        plt.savefig('{}_{}.png'.format(save_prefix, i))
+        print('saving {}_{}.png'.format(save_prefix, i))
+        plt.savefig('{}_{}.png'.format(save_prefix, i), bbox_inches='tight')
         plt.close()
 
 
@@ -228,7 +242,7 @@ def evaluate_spectrogram(spectrogram_dataset,
 
     if assert_accuracy:
         all_features = np.concatenate(all_features, axis=-1)[:, :original_spectrogram_shape[-1]]
-        assert(np.all(all_features == spectrogram_iterator.original_spectrogram.numpy()))
+        assert (np.all(all_features == spectrogram_iterator.original_spectrogram.numpy()))
 
     medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
     iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
