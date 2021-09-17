@@ -96,7 +96,8 @@ Requires output produced by infer.py with the --debug flag. Displays a matplotli
 to ease visual inspection of the whole spectrogram. This utility is useful for when you've implemented
 a new heuristic or changed the hmm and want to see what the large-scale impacts of your changes are.
 Slide along the x-axis by clicking and dragging the slider on the bottom.
-# Implementing new heuristics
+
+# Implementing new heuristics for application in infer.py and interactive_plot.py
 Open and edit heuristics.py. Each function you implement is required to have only two arguments:
 predictions (numpy array (size 1xN) of argmaxed median predictions i.e. ```[0, 1, 2, 0, 0]```), and 
 inter-quartile range (referred to as uncertainty or iqr: numpy array (size 3xN) containing the 
@@ -104,7 +105,12 @@ ensemble uncertainty for each class at each time point). After manipulating pred
 some rule, return it for processing by the next function in the heuristic function list. Templates 
 showing basic thresholding of predictions based on uncertainties are included. 
 Pull requests welcome!
-
+Since it can be computationally intensive to re-predict all of the data with infer.py and then apply 
+new heuristics to the prediction, interactive_plot.py also supports manipulating predictions
+with the heuristics in heuristics.py (if you're not tired of hearing the word "heuristic" I'm impressed).
+This will run your custom heuristics on the data produced by infer.py with the --debug flag but won't 
+save the results anywhere, since it's for on-the-fly iteration and debugging. To actually save the results with
+new heuristics re-run infer.py with ```--output_csv_path``` set.
 
 # How it works
 
