@@ -12,6 +12,8 @@ INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
 
 
 def load_in_hmm():
+    # TODO: add argument to control the number of sound types
+    # and pass it into the HMM
     a_dist = pom.DiscreteDistribution({0: 0.995, 1: 0.00005, 2: 0.00495})
     b_dist = pom.DiscreteDistribution({0: 0.1, 1: 0.88, 2: 0.020})
     x_dist = pom.DiscreteDistribution({0: 0.35, 1: 0.05, 2: 0.60})
