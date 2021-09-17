@@ -2,7 +2,7 @@ import numpy as np
 import inference_utils as infer
 
 
-def remove_short_chirps(predictions, iqr):
+def remove_short_chirps_and_a_chirps_before_b_chirps(predictions, iqr):
 
     class_idx_to_prediction_start_and_end = infer.aggregate_predictions(predictions)
     starts_and_ends = []
@@ -21,10 +21,14 @@ def remove_short_chirps(predictions, iqr):
     for i in range(len(class_indices)-1):
         if class_indices[i] == infer.NAME_TO_CLASS_CODE['A'] and class_indices[i+1] == infer.NAME_TO_CLASS_CODE['B']:
             predictions[starts[i]:ends[i]] = infer.NAME_TO_CLASS_CODE['B']
+
+        # and remove short chirps that aren't in between two As or two Bs
+        conditional = class_indices[i-1] != infer.NAME_TO_CLASS_CODE['B'] and class_indices[i+1] != infer.NAME_TO_CLASS_CODE['B']
+        conditional = conditional and class_indices[i-1] != infer.NAME_TO_CLASS_CODE['A'] and class_indices[i+1] != infer.NAME_TO_CLASS_CODE['A']
+        if (ends[i] - starts[i] <= 30) and conditional:
+            predictions[starts[i]:ends[i]] = infer.NAME_TO_CLASS_CODE['BACKGROUND']
+
     return predictions
-
-
-
 
 
 def threshold_bs_on_iqr(predictions, iqr):
@@ -61,4 +65,4 @@ def threshold_as_on_iqr(predictions, iqr):
 # The list below contains the heuristics
 # that will be applied to the pre-hmm classifications.
 # Functions will be applied in the order they are in the list.
-HEURISTIC_FNS = [threshold_as_on_iqr, threshold_bs_on_iqr, remove_short_chirps]
+HEURISTIC_FNS = [threshold_as_on_iqr, threshold_bs_on_iqr, remove_short_chirps_and_a_chirps_before_b_chirps]
