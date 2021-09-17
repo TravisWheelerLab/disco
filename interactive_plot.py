@@ -85,7 +85,7 @@ def main(data_root, hop_length, sample_rate, apply_heuristics):
     ax[1].set_yticks([0, 1, 2, 3])
     ax[1].set_xticks([])
     ax[1].set_xlabel('spectrogram record')
-    ax[1].set_yticklabels(['smoothed w/ hmm', 'thresholded predictions', 'iqr',
+    ax[1].set_yticklabels(['smoothed w/ hmm', 'preds. post heuristics', 'iqr',
                            'median predictions'], rotation=45)
     ax[1].set_title('Predictions mapped to RGB values. red: A chirp, green: B chirp, blue: background')
     ax[0].set_title('Raw spectrogram')

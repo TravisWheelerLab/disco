@@ -155,7 +155,7 @@ def plot_predictions_and_confidences(original_spectrogram,
                      aspect='auto', interpolation='nearest')
 
         ax[1].set_yticks([0, 1, 2, 3])
-        ax[1].set_yticklabels(['median prediction', 'iqr', 'thresholded predictions',
+        ax[1].set_yticklabels(['median prediction', 'iqr', 'preds. post heuristics',
                                'smoothed w/ hmm'], rotation=45)
 
         ax[1].set_xticks([])
