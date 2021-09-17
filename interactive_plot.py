@@ -68,7 +68,7 @@ def main(data_root, hop_length, sample_rate, apply_heuristics):
         ax[0].plot([point, point], [0, spectrogram.shape[0]], '{}-'.format(infer.SOUND_TYPE_TO_COLOR[cls]))
 
     for cls in infer.SOUND_TYPE_TO_COLOR.keys():
-        ax[0].plot([point, point], [0, spectrogram.shape[0]], '{}-.'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
+        ax[0].plot([point, point], [0, spectrogram.shape[0]], '{}-'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
                    label='begin of {} chirp'.format(cls))
 
     for cls, point in zip(prediction_df['Sound_Type'], prediction_df['End Spect Index']):
