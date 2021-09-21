@@ -8,7 +8,7 @@ from glob import glob
 from argparse import ArgumentParser
 
 import heuristics
-from inference_utils import run_hmm
+from inference_utils import smooth_predictions_with_hmm
 
 
 def parser():
@@ -42,6 +42,7 @@ def main(data_root, hop_length, sample_rate, apply_heuristics):
                                               hop_length=hop_length,
                                               sample_rate=sample_rate)
 
+    # remove prediction df
     prediction_df = prediction_df.loc[prediction_df['Sound_Type'] != "BACKGROUND", :]
 
     fig, ax = plt.subplots(sharex=True, nrows=2, figsize=(10, 7))
@@ -52,7 +53,7 @@ def main(data_root, hop_length, sample_rate, apply_heuristics):
     if apply_heuristics:
         for heuristic in heuristics.HEURISTIC_FNS:
             predictions = heuristic(predictions, iqr)
-        hmm_predictions = infer.convert_argmaxed_array_to_rgb(run_hmm(predictions))
+        hmm_predictions = infer.convert_argmaxed_array_to_rgb(smooth_predictions_with_hmm(predictions))
 
     predictions_rgb = infer.convert_argmaxed_array_to_rgb(predictions)
     iqr = np.expand_dims(np.transpose(iqr), 0)
