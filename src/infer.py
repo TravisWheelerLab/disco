@@ -78,7 +78,7 @@ def main(args):
 
     medians, iqr = infer.evaluate_spectrogram(spectrogram_dataset,
                                               models,
-                                              spectrogram_iterator.tile_overlap,
+                                              args.tile_overlap,
                                               spectrogram_iterator.original_shape,
                                               device=device)
 
@@ -87,9 +87,9 @@ def main(args):
         print('applying heuristic function', heuristic.__name__)
         predictions = heuristic(predictions, iqr)
 
-    hmm_predictions = infer.run_hmm(predictions)
+    hmm_predictions = infer.smooth_predictions_with_hmm(predictions)
 
-    if args.output_csv_path is not None or args.plot_prefix is not None:
+    if args.output_csv_path is not None:
         infer.save_csv_from_predictions(args.output_csv_path,
                                         hmm_predictions,
                                         sample_rate=spectrogram_iterator.sample_rate,

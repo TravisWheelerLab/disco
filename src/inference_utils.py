@@ -13,7 +13,6 @@ from glob import glob
 from collections import defaultdict
 
 from models import CNN1D
-from hmm_process import load_in_hmm
 
 # Should this be a configurable argument?
 np.random.seed(0)
@@ -60,6 +59,7 @@ def download_models():
 
 
 def aggregate_predictions(predictions):
+
     if predictions.ndim != 1:
         raise ValueError('expected array of size N, got {}'.format(predictions.shape))
 
@@ -69,10 +69,14 @@ def aggregate_predictions(predictions):
     current_idx = 0
     class_idx_to_prediction_start_and_end = defaultdict(list)
 
-    for i in range(len(idx)):
-        class_idx_to_prediction_start_and_end[current_class].append([current_idx, idx[i]])
-        current_class = predictions[idx[i] + 1]
-        current_idx = idx[i] + 1
+    if len(idx) == 0:
+        print('Only one class found after heuristics, csv will only contain one row')
+        class_idx_to_prediction_start_and_end[current_class] = [current_idx, predictions.shape[-1]]
+    else:
+        for i in range(len(idx)):
+            class_idx_to_prediction_start_and_end[current_class].append([current_idx, idx[i]])
+            current_class = predictions[idx[i] + 1]
+            current_idx = idx[i] + 1
 
     return class_idx_to_prediction_start_and_end
 
@@ -102,6 +106,7 @@ def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_len
     list_of_dicts_for_dataframe = []
     i = 1
     for class_idx, starts_and_ends in class_idx_to_prediction_start_end.items():
+        # TODO: handle the case where there's only one prediction per class
         for start, end in starts_and_ends:
             dataframe_dict = {'Selection': i,
                               'View': 0,
@@ -117,25 +122,26 @@ def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_len
                               'Sound_Type': CLASS_CODE_TO_NAME[class_idx]
                               }
             list_of_dicts_for_dataframe.append(dataframe_dict)
-            i += 1
+        i += 1
 
+    # use stdlib to create csv (dictwriter)
     df = pd.DataFrame.from_dict(list_of_dicts_for_dataframe)
     df.to_csv(output_csv_path, index=False)
 
     return df
 
 
-def run_hmm(predictions):
+def smooth_predictions_with_hmm(unsmoothed_predictions):
     """
-    :param predictions: np array of point-wise argmaxed predictions (size N).
+    :param unsmoothed_predictions: np array of point-wise argmaxed predictions (size N).
     :return: smoothed predictions
     """
-    if predictions.ndim != 1:
-        raise ValueError('expected array of size N, got {}'.format(predictions.shape))
-    hmm = load_in_hmm()
+    if unsmoothed_predictions.ndim != 1:
+        raise ValueError('expected array of size N, got {}'.format(unsmoothed_predictions.shape))
 
+    hmm = load_in_hmm()
     # forget about the first element b/c it's the start state
-    smoothed_predictions = np.asarray(hmm.predict(sequence=predictions, algorithm='viterbi')[1:])
+    smoothed_predictions = np.asarray(hmm.predict(sequence=unsmoothed_predictions, algorithm='viterbi')[1:])
     return smoothed_predictions
 
 
@@ -151,6 +157,7 @@ def convert_time_to_spect_index(time, hop_length, sample_rate):
     return np.round(time * sample_rate).astype(np.int) // hop_length
 
 
+# TODO: move
 def load_prediction_csv(csv_path, hop_length, sample_rate):
     df = pd.read_csv(csv_path)
     df['Begin Spect Index'] = [convert_time_to_spect_index(x, hop_length, sample_rate) for x in df['Begin Time (s)']]
@@ -216,6 +223,7 @@ def assemble_ensemble(model_directory, model_extension, device,
         print('no models found at {}, downloading to {}'.format(model_directory,
                                                                 DEFAULT_MODEL_DIRECTORY))
 
+        # todo: change save path to whatever is passed in
         download_models()
         model_paths = glob(os.path.join(model_directory, "*" + model_extension))
 
@@ -366,5 +374,4 @@ class SpectrogramIterator(torch.nn.Module):
         # we want to overlap-tile starting from the beginning
         # so that our predictions are seamless.
         x = self.spectrogram[:, center_idx - self.tile_size // 2: center_idx + self.tile_size // 2]
-        # print(center_idx, x.shape, center_idx-self.tile_size//2, center_idx+self.tile_size//2)
         return x
