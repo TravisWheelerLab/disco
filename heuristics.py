@@ -19,14 +19,24 @@ def remove_short_chirps_and_a_chirps_before_b_chirps(predictions, iqr):
     class_indices = np.asarray(class_indices)[sorted_idx]
     # now find places where As and Bs have the same end and start, respectively
     for i in range(len(class_indices)-1):
+        # conditional = class_indices[i-1] != infer.NAME_TO_CLASS_CODE['B'] and class_indices[i+1] !=
+        # infer.NAME_TO_CLASS_CODE['B'] conditional = conditional and class_indices[i-1] != infer.NAME_TO_CLASS_CODE[
+        # 'A'] and class_indices[i+1] != infer.NAME_TO_CLASS_CODE['A']
+        if ends[i] - starts[i] <= 15:
+            if predictions[ends[i]-1] == infer.NAME_TO_CLASS_CODE['BACKGROUND']:
+                pass
+            elif predictions[ends[i]+1] == infer.NAME_TO_CLASS_CODE['A'] and predictions[starts[i]-1] == infer.NAME_TO_CLASS_CODE['A']:
+                predictions[starts[i]:ends[i]] = infer.NAME_TO_CLASS_CODE['A']
+            elif predictions[ends[i]+1] == infer.NAME_TO_CLASS_CODE['B'] and predictions[starts[i]-1] == infer.NAME_TO_CLASS_CODE['B']:
+                predictions[starts[i]:ends[i]] = infer.NAME_TO_CLASS_CODE['B']
+            else:
+                predictions[starts[i]:ends[i]+1] = infer.NAME_TO_CLASS_CODE['BACKGROUND']
+
+    for i in range(len(class_indices) - 1):
         if class_indices[i] == infer.NAME_TO_CLASS_CODE['A'] and class_indices[i+1] == infer.NAME_TO_CLASS_CODE['B']:
-            predictions[starts[i]:ends[i]] = infer.NAME_TO_CLASS_CODE['B']
+            predictions[starts[i]:ends[i]] = infer.NAME_TO_CLASS_CODE['BACKGROUND']
 
         # and remove short chirps that aren't in between two As or two Bs
-        conditional = class_indices[i-1] != infer.NAME_TO_CLASS_CODE['B'] and class_indices[i+1] != infer.NAME_TO_CLASS_CODE['B']
-        conditional = conditional and class_indices[i-1] != infer.NAME_TO_CLASS_CODE['A'] and class_indices[i+1] != infer.NAME_TO_CLASS_CODE['A']
-        if (ends[i] - starts[i] <= 30) and conditional:
-            predictions[starts[i]:ends[i]] = infer.NAME_TO_CLASS_CODE['BACKGROUND']
 
     return predictions
 
@@ -39,7 +49,7 @@ def threshold_bs_on_iqr(predictions, iqr):
     """
     a_idx = infer.NAME_TO_CLASS_CODE['A']
     iqr_a = iqr[a_idx]
-    iqr_threshold = 0.25
+    iqr_threshold = 0.20
     conditional = (iqr_a >= iqr_threshold).astype(bool) & (predictions == infer.NAME_TO_CLASS_CODE['B']).astype(bool)
     predictions[conditional] = infer.NAME_TO_CLASS_CODE['B']
     return predictions
@@ -54,7 +64,7 @@ def threshold_as_on_iqr(predictions, iqr):
     """
     iqr_background = iqr[infer.NAME_TO_CLASS_CODE['BACKGROUND']]
     iqr_a = iqr[infer.NAME_TO_CLASS_CODE['A']]
-    iqr_threshold = 0.15
+    iqr_threshold = 0.20
     conditional = (iqr_background >= iqr_threshold).astype(bool) & (predictions == infer.NAME_TO_CLASS_CODE['A']).astype(bool)
     conditional = conditional & (iqr_a >= iqr_threshold).astype(bool) & (predictions == infer.NAME_TO_CLASS_CODE['A']).astype(bool)
     predictions[conditional] = infer.NAME_TO_CLASS_CODE['BACKGROUND']
@@ -65,4 +75,4 @@ def threshold_as_on_iqr(predictions, iqr):
 # The list below contains the heuristics
 # that will be applied to the pre-hmm classifications.
 # Functions will be applied in the order they are in the list.
-HEURISTIC_FNS = [threshold_as_on_iqr, threshold_bs_on_iqr, remove_short_chirps_and_a_chirps_before_b_chirps]
+HEURISTIC_FNS = [remove_short_chirps_and_a_chirps_before_b_chirps, threshold_as_on_iqr, threshold_bs_on_iqr]
