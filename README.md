@@ -106,3 +106,14 @@ with the heuristics in heuristics.py (if you're not tired of hearing the word "h
 This will run your custom heuristics on the data produced by infer.py with the --debug flag but won't 
 save the results anywhere, since it's for on-the-fly iteration and debugging. To actually save the results with
 new heuristics re-run infer.py with ```--output_csv_path``` set.
+
+# Example
+resources/example.wav contains a small wav file for learning the software. Run this command to get
+all debug info:
+```
+python infer.py --wav_file ../resources/example.wav --debug
+```
+then 
+```
+python interactive_plot.py --debug_data_path debug/
+```
