@@ -1,8 +1,7 @@
 # beetles-cnn
 Pipeline for classifying beetle chirps in raw recordings.
 # Using
-
-Currently no pip package is available, so clone this repository locally.
+No pip package is available, so clone this repository locally.
 Optionally create a virtual environment with the tool of your choice (conda example below)
 ```
 conda create -n beetles && conda activate beetles
@@ -14,9 +13,10 @@ pip install -r requirements.txt
 The pipeline to evaluate a .wav file resides in infer.py, which requires at least one
 argument specifying a .wav file to analyze. Once given a .wav file, there are three *non*-mutually 
 exclusive options to choose from: 
-todo: talk about the code downloading models from s3
 
 ```--plot_prefix```, ```--output_csv_path```, and ```--debug```.
+Optionally you can specify a ```--saved_model_directory``` but by default infer.py will download all
+required models to ```$HOME/.cache/beetles/```. 
 # --plot_prefix
 todo: add wav_files/example.wav to repo plus minimum example for interactive_plot.py
 ```
@@ -29,28 +29,25 @@ quick sanity check of the predictions when using interactive_plot.py isn't neces
 Example image is below. The same image is produced by interactive_plot.py but *interactive* so you
 can scroll along the x-axis.
 
-![Image produced by infer.py with --plot_prefix](resources/2_M17F32_8_9_14.png)
-The raw spectrogram is shown in the top image . The second image contains all auxiliary data,
-consisting of four rows.
+![Image produced by infer.py with --plot_prefix](resources/example_inference_image.png)
+The raw spectrogram is shown in the top image. The second image contains the predictions of the model.
+Model predictions here were not cherry-picked but definitely are a success case - the ensemble doesn't 
+always do this well.
 ### Row 1
-todo: make this generalizable to more than three classes.
 Ensemble softmax predictions. Colors are softmax probabilities per channel mapped to RGB. Red means 
 the ensemble strongly predicted A chirps, blue background, and green B chirps. Colors in between mean
-the ensemnle was less confident about which class to choose (purple means the ensemble couldn't choose b/t
+the ensemble was less confident about which class to choose (purple means the ensemble couldn't choose b/t
 A and background).
 ### Row 2
 Inter-quartile range of the model ensemble, also referred to as uncertainty. Brighter colors mean 
 higher uncertainty. Yellow means the ensemble oscillated around A and B classifications, purple when 
 the oscillations were around A and background, and cyan between B and background. 
 ### Row 3
-The argmax of row 1, but thresholded on uncertainty values. Notice that predictions that are red in
-the first row and purple in the second are blue in the third. We set any classification of A that had 
-high uncertainty to background. Implementing similar heuristics based on observation will result in 
-better performance.
+The classifications of the ensemble, calculated via argmax() over the channel dimension.
 ### Row 4
-Final predictions after smoothing with HMM. Notice there is still a misclassification where
-the final prediction is B and the underlying data is most likely background. This can be fixed
-with the proper heuristic.
+Classifications after all heuristics have been applied.
+### Row 5
+Final predictions after smoothing with HMM. 
 
 # --output_csv_path
 ```
@@ -69,17 +66,15 @@ Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz),
 8,0,0,78.42916666666666,79.10833333333333,0,0,BACKGROUND
 9,0,0,79.19583333333333,79.925,0,0,BACKGROUND
 ```
-This contains all 0s for data usually exported by Raven so you can tell if you're looking at model
-predictions. 
-
+This contains all 0s for dummy data that is usually calculated by Raven.
 # --debug
 Save the five necessary files required to run interactive_plot.py in ```$PWD/debug/```.
 Will save the raw spectrogram, predictions post-hmm, the median prediction of the ensemble 
-per class, uncertainty of the ensemble, and the .csv file containing the begin and end of each
+per class, uncertainty of the ensemble, and the .csv file containing the start and end of each
 sound type.
 # interactive_plot.py
 ### Warning: 
-This requires a lot of data and sliding can be slow, especially if you're running other processes.
+This requires a lot of data and can be slow, especially if you're running other processes.
 
 ```
 usage: interactive_plot.py [-h] --debug_data_path DATA_PATH [--sample_rate SAMPLE_RATE] [--hop_length HOP_LENGTH]
@@ -102,17 +97,12 @@ Open and edit heuristics.py. Each function you implement is required to have onl
 predictions (numpy array (size 1xN) of argmaxed median predictions i.e. ```[0, 1, 2, 0, 0]```), and 
 inter-quartile range (referred to as uncertainty or iqr: numpy array (size 3xN) containing the 
 ensemble uncertainty for each class at each time point). After manipulating predictions based on
-some rule, return it for processing by the next function in the heuristic function list. Templates 
-showing basic thresholding of predictions based on uncertainties are included. 
-Pull requests welcome!
-Since it can be computationally intensive to re-predict all of the data with infer.py and then apply 
-new heuristics to the prediction, interactive_plot.py also supports manipulating predictions
+some rule, return it for processing by the next function in the heuristic function list. 
+The heuristic function list is applied start-to-end on the predictions, so ordering matter. 
+Templates showing basic thresholding of predictions based on uncertainties are included. Pull requests welcome!
+Since it can be computationally intensive to re-run the prediction pipeline with infer.py,
+interactive_plot.py also supports manipulating predictions
 with the heuristics in heuristics.py (if you're not tired of hearing the word "heuristic" I'm impressed).
 This will run your custom heuristics on the data produced by infer.py with the --debug flag but won't 
 save the results anywhere, since it's for on-the-fly iteration and debugging. To actually save the results with
 new heuristics re-run infer.py with ```--output_csv_path``` set.
-
-# How it works
-
-# Known failure cases
-
