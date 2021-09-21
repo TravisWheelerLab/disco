@@ -57,6 +57,7 @@ def main(data_root, hop_length, sample_rate, apply_heuristics):
 
     predictions_rgb = infer.convert_argmaxed_array_to_rgb(predictions)
     iqr = np.expand_dims(np.transpose(iqr), 0)
+
     prediction_array = np.concatenate((hmm_predictions,
                                        predictions_rgb,
                                        iqr,
@@ -65,19 +66,21 @@ def main(data_root, hop_length, sample_rate, apply_heuristics):
     ax[0].imshow(spectrogram, aspect='auto')
     ax[0].set_ylim([0, spectrogram.shape[0]])
 
-    for cls, point in zip(prediction_df['Sound_Type'], prediction_df['Begin Spect Index']):
-        ax[0].plot([point, point], [0, spectrogram.shape[0]], '{}-'.format(infer.SOUND_TYPE_TO_COLOR[cls]))
+    for class_index, name in infer.CLASS_CODE_TO_NAME.items():
+        subdf = prediction_df.loc[prediction_df['Sound_Type'] == name, :]
+        ax[0].vlines(subdf['Begin Spect Index'], ymin=0, ymax=spectrogram.shape[0],
+                     colors=infer.SOUND_TYPE_TO_COLOR[name])
+    for class_index, name in infer.CLASS_CODE_TO_NAME.items():
+        subdf = prediction_df.loc[prediction_df['Sound_Type'] == name, :]
+        ax[0].vlines(subdf['End Spect Index'], ymin=0, ymax=spectrogram.shape[0], linestyles='dashed',
+                     colors=infer.SOUND_TYPE_TO_COLOR[name])
 
     for cls in infer.SOUND_TYPE_TO_COLOR.keys():
-        ax[0].plot([point, point], [0, spectrogram.shape[0]], '{}-'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
+        ax[0].plot([0, 0], [0, spectrogram.shape[0]], '{}-'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
                    label='begin of {} chirp'.format(cls))
-
-    for cls, point in zip(prediction_df['Sound_Type'], prediction_df['End Spect Index']):
-        ax[0].plot([point, point], [0, spectrogram.shape[0]], '{}-.'.format(infer.SOUND_TYPE_TO_COLOR[cls]))
-
     for cls in infer.SOUND_TYPE_TO_COLOR.keys():
-        ax[0].plot([point, point], [0, spectrogram.shape[0]], '{}-.'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
-                   label='end of {} chirp'.format(cls))
+        ax[0].plot([0, 0], [0, spectrogram.shape[0]], '{}-.'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
+                   label='begin of {} chirp'.format(cls))
 
     ax[0].legend(bbox_to_anchor=(1.04,1), loc="upper left")
     ax[1].imshow(prediction_array, aspect='auto', interpolation='nearest')
