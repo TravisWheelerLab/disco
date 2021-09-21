@@ -5,8 +5,8 @@ import torchaudio
 import numpy as np
 import pandas as pd
 import pickle
-
-np.random.seed(0)
+import requests
+import tqdm
 import matplotlib.pyplot as plt
 from glob import glob
 from collections import defaultdict
@@ -14,11 +14,28 @@ from collections import defaultdict
 from models import CNN1D
 from hmm_process import load_in_hmm
 
+# Should this be a configurable argument?
+np.random.seed(0)
+
 CLASS_CODE_TO_NAME = {0: 'A', 1: 'B', 2: 'BACKGROUND'}
 NAME_TO_CLASS_CODE = {v: k for k, v in CLASS_CODE_TO_NAME.items()}
 SOUND_TYPE_TO_COLOR = {'A': 'r', 'B': 'g', 'BACKGROUND': 'k'}
-RAVEN_CSV_COLUMNS = ['Selection', 'View', 'Channel', 'Begin Time (s)', 'End Time (s)', 'Low Freq (Hz)',
-                    'High Freq (Hz)', 'Sound_Type']
+AWS_DOWNLOAD_LINK = 'https://beetles-cnn-models.s3.amazonaws.com/m_{}.pt'
+DEFAULT_MODEL_DIRECTORY = os.path.join(os.path.expanduser('~'), '.cache', 'beetles')
+
+
+def download_models():
+    directory = DEFAULT_MODEL_DIRECTORY
+    if not os.path.isdir(directory):
+        os.makedirs(directory)
+
+    for model_id in tqdm.tqdm(range(1, 11), desc='download status'):
+        download_url = AWS_DOWNLOAD_LINK.format(model_id)
+        download_destination = os.path.join(directory, 'm_{}.pt'.format(model_id))
+        if not os.path.isfile(download_destination):
+            f = requests.get(download_url)
+            with open(download_destination, 'wb') as dst:
+                dst.write(f.content)
 
 
 def aggregate_predictions(predictions):
@@ -137,7 +154,6 @@ def plot_predictions_and_confidences(original_spectrogram,
         med_slice = median_predictions[:, center - len_spect:center + len_spect]
         iqr_slice = prediction_iqrs[:, center - len_spect:center + len_spect]
         hmm_slice = hmm_predictions[center - len_spect:center + len_spect]
-        processed_slice = processed_predictions[center - len_spect:center + len_spect]
         med_slice = np.transpose(med_slice)
         iqr_slice = np.transpose(iqr_slice)
 
@@ -145,20 +161,23 @@ def plot_predictions_and_confidences(original_spectrogram,
         iqr_slice = np.expand_dims(iqr_slice, 0)
 
         hmm_rgb = convert_argmaxed_array_to_rgb(hmm_slice)
+        processed_slice = processed_predictions[center - len_spect:center + len_spect]
         processed_rgb = convert_argmaxed_array_to_rgb(processed_slice)
 
+        median_argmax = convert_argmaxed_array_to_rgb(np.argmax(med_slice, axis=-1))
+
         ax[1].imshow(np.concatenate((med_slice,
-                                     iqr_slice,  # will there be problems with normalization here?
+                                     iqr_slice,
+                                     median_argmax,
                                      processed_rgb,
                                      hmm_rgb),
                                     axis=0),
                      aspect='auto', interpolation='nearest')
 
-        ax[1].set_yticks([0, 1, 2, 3])
-        ax[1].set_yticklabels(['median prediction', 'iqr', 'preds. post heuristics',
+        ax[1].set_yticks([0, 1, 2, 3, 4])
+        ax[1].set_yticklabels(['median prediction', 'iqr', 'median argmax', 'preds. post heuristics',
                                'smoothed w/ hmm'], rotation=45)
 
-        ax[1].set_xticks([])
         ax[1].set_title('Predictions mapped to RGB values. red: A chirp, green: B chirp, blue: background')
         ax[0].set_title(
             'Random sample from spectrogram created from {}'.format(os.path.splitext(os.path.basename(save_prefix))[0]))
@@ -173,8 +192,12 @@ def assemble_ensemble(model_directory, model_extension, device,
                       in_channels):
     model_paths = glob(os.path.join(model_directory, "*" + model_extension))
     if not len(model_paths):
-        raise ValueError("no models found at {}".format(os.path.join(model_directory,
-                                                                     "*" + model_extension)))
+        print('no models found at {}, downloading to {}'.format(model_directory,
+                                                                DEFAULT_MODEL_DIRECTORY))
+
+        download_models()
+        model_paths = glob(os.path.join(model_directory, "*" + model_extension))
+
     models = []
     for model_path in model_paths:
         skeleton = CNN1D(in_channels).to(device)

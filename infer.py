@@ -16,8 +16,9 @@ warnings.filterwarnings("ignore", category=UserWarning)
 def parser():
 
     ap = ArgumentParser()
-    ap.add_argument('--saved_model_directory', required=True, type=str,
-                    help='where the ensemble of models is stored')
+    ap.add_argument('--saved_model_directory', required=False,
+                    default=infer.DEFAULT_MODEL_DIRECTORY,
+                    type=str, help='where the ensemble of models is stored')
     ap.add_argument('--model_extension', default='.pt', type=str,
                     help='filename extension of saved model files')
     ap.add_argument('--wav_file', required=True, type=str,
@@ -53,6 +54,7 @@ def parser():
 
 
 def main(args):
+
     if args.tile_size % 2 != 0:
         raise ValueError('tile_size must be even, got {}'.format(args.tile_size))
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -82,11 +84,12 @@ def main(args):
 
     predictions = np.argmax(medians, axis=0).squeeze()
     for heuristic in heuristics.HEURISTIC_FNS:
+        print('applying heuristic function', heuristic.__name__)
         predictions = heuristic(predictions, iqr)
 
     hmm_predictions = infer.run_hmm(predictions)
 
-    if args.output_csv_path is not None:
+    if args.output_csv_path is not None or args.plot_prefix is not None:
         infer.save_csv_from_predictions(args.output_csv_path,
                                         hmm_predictions,
                                         sample_rate=spectrogram_iterator.sample_rate,
@@ -94,12 +97,12 @@ def main(args):
 
     if args.plot_prefix is not None:
         plot_prefix = args.plot_prefix + os.path.splitext(os.path.basename(args.wav_file))[0]
-        infer.plot_predictions_and_confidences(spectrogram_iterator.original_spectrogram,
-                                               medians,
-                                               iqr,
-                                               hmm_predictions,
-                                               predictions,
-                                               plot_prefix,
+        infer.plot_predictions_and_confidences(original_spectrogram=spectrogram_iterator.original_spectrogram,
+                                               median_predictions=medians,
+                                               prediction_iqrs=iqr,
+                                               hmm_predictions=hmm_predictions,
+                                               processed_predictions=predictions,
+                                               save_prefix=plot_prefix,
                                                n_images=args.n_images,
                                                len_sample=args.len_image_sample)
     if args.debug is not None:
