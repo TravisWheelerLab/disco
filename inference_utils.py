@@ -8,6 +8,7 @@ import pickle
 import requests
 import tqdm
 import matplotlib.pyplot as plt
+import pomegranate as pom
 from glob import glob
 from collections import defaultdict
 
@@ -22,6 +23,26 @@ NAME_TO_CLASS_CODE = {v: k for k, v in CLASS_CODE_TO_NAME.items()}
 SOUND_TYPE_TO_COLOR = {'A': 'r', 'B': 'g', 'BACKGROUND': 'k'}
 AWS_DOWNLOAD_LINK = 'https://beetles-cnn-models.s3.amazonaws.com/m_{}.pt'
 DEFAULT_MODEL_DIRECTORY = os.path.join(os.path.expanduser('~'), '.cache', 'beetles')
+
+
+def load_in_hmm():
+
+    # TODO: add argument to control the number of sound types
+    # and pass it into the HMM
+    a_dist = pom.DiscreteDistribution({0: 0.995, 1: 0.00005, 2: 0.00495})
+    b_dist = pom.DiscreteDistribution({0: 0.1, 1: 0.88, 2: 0.020})
+    x_dist = pom.DiscreteDistribution({0: 0.35, 1: 0.05, 2: 0.60})
+    dists = [a_dist, b_dist, x_dist]
+
+    matrix = np.array([[0.995, 0.00000, 0.005],
+                       [0.0000, 0.995, 0.005],
+                       [0.00001, 0.00049, 0.9995]])
+
+    starts = np.array([0, 0, 1])
+    hmm_model = pom.HiddenMarkovModel.from_matrix(matrix, dists, starts)
+    hmm_model.bake()
+
+    return hmm_model
 
 
 def download_models():
