@@ -2,6 +2,19 @@ import numpy as np
 import inference_utils as infer
 
 
+def threshold_based_on_mean_uncertainty(predictions, iqr):
+
+    x = 1000
+    for i in range(0, predictions.shape[0]-x, x):
+
+        y = np.where(predictions[i:i+x] == infer.NAME_TO_CLASS_CODE['A'])[0]
+        z = 0.75*x
+        if len(y) >= z:
+            if np.mean(iqr[infer.NAME_TO_CLASS_CODE['A'], i:i+x]) > 0.005:
+                predictions[i:i+x] = infer.NAME_TO_CLASS_CODE['BACKGROUND']
+    return predictions
+
+
 def remove_short_chirps_and_a_chirps_before_b_chirps(predictions, iqr):
 
     class_idx_to_prediction_start_and_end = infer.aggregate_predictions(predictions)
@@ -19,9 +32,6 @@ def remove_short_chirps_and_a_chirps_before_b_chirps(predictions, iqr):
     class_indices = np.asarray(class_indices)[sorted_idx]
     # now find places where As and Bs have the same end and start, respectively
     for i in range(len(class_indices)-1):
-        # conditional = class_indices[i-1] != infer.NAME_TO_CLASS_CODE['B'] and class_indices[i+1] !=
-        # infer.NAME_TO_CLASS_CODE['B'] conditional = conditional and class_indices[i-1] != infer.NAME_TO_CLASS_CODE[
-        # 'A'] and class_indices[i+1] != infer.NAME_TO_CLASS_CODE['A']
         if ends[i] - starts[i] <= 15:
             if predictions[ends[i]-1] == infer.NAME_TO_CLASS_CODE['BACKGROUND']:
                 pass
@@ -75,4 +85,4 @@ def threshold_as_on_iqr(predictions, iqr):
 # The list below contains the heuristics
 # that will be applied to the pre-hmm classifications.
 # Functions will be applied in the order they are in the list.
-HEURISTIC_FNS = [remove_short_chirps_and_a_chirps_before_b_chirps, threshold_as_on_iqr, threshold_bs_on_iqr]
+HEURISTIC_FNS = [threshold_based_on_mean_uncertainty, remove_short_chirps_and_a_chirps_before_b_chirps, threshold_as_on_iqr, threshold_bs_on_iqr]
