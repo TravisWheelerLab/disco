@@ -18,9 +18,8 @@ exclusive options to choose from:
 Optionally you can specify a ```--saved_model_directory``` but by default infer.py will download all
 required models to ```$HOME/.cache/beetles/```. 
 # --plot_prefix
-todo: add wav_files/example.wav to repo plus minimum example for interactive_plot.py
 ```
-python infer.py --wav_file ./wav_files/example.wav  --plot_prefix ./images/example_evaluated
+python infer.py --wav_file ../resources/example.wav  --plot_prefix ./images/example_evaluated
 ```
 This will analyze the input wav file and save --n_images images (default: 30) to the location 
 specified with ```--plot_prefix```, in the format <plot_prefix>_<wav_filename>_<number>.png. This option is good for a
@@ -73,8 +72,8 @@ Will save the raw spectrogram, predictions post-hmm, the median prediction of th
 per class, uncertainty of the ensemble, and the .csv file containing the start and end of each
 sound type.
 # interactive_plot.py
-### Warning: 
-This requires a lot of data and can be slow, especially if you're running other processes.
+This is useful for when your computer doesn't have a GPU and the cluster you have access to doesn't have an Xwindow server.
+Requires output produced by infer.py with the --debug flag.
 
 ```
 usage: interactive_plot.py [-h] --debug_data_path DATA_PATH [--sample_rate SAMPLE_RATE] [--hop_length HOP_LENGTH]
@@ -87,7 +86,7 @@ optional arguments:
   --hop_length HOP_LENGTH
                         length of hops b/t subsequent spectrogram windows
 ```
-Requires output produced by infer.py with the --debug flag. Displays a matplotlib plot with a slider 
+ Displays a matplotlib plot with a slider 
 to ease visual inspection of the whole spectrogram. This utility is useful for when you've implemented
 a new heuristic or changed the hmm and want to see what the large-scale impacts of your changes are.
 Slide along the x-axis by clicking and dragging the slider on the bottom.
