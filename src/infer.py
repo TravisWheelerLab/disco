@@ -48,6 +48,8 @@ def parser():
                     help='how many images to save when plot_prefix is specified')
     ap.add_argument('--len_image_sample', type=int, default=1000,
                     help='how long each image should be')
+    ap.add_argument('--num_threads', type=int, default=4,
+                    help='how many threads to use when evaluting on CPU')
     args = ap.parse_args()
 
     return args
@@ -58,6 +60,8 @@ def main(args):
     if args.tile_size % 2 != 0:
         raise ValueError('tile_size must be even, got {}'.format(args.tile_size))
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    if device == 'cpu':
+        torch.set_num_threads(args.num_threads)
     models = infer.assemble_ensemble(args.saved_model_directory, args.model_extension, device, args.input_channels)
     if len(models) < 2:
         raise ValueError('expected more than 1 model, found {}. Is the model directory and extension correct?'.format(len(models)))
