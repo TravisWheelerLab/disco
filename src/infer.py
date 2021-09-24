@@ -34,8 +34,6 @@ def parser():
                     help='batch size')
     ap.add_argument('--input_channels', default=98, type=int,
                     help='number of channels of input spectrogram')
-    ap.add_argument('--plot_prefix', type=str, default=None,
-                    help='where to save the median prediction plot')
     ap.add_argument('--hop_length', type=int, default=200,
                     help='length of hops b/t subsequent spectrogram windows')
     ap.add_argument('--vertical_trim', type=int, default=30,
@@ -44,10 +42,6 @@ def parser():
                     help='size of the fft to use when calculating spectrogram')
     ap.add_argument('--debug', action='store_true',
                     help='whether or not to save debug information for inspection with interactive_plot.py')
-    ap.add_argument('--n_images', type=int, default=30,
-                    help='how many images to save when plot_prefix is specified')
-    ap.add_argument('--len_image_sample', type=int, default=1000,
-                    help='how long each image should be')
     ap.add_argument('--num_threads', type=int, default=4,
                     help='how many threads to use when evaluting on CPU')
     args = ap.parse_args()
@@ -99,16 +93,6 @@ def main(args):
                                         sample_rate=spectrogram_iterator.sample_rate,
                                         hop_length=args.hop_length)
 
-    if args.plot_prefix is not None:
-        plot_prefix = args.plot_prefix + os.path.splitext(os.path.basename(args.wav_file))[0]
-        infer.plot_predictions_and_confidences(original_spectrogram=spectrogram_iterator.original_spectrogram,
-                                               median_predictions=medians,
-                                               prediction_iqrs=iqr,
-                                               hmm_predictions=hmm_predictions,
-                                               processed_predictions=predictions,
-                                               save_prefix=plot_prefix,
-                                               n_images=args.n_images,
-                                               len_sample=args.len_image_sample)
     if args.debug is not None:
 
         debug_path = './debug'
