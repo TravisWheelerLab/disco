@@ -5,6 +5,7 @@ import inference_utils as infer
 import torchaudio
 import numpy as np
 import pandas as pd
+import os
 
 np.random.seed(19680801)
 
@@ -22,7 +23,7 @@ def parser():
     return ap.parse_args()
 
 
-def add_example(label_list, begin_idx, end_idx, sound_type,
+def add_example(label_list, wav_file, begin_idx, end_idx, sound_type,
                 hop_length=None, sample_rate=None):
     begin_time = infer.convert_spectrogram_index_to_seconds(begin_idx,
                                                             hop_length=hop_length,
@@ -33,7 +34,8 @@ def add_example(label_list, begin_idx, end_idx, sound_type,
     label_list.append({
         'Begin Time (s)': begin_time,
         'End Time (s)': end_time,
-        'Sound_Type': sound_type.upper()
+        'Sound_Type': sound_type.upper(),
+        'Filename': wav_file
     })
 
 
@@ -56,7 +58,7 @@ if __name__ == '__main__':
     n = 0
     xmin = 0
     xmax = 0
-    interval = 300
+    interval = 400
     label_list = []
     ax1.imshow(spectrogram[:, n:n + interval])
 
@@ -90,18 +92,18 @@ if __name__ == '__main__':
     def process_keystroke(key):
         global interval, n, xmin, xmax, hop_length, sample_rate
 
-        if key.key in ('q', 'Q'):
+        if key.key in ('y', 'Y'):
             print('A')
-            add_example(label_list, xmin, xmax, 'A',
+            add_example(label_list, args.wav_file, n+xmin, n+xmax, 'A',
                         hop_length=hop_length,
                         sample_rate=sample_rate)
         elif key.key in ('w', 'W'):
             print('B')
-            add_example(label_list, xmin, xmax, 'B',
+            add_example(label_list, args.wav_file, n+xmin, n+xmax, 'B',
                         hop_length=hop_length,
                         sample_rate=sample_rate)
         elif key.key in ('e', 'E'):
-            add_example(label_list, xmin, xmax, 'background',
+            add_example(label_list, args.wav_file, n+xmin, n+xmax, 'background',
                         hop_length=hop_length,
                         sample_rate=sample_rate)
             print('X')
@@ -117,15 +119,19 @@ if __name__ == '__main__':
             print('widening window')
             interval += 10
             _redraw_ax1(n, interval)
-        elif key.key in ('s', 'S'):
+        elif key.key in ('t', 'T'):
             print('tightening window')
             interval -= 10
             _redraw_ax1(n, interval)
         elif key.key in ('f', 'F'):
-            n = int(np.random.rand() * spectrogram.shape[-1])
+            n = n + interval // 2
+            _redraw_ax1(n, interval)
+        elif key.key in ('j', 'J'):
+            n = n + 10 * interval
             _redraw_ax1(n, interval)
         elif key.key in ('d', 'D'):
-            n = n - interval
+            print('reversing')
+            n = n - interval // 2
             _redraw_ax1(n, interval)
         else:
             print("unknown value: hit one of a, b, x")
@@ -137,5 +143,10 @@ if __name__ == '__main__':
                         rectprops=dict(alpha=0.5, facecolor='tab:blue'))
 
     plt.show()
+
     label_df = pd.DataFrame.from_dict(label_list)
-    label_df.to_csv(args.output_csv_path, index=False, mode='a')
+
+    if os.path.isfile(args.output_csv_path):
+        label_df.to_csv(args.output_csv_path, index=False, mode='a', header=False)
+    else:
+        label_df.to_csv(args.output_csv_path, index=False, mode='w')
