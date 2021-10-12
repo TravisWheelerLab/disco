@@ -1,6 +1,6 @@
 # beetles-cnn
 Pipeline for classifying beetle chirps in raw recordings.
-# Using
+# Installing
 No pip package is available, so clone this repository locally.
 Optionally create a virtual environment with the tool of your choice (conda example below)
 ```
@@ -10,9 +10,14 @@ And install the requirements with
 ```
 pip install -r requirements.txt
 ```
+Alternatively, with docker:
+```
+todo
+```
 The pipeline to evaluate a .wav file resides in infer.py, which requires at least one
 argument specifying a .wav file to analyze. Once given a .wav file, there are three *non*-mutually 
 exclusive options to choose from: 
+
 
 ```--plot_prefix```, ```--output_csv_path```, and ```--debug```.
 Optionally you can specify a ```--saved_model_directory``` but by default infer.py will download all
