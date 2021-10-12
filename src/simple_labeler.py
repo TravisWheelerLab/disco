@@ -1,7 +1,6 @@
 import pdb
 import matplotlib
 import matplotlib.pyplot as plt
-import inference_utils as infer
 import torchaudio
 import numpy as np
 import pandas as pd
@@ -24,10 +23,10 @@ def parser():
 
 def add_example(label_list, wav_file, begin_idx, end_idx, sound_type,
                 hop_length=None, sample_rate=None):
-    begin_time = infer.convert_spectrogram_index_to_seconds(begin_idx,
+    begin_time = convert_spectrogram_index_to_seconds(begin_idx,
                                                             hop_length=hop_length,
                                                             sample_rate=sample_rate)
-    end_time = infer.convert_spectrogram_index_to_seconds(end_idx,
+    end_time = convert_spectrogram_index_to_seconds(end_idx,
                                                           hop_length=hop_length,
                                                           sample_rate=sample_rate)
     label_list.append({
@@ -38,13 +37,23 @@ def add_example(label_list, wav_file, begin_idx, end_idx, sound_type,
     })
 
 
+def load_wav_file(wav_filename):
+    waveform, sample_rate = torchaudio.load(wav_filename)
+    return waveform, sample_rate
+
+
+def convert_spectrogram_index_to_seconds(spect_idx, hop_length, sample_rate):
+    seconds_per_hop = hop_length / sample_rate
+    return spect_idx * seconds_per_hop
+
+
 class SimpleLabeler:
 
     def __init__(self, wav_file, output_csv_path):
 
         self.wav_file = wav_file
         self.output_csv_path = output_csv_path
-        self.waveform, self.sample_rate = infer.load_wav_file(self.wav_file)
+        self.waveform, self.sample_rate = load_wav_file(self.wav_file)
 
         self.hop_length = 200
 
@@ -80,7 +89,7 @@ class SimpleLabeler:
                   'key:\n' \
                   'y: save A chirp\n' \
                   'w: save B chirp\n' \
-                  'e: save background\n'\
+                  'e: save background\n' \
                   'r: delete last label\n' \
                   'a: widen window\n' \
                   't: tighten window\n' \
