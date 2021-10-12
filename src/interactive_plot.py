@@ -63,33 +63,27 @@ def main(data_root, hop_length, sample_rate, apply_heuristics):
                                        iqr,
                                        medians), axis=0)
 
-    ax[0].imshow(spectrogram, aspect='auto')
-    ax[0].set_ylim([0, spectrogram.shape[0]])
+    # TODO: refactor so I only plot in a window
+    # for class_index, name in infer.CLASS_CODE_TO_NAME.items():
+    #     subdf = prediction_df.loc[prediction_df['Sound_Type'] == name, :]
+    #     ax[0].vlines(subdf['Begin Spect Index'], ymin=0, ymax=spectrogram.shape[0],
+    #                  colors=infer.SOUND_TYPE_TO_COLOR[name])
+    # for class_index, name in infer.CLASS_CODE_TO_NAME.items():
+    #     subdf = prediction_df.loc[prediction_df['Sound_Type'] == name, :]
+    #     ax[0].vlines(subdf['End Spect Index'], ymin=0, ymax=spectrogram.shape[0], linestyles='dashed',
+    #                  colors=infer.SOUND_TYPE_TO_COLOR[name])
 
-    for class_index, name in infer.CLASS_CODE_TO_NAME.items():
-        subdf = prediction_df.loc[prediction_df['Sound_Type'] == name, :]
-        ax[0].vlines(subdf['Begin Spect Index'], ymin=0, ymax=spectrogram.shape[0],
-                     colors=infer.SOUND_TYPE_TO_COLOR[name])
-    for class_index, name in infer.CLASS_CODE_TO_NAME.items():
-        subdf = prediction_df.loc[prediction_df['Sound_Type'] == name, :]
-        ax[0].vlines(subdf['End Spect Index'], ymin=0, ymax=spectrogram.shape[0], linestyles='dashed',
-                     colors=infer.SOUND_TYPE_TO_COLOR[name])
+    # for cls in infer.SOUND_TYPE_TO_COLOR.keys():
+    #     ax[0].plot([0, 0], [0, spectrogram.shape[0]], '{}-'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
+    #                label='begin of {} chirp'.format(cls))
+    # for cls in infer.SOUND_TYPE_TO_COLOR.keys():
+    #     ax[0].plot([0, 0], [0, spectrogram.shape[0]], '{}-.'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
+    #                label='begin of {} chirp'.format(cls))
 
-    for cls in infer.SOUND_TYPE_TO_COLOR.keys():
-        ax[0].plot([0, 0], [0, spectrogram.shape[0]], '{}-'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
-                   label='begin of {} chirp'.format(cls))
-    for cls in infer.SOUND_TYPE_TO_COLOR.keys():
-        ax[0].plot([0, 0], [0, spectrogram.shape[0]], '{}-.'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
-                   label='begin of {} chirp'.format(cls))
-
-    ax[0].legend(bbox_to_anchor=(1.04,1), loc="upper left")
-    ax[1].imshow(prediction_array, aspect='auto', interpolation='nearest')
-    ax[1].axis([1, predictions.shape[-1], -0.25, 2.5])
-    ax[1].set_ylim([-0.5, 3.5])
     ax[1].set_yticks([0, 1, 2, 3])
     ax[1].set_xticks([])
     ax[1].set_xlabel('spectrogram record')
-    ax[1].set_yticklabels(['smoothed w/ hmm', 'preds. post heuristics', 'iqr',
+    ax[1].set_yticklabels(['heuristics + smoothing w/ hmm', 'median argmax', 'iqr',
                            'median predictions'], rotation=45)
     ax[1].set_title('Predictions mapped to RGB values. red: A chirp, green: B chirp, blue: background')
     ax[0].set_title('Raw spectrogram')
@@ -101,14 +95,20 @@ def main(data_root, hop_length, sample_rate, apply_heuristics):
     spos = Slider(axpos, 'x-position', 0.0, medians.shape[1])
 
     n = 800
-    ax[0].set_xlim([0, n])
-    ax[1].set_xlim([0, n])
-    # hmm, why is this so slow?
+    ax[0].imshow(spectrogram[:, 0:n],
+                 aspect='auto')
+    ax[1].imshow(prediction_array[:, 0:n],
+                 aspect='auto',
+                 interpolation='nearest')
 
     def update(val):
-        pos = spos.val
-        ax[1].axis([pos, pos + n, -0.5, 3.5])
-        ax[0].axis([pos, pos + n, 0, spectrogram.shape[0]])
+        loc = int(spos.val)
+        if loc >= (spectrogram.shape[-1] - n):
+            ax[1].imshow(prediction_array[:, loc:-1], aspect='auto', interpolation='nearest')
+            ax[0].imshow(spectrogram[:, loc:-1], aspect='auto')
+        else:
+            ax[1].imshow(prediction_array[:, loc:loc+n], aspect='auto', interpolation='nearest')
+            ax[0].imshow(spectrogram[:, loc:loc+n], aspect='auto')
         fig.canvas.draw_idle()
 
     spos.on_changed(update)

@@ -85,4 +85,4 @@ def threshold_as_on_iqr(predictions, iqr):
 # The list below contains the heuristics
 # that will be applied to the pre-hmm classifications.
 # Functions will be applied in the order they are in the list.
-HEURISTIC_FNS = [threshold_based_on_mean_uncertainty, remove_short_chirps_and_a_chirps_before_b_chirps, threshold_as_on_iqr, threshold_bs_on_iqr]
+HEURISTIC_FNS = [remove_short_chirps_and_a_chirps_before_b_chirps, threshold_as_on_iqr, threshold_bs_on_iqr]

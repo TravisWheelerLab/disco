@@ -12,6 +12,7 @@ import inference_utils as infer
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
 
+# if there isn't an Xwindow server
 
 def parser():
 
@@ -43,7 +44,7 @@ def parser():
     ap.add_argument('--debug', action='store_true',
                     help='whether or not to save debug information for inspection with interactive_plot.py')
     ap.add_argument('--num_threads', type=int, default=4,
-                    help='how many threads to use when evaluting on CPU')
+                    help='how many threads to use when evaluating on CPU')
     args = ap.parse_args()
 
     return args
