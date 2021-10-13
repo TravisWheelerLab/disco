@@ -1,3 +1,5 @@
+from pytorch_lightning import seed_everything
+seed_everything(1)
 import os
 import torch
 import pytorch_lightning as pl
