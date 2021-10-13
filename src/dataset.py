@@ -17,13 +17,16 @@ class SpectrogramDataset(torch.utils.data.Dataset):
 
     def __init__(self,
                  dataset_type,
+                 data_path,
                  spect_type,
                  max_spec_length=40,
                  filtered_sounds=['C', 'Y'],
                  clip_spects=True,
                  bootstrap_sample=False):
+
         self.spect_lengths = defaultdict(list)
         self.dataset_type = dataset_type
+        self.data_path = data_path
         self.spect_type = spect_type
         self.max_spec_length = max_spec_length
         self.filtered_sounds = filtered_sounds
@@ -36,7 +39,7 @@ class SpectrogramDataset(torch.utils.data.Dataset):
     def load_in_all_files(self, dataset_type, spect_type, filtered_labels, bootstrap_sample):
 
         spectrograms_list = []
-        root = os.path.join('data', dataset_type, spect_type, 'spect')
+        root = os.path.join(self.data_path, dataset_type, spect_type, 'spect')
         files = glob(os.path.join(root, "*"))
         class_counter = defaultdict(int)
         for filepath in files:
@@ -80,46 +83,6 @@ class SpectrogramDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.spectrograms_list)
-
-    def generate_bar_chart(self):
-        # saves bar chart created from unique_labels dictionary into 'image_offload' directory.
-        labels = list(self.unique_labels.keys())
-        counts = list(self.unique_labels.values())
-        plt.style.use("dark_background")
-        plt.bar(labels, counts, color='hotpink')
-        plt.title('Bar chart of counts of each class in ' + self.dataset_type)
-        plt.savefig('image_offload/' + "bar_chart_" + self.dataset_type + '.png')
-        plt.close()
-
-
-    def generate_lengths_histograms(self, plotted_sound_types=['A','B','X'], plot_all=True):
-        # saves histograms of lengths for each plotted_sound_type or every labeled sound into 'image_offload' directory.
-        if not (plotted_sound_types or plot_all):
-            raise ValueError('No plot requirements given. Designate specific sound types or to plot all types.')
-
-        for sound_type in plotted_sound_types:
-            plt.style.use("dark_background")
-            plt.hist(self.spect_lengths[sound_type], bins=25, color='lightskyblue')
-            plt.title('lengths histogram of ' + sound_type + ' in ' + self.dataset_type)
-            plt.show()
-            file_title = 'lengths_histogram_' + sound_type + '_' + self.dataset_type + '.png'
-            plt.savefig('image_offload/' + file_title)
-            print('saved ' + file_title + '.')
-            plt.close()
-
-        if plot_all:
-            all_lengths = []
-            for sound_type, lengths_list in self.spect_lengths.items():
-                for length in lengths_list:
-                    all_lengths.append(length)
-            plt.style.use("dark_background")
-            plt.hist(all_lengths, bins=25, color='aquamarine')
-            plt.title('histogram, all lengths in ' + self.dataset_type)
-            plt.show()
-            file_title = 'lengths_histogram_' + 'all_lengths_' + self.dataset_type + '.png'
-            plt.savefig('image_offload/' + file_title)
-            print('saved ' + file_title)
-            plt.close()
 
     def get_unique_labels(self):
         return self.unique_labels.keys()
