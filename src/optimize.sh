@@ -1,16 +1,6 @@
-#!/bin/bash
-
-#SBATCH --partition=wheeler_lab_gpu
-#SBATCH --job-name=beetles_ensemble
-#SBATCH --output=beetles_go.out
-#SBATCH --ntasks-per-node=2
-#SBATCH --gres=gpu:2
-
-source ~/anaconda/bin/activate
-conda activate beetles
-
-time python train.py\
-    --gpus 2 \
+#! /usr/bin/env bash
+python hparam_optimizer.py\
+    --gpus 1 \
     --log_dir "$HOME"/beetles-logs/ \
     --vert_trim 30 \
     --n_fft 800 \

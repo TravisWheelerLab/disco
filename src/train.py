@@ -35,7 +35,8 @@ def parser():
     return ap.parse_args()
 
 
-def main(hparams):
+def train_func(hparams):
+
     if hparams.vert_trim is None:
         vert_trim = sa.determine_default_vert_trim(hparams.mel, hparams.log, hparams.n_fft)
 
@@ -110,4 +111,4 @@ def main(hparams):
 
 
 if __name__ == '__main__':
-    main(parser())
+    train_func(parser())

@@ -80,6 +80,7 @@ class CNN1D(pl.LightningModule):
         acc = torch.mean(torch.cat(train_acc, 0))
         self.log('train_loss', loss)
         self.log('train_acc', acc)
+        self.log('learning_rate', self.learning_rate)
 
     def validation_epoch_end(self, outputs):
         val_loss = self.all_gather([x['val_loss'] for x in outputs])
