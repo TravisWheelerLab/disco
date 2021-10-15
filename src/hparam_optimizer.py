@@ -19,17 +19,37 @@ def setup_hyperparser():
                      log_base=10,
                      nb_samples=5,
                      )
+    parser.opt_list('--n_fft',
+                    type=int,
+                    default=100,
+                    tunable=True,
+                    options=[1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350, 1400, 400,
+                             450, 500, 550, 600, 650, 700, 750, 800, 800, 850, 900, 950]
+                    )
+    parser.opt_range('--vertical_trim',
+                     type=int,
+                     default=0,
+                     tunable=True,
+                     low=0,
+                     high=40,
+                     nb_samples=5,
+                     )
+    parser.opt_range('--begin_cutoff_idx',
+                     type=int,
+                     default=0,
+                     tunable=True,
+                     low=0,
+                     high=40,
+                     nb_samples=5,
+                     )
 
+    # I still really dislike this API because it requires copying and pasting argument parsers
     parser.add_argument('--test_tube_exp_name', default='my_test')
-    parser.add_argument('--log_path', default='/some/path/to/log')
-    parser.add_argument('--vert_trim', required=True, type=int)
-    parser.add_argument('--n_fft', required=True, type=int)
     parser.add_argument('--log', action='store_true')
     parser.add_argument('--mel', action='store_true')
     parser.add_argument('--bootstrap', action='store_true')
     parser.add_argument('--batch_size', type=int, required=True)
     parser.add_argument('--tune_initial_lr', action='store_true')
-    parser.add_argument('--in_channels', type=int, required=True)
     parser.add_argument('--gpus', type=int, required=True)
     parser.add_argument('--num_nodes', type=int, required=True)
     parser.add_argument('--epochs', type=int, required=True)
@@ -39,7 +59,6 @@ def setup_hyperparser():
     parser.add_argument('--data_path', type=str, required=True)
     parser.add_argument('--model_name', type=str, default='model.pt')
     parser.add_argument('--num_workers', type=int, required=True)
-
     return parser.parse_args()
 
 
@@ -56,10 +75,12 @@ if __name__ == '__main__':
     cluster.add_command("source /home/tc229954/anaconda/bin/activate")
     cluster.add_command("conda activate beetles")
 
-    cluster.add_slurm_cmd(cmd='partition', value='wheeler_lab_gpu', comment='partition')
+    cluster.add_slurm_cmd(cmd='partition',
+                          value='wheeler_lab_large_cpu,wheeler_lab_small_cpu',
+                          comment='partition')
 
-    cluster.per_experiment_nb_gpus = 1
-    cluster.per_experiment_nb_nodes = 1
+    cluster.per_experiment_nb_gpus = hyperparams.gpus
+    cluster.per_experiment_nb_cpus = 4
 
     cluster.optimize_parallel_cluster_gpu(train,
                                           nb_trials=20,

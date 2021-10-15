@@ -13,7 +13,8 @@ class CNN1D(pl.LightningModule):
                  mel,
                  apply_log,
                  n_fft,
-                 begin_cutoff_idx):
+                 begin_cutoff_idx,
+                 vertical_trim):
 
         super(CNN1D, self).__init__()
         self.conv1 = torch.nn.Conv1d(in_channels=in_channels, out_channels=256, kernel_size=3, padding=1)
@@ -32,6 +33,8 @@ class CNN1D(pl.LightningModule):
         self.apply_log = apply_log
         self.n_fft = n_fft
         self.begin_cutoff_idx = begin_cutoff_idx
+        self.vertical_trim = vertical_trim
+        self.in_channels = in_channels
 
         self.save_hyperparameters()
 

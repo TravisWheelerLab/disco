@@ -54,14 +54,15 @@ class SpectrogramDataset(torch.utils.data.Dataset):
             spect = np.load(filepath)
             if label not in filtered_labels and spect.shape[1] >= self.max_spec_length:
                 class_counter[label] += 1
-                spect = spect[self.vertical_trim:]
+                spect = spect[self.vertical_trim:, self.begin_cutoff_idx:]
+
                 if self.apply_log:
                     # sometimes the mel spectrogram has all 0 filter banks.
                     # here we just set the 0s to 1s and then take the log
                     # transform, forcing those values back to 9. This removes
                     # the need for trimming rows to get rid of NaNs.
                     spect[spect == 0] = 1
-                    spect = np.log2(spect[self.vertical_trim:, self.begin_cutoff_idx:])
+                    spect = np.log2(spect)
 
                 if spect.shape[1] >= self.max_spec_length:
 
