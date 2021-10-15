@@ -1,15 +1,19 @@
-#! /usr/bin/env bash
+#!/bin/bash
+
+source ~/anaconda/bin/activate
+conda activate beetles
+
 python hparam_optimizer.py\
-    --gpus 1 \
+    --gpus 0 \
     --log_dir "$HOME"/beetles-logs/ \
-    --vert_trim 30 \
+    --vertical_trim 0 \
     --n_fft 800 \
     --batch_size 512 \
     --data_path "$HOME/share/beetles-cnn/data/" \
-    --in_channels 98 \
     --learning_rate 1e-3 \
-    --num_nodes 1 \
-    --epochs 300 \
+    --num_nodes 0 \
+    --epochs 10 \
+    --check_val_every_n_epoch 5\
     --num_workers 8 \
     --log \
     --mel
