@@ -21,6 +21,9 @@ class SpectrogramDataset(torch.utils.data.Dataset):
                  spect_type,
                  max_spec_length=40,
                  filtered_sounds=['C', 'Y'],
+                 apply_log=True,
+                 vertical_trim=0,
+                 begin_cutoff_idx=0,
                  clip_spects=True,
                  bootstrap_sample=False):
 
@@ -31,6 +34,9 @@ class SpectrogramDataset(torch.utils.data.Dataset):
         self.max_spec_length = max_spec_length
         self.filtered_sounds = filtered_sounds
         self.clip_spects = clip_spects
+        self.apply_log = apply_log
+        self.vertical_trim = vertical_trim
+        self.begin_cutoff_idx = begin_cutoff_idx
         self.bootstrap_sample = bootstrap_sample
         # spectrograms_list[i][0] is the label, [i][1] is the spect.
         self.spectrograms_list, self.unique_labels = self.load_in_all_files(self.dataset_type, self.spect_type,
@@ -48,8 +54,20 @@ class SpectrogramDataset(torch.utils.data.Dataset):
             spect = np.load(filepath)
             if label not in filtered_labels and spect.shape[1] >= self.max_spec_length:
                 class_counter[label] += 1
-                spectrograms_list.append([label, spect])
-            self.spect_lengths[label].append(spect.shape[1])
+                spect = spect[self.vertical_trim:]
+                if self.apply_log:
+                    # sometimes the mel spectrogram has all 0 filter banks.
+                    # here we just set the 0s to 1s and then take the log
+                    # transform, forcing those values back to 9. This removes
+                    # the need for trimming rows to get rid of NaNs.
+                    spect[spect == 0] = 1
+                    spect = np.log2(spect[self.vertical_trim:, self.begin_cutoff_idx:])
+
+                if spect.shape[1] >= self.max_spec_length:
+
+                    spectrograms_list.append([label, spect])
+                    self.spect_lengths[label].append(spect.shape[1])
+
         sorted_class_counter = OrderedDict(sorted(class_counter.items()))
 
         if bootstrap_sample:

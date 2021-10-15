@@ -10,16 +10,16 @@ source ~/anaconda/bin/activate
 conda activate beetles
 
 time python train.py\
-    --gpus 2 \
+    --gpus 0 \
     --log_dir "$HOME"/beetles-logs/ \
-    --vert_trim 30 \
+    --vertical_trim 0 \
     --n_fft 800 \
     --batch_size 512 \
     --data_path "$HOME/share/beetles-cnn/data/" \
-    --in_channels 98 \
     --learning_rate 1e-3 \
-    --num_nodes 1 \
+    --begin_cutoff_idx 0 \
+    --num_nodes 0 \
     --epochs 300 \
-    --num_workers 8 \
+    --num_workers 36 \
     --log \
     --mel
