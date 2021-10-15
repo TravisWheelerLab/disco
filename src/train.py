@@ -3,7 +3,7 @@ from time import time
 
 # BE CAREFUL. This will cause inconsistent behavior if training
 # using DDP!
-seed_everything(int(time.time() * 1000))
+seed_everything(int(time() * 1000))
 
 import os
 import torch
@@ -11,7 +11,7 @@ import pytorch_lightning as pl
 import spectrogram_analysis as sa
 from pytorch_lightning.plugins import DDPPlugin
 
-from models import CNN1D
+from models import SimpleCNN
 from argparse import ArgumentParser
 from dataset import SpectrogramDataset
 
@@ -21,8 +21,8 @@ DEFAULT_SPECTROGRAM_NUM_ROWS = 128
 def train_parser():
     ap = ArgumentParser('train routine')
 
-    tunable = ap.add_argument_group(description='tunable args', help='arguments in this group are'
-                                                                     'tunable, and tuned in hparam_optimizer.py')
+    tunable = ap.add_argument_group(title='tunable args', description='arguments in this group are'
+                                                                      'tunable, and tuned in hparam_optimizer.py')
     tunable.add_argument('--n_fft', type=int, required=True,
                          help='number of ffts used to create the spectrogram')
     tunable.add_argument('--learning_rate', type=float, required=True,
@@ -34,9 +34,9 @@ def train_parser():
                          help='how many rows to remove from the low-frequency range of the spectrogram.'
                               'This is probably unnecessary because NaNs are easily removed in preprocessing.')
 
-    non_tunable = ap.add_argument_group(description='non-tunable args', help='the "mel" argument depends on the data'
-                                                                             'extraction step - whether or not a mel'
-                                                                             'spectrogram was computed')
+    non_tunable = ap.add_argument_group(title='non-tunable args', description='the "mel" argument depends on the data'
+                                                                              'extraction step - whether or not a mel'
+                                                                              'spectrogram was computed')
     non_tunable.add_argument('--log', action='store_true', help='whether or not to apply a log2 transform to the'
                                                                 'spectrogram')
     non_tunable.add_argument('--mel', action='store_true', help='use a mel-transformed spectrogram')
@@ -64,7 +64,8 @@ def train_parser():
                                                                           'in <test/train/validation>/spect/*npy')
     non_tunable.add_argument('--model_name', type=str, default='model.pt', help='custom model name for saving the model'
                                                                                 'after training has completed')
-    non_tunable.add_argument('--num_workers', type=int, required=True, help='number of threads to use when loading data')
+    non_tunable.add_argument('--num_workers', type=int, required=True,
+                             help='number of threads to use when loading data')
 
     return ap
 
@@ -110,13 +111,13 @@ def train_func(hparams):
 
     in_channels = DEFAULT_SPECTROGRAM_NUM_ROWS - hparams.vertical_trim
 
-    model = CNN1D(in_channels,
-                  hparams.learning_rate,
-                  hparams.mel,
-                  hparams.log,
-                  hparams.n_fft,
-                  hparams.begin_cutoff_idx,
-                  hparams.vertical_trim)
+    model = SimpleCNN(in_channels,
+                      hparams.learning_rate,
+                      hparams.mel,
+                      hparams.log,
+                      hparams.n_fft,
+                      hparams.begin_cutoff_idx,
+                      hparams.vertical_trim)
 
     save_best = pl.callbacks.model_checkpoint.ModelCheckpoint(
         monitor='val_loss',
