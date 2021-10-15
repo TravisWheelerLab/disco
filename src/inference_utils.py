@@ -12,7 +12,7 @@ import pomegranate as pom
 from glob import glob
 from collections import defaultdict
 
-from models import CNN1D
+from models import SimpleCNN
 
 # Should this be a configurable argument?
 np.random.seed(0)
@@ -229,7 +229,13 @@ def assemble_ensemble(model_directory, model_extension, device,
 
     models = []
     for model_path in model_paths:
-        skeleton = CNN1D(in_channels).to(device)
+        skeleton = SimpleCNN(in_channels,
+                             learning_rate=1e-2,
+                             mel=False,
+                             apply_log=False,
+                             n_fft=None,
+                             begin_cutoff_idx=None,
+                             vertical_trim=None).to(device)
         skeleton.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
         models.append(skeleton.eval())
 

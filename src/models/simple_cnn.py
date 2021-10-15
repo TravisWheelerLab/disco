@@ -4,6 +4,8 @@ import torch
 import torchmetrics
 import numpy as np
 
+__all__ = ['SimpleCNN']
+
 
 class SimpleCNN(pl.LightningModule):
 
@@ -21,7 +23,7 @@ class SimpleCNN(pl.LightningModule):
         self.conv2 = torch.nn.Conv1d(256, 512, 3, padding=1)
         self.conv3 = torch.nn.Conv1d(512, 512, 3, padding=1)
         self.conv4 = torch.nn.Conv1d(512, 1024, 3, padding=1)
-        self.conv5 = torch.nn.Conv1d(1024, 512, 3, padding=1)
+        self.conv5 = torch.nn.Conv1d(1024, 512, 1, padding=0)
         self.conv6 = torch.nn.Conv1d(512, 512, 3, padding=1)
         self.conv7 = torch.nn.Conv1d(512, 256, 3, padding=1)
         self.conv8 = torch.nn.Conv1d(in_channels=256, out_channels=32, kernel_size=1, padding=0)

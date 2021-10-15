@@ -41,8 +41,8 @@ def parser():
                     help='how many rows to remove from the spectrogram ')
     ap.add_argument('--n_fft', type=int, default=800,
                     help='size of the fft to use when calculating spectrogram')
-    ap.add_argument('--debug', action='store_true',
-                    help='whether or not to save debug information for inspection with interactive_plot.py')
+    ap.add_argument('--debug', type=str, default=None,
+                    help='where to save debugging data')
     ap.add_argument('--num_threads', type=int, default=4,
                     help='how many threads to use when evaluating on CPU')
     args = ap.parse_args()
@@ -96,7 +96,7 @@ def main(args):
 
     if args.debug is not None:
 
-        debug_path = './debug'
+        debug_path = args.debug
         if not os.path.isdir(debug_path):
             os.mkdir(debug_path)
 
