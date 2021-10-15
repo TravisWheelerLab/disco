@@ -1,7 +1,10 @@
 from pytorch_lightning import seed_everything
 from time import time
 
-seed_everything(int(time.time()*1000))
+# BE CAREFUL. This will cause inconsistent behavior if training
+# using DDP!
+seed_everything(int(time.time() * 1000))
+
 import os
 import torch
 import pytorch_lightning as pl
@@ -18,32 +21,56 @@ DEFAULT_SPECTROGRAM_NUM_ROWS = 128
 def train_parser():
     ap = ArgumentParser('train routine')
 
-    tunable = ap.add_argument_group(description='tunable args')
-    tunable.add_argument('--n_fft', type=int, required=True)
-    tunable.add_argument('--learning_rate', type=float, required=True)
-    tunable.add_argument('--begin_cutoff_idx', type=int, required=True)
-    tunable.add_argument('--vertical_trim', type=int, required=True)
+    tunable = ap.add_argument_group(description='tunable args', help='arguments in this group are'
+                                                                     'tunable, and tuned in hparam_optimizer.py')
+    tunable.add_argument('--n_fft', type=int, required=True,
+                         help='number of ffts used to create the spectrogram')
+    tunable.add_argument('--learning_rate', type=float, required=True,
+                         help='initial learning rate')
+    tunable.add_argument('--begin_cutoff_idx', type=int, required=True,
+                         help='how many columns to cut off at the beginning of each'
+                              'labeled region')
+    tunable.add_argument('--vertical_trim', type=int, required=True,
+                         help='how many rows to remove from the low-frequency range of the spectrogram.'
+                              'This is probably unnecessary because NaNs are easily removed in preprocessing.')
 
-    non_tunable = ap.add_argument_group(description='non-tunable args')
-    non_tunable.add_argument('--log', action='store_true')
-    non_tunable.add_argument('--mel', action='store_true')
-    non_tunable.add_argument('--bootstrap', action='store_true')
-    non_tunable.add_argument('--batch_size', type=int, required=False)
-    non_tunable.add_argument('--tune_initial_lr', action='store_true')
-    non_tunable.add_argument('--gpus', type=int, required=False)
-    non_tunable.add_argument('--num_nodes', type=int, required=False)
-    non_tunable.add_argument('--epochs', type=int, required=False)
+    non_tunable = ap.add_argument_group(description='non-tunable args', help='the "mel" argument depends on the data'
+                                                                             'extraction step - whether or not a mel'
+                                                                             'spectrogram was computed')
+    non_tunable.add_argument('--log', action='store_true', help='whether or not to apply a log2 transform to the'
+                                                                'spectrogram')
+    non_tunable.add_argument('--mel', action='store_true', help='use a mel-transformed spectrogram')
+    non_tunable.add_argument('--bootstrap', action='store_true', help='train a model with a sample of the training set'
+                                                                      '(replace=True)')
+    non_tunable.add_argument('--batch_size', type=int, required=True, help='batch size')
+    non_tunable.add_argument('--tune_initial_lr', action='store_true', help='whether or not to use PyTorchLightning\'s'
+                                                                            'built-in initial LR tuner')
+    non_tunable.add_argument('--gpus', type=int, required=True, help='number of gpus per node')
+    non_tunable.add_argument('--num_nodes', type=int, required=True, help='number of nodes. If you want to train with 8'
+                                                                          'GPUs, --gpus should be 4 and --num_nodes'
+                                                                          'should be 2 (assuming you have 4 GPUs per '
+                                                                          'node')
+    non_tunable.add_argument('--epochs', type=int, required=True, help='max number of epochs to train')
     non_tunable.add_argument('--check_val_every_n_epoch', type=int, required=False,
-                             default=1)
-    non_tunable.add_argument('--log_dir', type=str, required=False)
-    non_tunable.add_argument('--data_path', type=str, required=False)
-    non_tunable.add_argument('--model_name', type=str, default='model.pt')
-    non_tunable.add_argument('--num_workers', type=int, required=False)
+                             default=1, help='how often to validate the model. On each validation run the loss is '
+                                             'logged '
+                                             'and if it\'s lower than the previous best the current model is saved')
+    non_tunable.add_argument('--log_dir', type=str, required=True, help='where to save the model logs (train, test '
+                                                                        'loss '
+                                                                        'and hyperparameters). Visualize with '
+                                                                        'tensorboard')
+    non_tunable.add_argument('--data_path', type=str, required=True, help='where the data are saved on disk. Assumes'
+                                                                          'the data were saved with np.save and reside'
+                                                                          'in <test/train/validation>/spect/*npy')
+    non_tunable.add_argument('--model_name', type=str, default='model.pt', help='custom model name for saving the model'
+                                                                                'after training has completed')
+    non_tunable.add_argument('--num_workers', type=int, required=True, help='number of threads to use when loading data')
 
     return ap
 
 
 def train_func(hparams):
+    # TODO: Don't hardcode this.
     spect_type = 'mel_no_log_{}_no_vert_trim'.format(hparams.n_fft)
 
     train_dataset = SpectrogramDataset('train',
@@ -78,7 +105,7 @@ def train_func(hparams):
                                               shuffle=False,
                                               num_workers=hparams.num_workers)
 
-    # i want to finetune on large spectrograms with multiple different classes so
+    # i need to finetune on large spectrograms with multiple different classes so
     # context is learned
 
     in_channels = DEFAULT_SPECTROGRAM_NUM_ROWS - hparams.vertical_trim
@@ -95,7 +122,7 @@ def train_func(hparams):
         monitor='val_loss',
         filename='{epoch}-{val_loss:.5f}',
         mode='min',
-        save_top_k=5)
+        save_top_k=1)
 
     trainer_kwargs = {
         'gpus': hparams.gpus,
