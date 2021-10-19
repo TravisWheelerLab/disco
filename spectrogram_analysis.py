@@ -2,7 +2,9 @@ import numpy as np
 import os
 import pandas as pd
 import argparse
+import warnings
 
+warnings.filterwarnings("ignore", category=UserWarning)
 import torch
 import torchaudio
 import matplotlib.pyplot as plt
@@ -10,6 +12,8 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from glob import glob
 from sklearn.cluster import KMeans
+
+from data_feeder import LABEL_TO_INDEX, EXCLUDED_CLASSES
 
 
 class BeetleFile:
@@ -152,15 +156,17 @@ def form_spectrogram_type(mel, n_fft, log, vert_trim):
 def load_csv_and_wav_files_from_directory(data_dir):
     # takes in a directory String and returns a dictionary with a key as the file label and a value
     # as a list with index 0 as the wav file and index 1 as the csv file
-    print("loading in csv and wav files from directory.")
     dirs = os.listdir(data_dir)
     csvs_and_wav = {}
     for d in dirs:
         if os.path.isdir(os.path.join(data_dir, d)):
             labels = glob(os.path.join(data_dir, d, "*.csv"))
             wav = glob(os.path.join(data_dir, d, "*WAV")) + glob(os.path.join(data_dir, d, "*wav"))
-            if len(wav):
+            if len(wav) and len(labels):
                 csvs_and_wav[os.path.splitext(os.path.basename(wav[0]))[0]] = [wav[0], labels[0]]
+            else:
+                # print('found {} wav files and {} csvs in directory {}'.format(len(wav), len(labels), d))
+                pass
     return csvs_and_wav
 
 
@@ -175,22 +181,62 @@ def w2s_idx(idx, hop_length):
     return idx // hop_length
 
 
-def create_label_to_spectrogram(spect, labels, hop_length, vertical_trim):
+def create_label_to_spectrogram(spect, labels, hop_length, vertical_trim,
+                                neighbor_tolerance=100):
     # takes in a specific spectrogram dictated by process_wav_file and returns a dictionary with a key as
     # a song type and a list of tensors of those spectrograms as a value. e.g.:
     # len(label_to_spectrogram['A']) = 49 (number of sounds of this subtype)
     # type(label_to_spectrogram['A']) = class 'list'
     # type(label_to_spectrogram['A'][0]) = class 'torch.Tensor'
+    labels['begin spect idx'] = [w2s_idx(x, hop_length) for x in labels['begin idx']]
+    labels['end spect idx'] = [w2s_idx(x, hop_length) for x in labels['end idx']]
 
-    # a dictionary typically throws a KeyError if you try to get an item with a key that is not in the dictionary.
-    # The defaultdict in contrast will simply create any items that you try to access (provided they do not exist yet).
-    label_to_spectrograms = defaultdict(list)
-    for _, row in labels.iterrows():
-        bi = w2s_idx(int(row['begin idx']), hop_length)  # waveform index to spectrogram index conversion
-        ei = w2s_idx(int(row['end idx']), hop_length)
-        label_to_spectrograms[row['Sound_Type']].append(spect[0, vertical_trim:, bi:ei])
-    print("labels appended to dictionary.")
-    return label_to_spectrograms
+    contiguous_indices = []
+    if labels.shape[0] == 1:
+        contiguous_indices.append([0])
+    else:
+        labels = labels.sort_values(by='begin idx')
+        i = 0
+        while i < labels.shape[0] - 1:
+            contig = [i]
+            while (labels.iloc[i + 1]['begin idx'] - labels.iloc[i]['end idx']) <= neighbor_tolerance:
+                contig.extend([i + 1])
+                i += 1
+                if i == labels.shape[0] - 1:
+                    break
+            if i == labels.shape[0] - 2 and i + 1 not in contig:
+                # this is a weird conditional to take care of the case when the last index isn't
+                # in a run.
+                contiguous_indices.append([i + 1])
+            contiguous_indices.append(contig)
+            i += 1
+
+    features_and_labels = []
+    for contig in contiguous_indices:
+        contiguous_labels = labels.iloc[contig, :]
+        begin = contiguous_labels.iloc[0]['begin spect idx']
+        end = contiguous_labels.iloc[-1]['end spect idx']
+        spect_slice = spect[:, begin:end]
+        if end-begin == 0:
+            continue
+        end = end - begin # label indices must be relative to the beginning
+        # of the array
+        begin = 0
+        label_vector = np.zeros((spect_slice.shape[1]))
+        first = True
+        for _, row in contiguous_labels.iterrows():
+            if row['Sound_Type'] in EXCLUDED_CLASSES:
+                continue
+            if first:
+                overall_begin = row['begin spect idx']
+                first = False
+            # have to do the shifty shift
+            sound_begin = row['begin spect idx'] - overall_begin
+            sound_end = row['end spect idx'] - overall_begin
+            label_vector[sound_begin:sound_end] = LABEL_TO_INDEX[row['Sound_Type']]
+        features_and_labels.append([spect_slice, label_vector])
+
+    return features_and_labels
 
 
 def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, log_spectrogram, vertical_trim=None):
@@ -203,7 +249,6 @@ def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, log_spectrogr
 
     # creates a spectrogram with a log2 transform
     hop_length = 200
-    print("Creating spectrogram for", wav_filename)
     if mel_scale:
         spect = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate,
                                                      n_fft=n_fft,
@@ -215,14 +260,12 @@ def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, log_spectrogr
         if log_spectrogram:
             spect = spect.log2()
 
-    # spect = torchaudio.transforms.Spectrogram(n_fft=400, hop_length=hop_length)(waveform)
-    print("Full spectrogram created for", wav_filename)
-
     # dictionary containing all pre-labeled chirps and their associated spectrograms
-    label_to_spectrograms = create_label_to_spectrogram(spect, labels, hop_length=hop_length,
-                                                        vertical_trim=vertical_trim)
+    spect = spect.squeeze()
+    features_and_labels = create_label_to_spectrogram(spect, labels, hop_length=hop_length,
+                                                      vertical_trim=vertical_trim)
 
-    return spect.numpy(), label_to_spectrograms
+    return features_and_labels
 
 
 def fit_kmeans(spect, begin_cutoff_idx, end_cutoff_idx, n_clusters=2):
