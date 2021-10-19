@@ -1,5 +1,6 @@
 import os
 import random
+import pickle
 from collections import defaultdict, OrderedDict
 from glob import glob
 
@@ -11,9 +12,80 @@ import spectrogram_analysis as sa
 
 LABEL_TO_INDEX = {'A': 0, 'B': 1, 'X': 2}
 INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
+MASK_FLAG = -1
 
 
-class SpectrogramDataset(torch.utils.data.Dataset):
+def pad_batch(batch):
+
+    features = [b[0] for b in batch]
+    labels = [b[1] for b in batch]
+
+    mxlen = np.max([f.shape[-1] for f in features])
+    padded_batch = torch.zeros((len(batch), features[0].shape[0], mxlen))
+    masks = torch.zeros((len(batch), features[0].shape[0], mxlen))
+    padded_labels = torch.zeros((len(batch), mxlen)) + MASK_FLAG
+
+    for i, (f, l) in enumerate(zip(features, labels)):
+        padded_batch[i, :, :f.shape[-1]] = f
+        masks[i, :, f.shape[-1]:] = True
+        padded_labels[i, :l.shape[-1]] = l
+
+    return padded_batch, masks, padded_labels
+
+
+def _load_pickle(f):
+    with open(f, 'rb') as src:
+        return pickle.load(src)
+
+
+class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
+    """
+    Multiple labels per example - more in the vein of FCNN labels.
+
+    """
+
+    def __init__(self,
+                 files,
+                 apply_log=True,
+                 vertical_trim=0,
+                 bootstrap_sample=False,
+                 mask_beginning_and_end=False,
+                 begin_mask=30,
+                 end_mask=10):
+
+        self.mask_beginning_and_end = mask_beginning_and_end
+        self.apply_log = apply_log
+        self.vertical_trim = vertical_trim
+        self.bootstrap_sample = bootstrap_sample
+        self.begin_mask = begin_mask
+        self.end_mask = end_mask
+
+        self.bootstrapped_files = np.random.choice(self.files, size=len(self.files),
+                                                   replace=True) if self.bootstrap_sample else None
+        self.files = self.bootstrapped_files if self.bootstrap_sample else files
+
+    def __getitem__(self, idx):
+        # returns a tuple with [0] the class label and [1] a slice of the spectrogram or the entire image.
+        spect_slice, labels = _load_pickle(self.files[idx])
+        spect_slice = spect_slice[self.vertical_trim:]
+        spect_slice[spect_slice == 0] = 1
+        if self.apply_log:
+            spect_slice = np.log2(spect_slice)
+
+        if self.mask_beginning_and_end and len(np.unique(labels)) == 1:
+            labels[:self.begin_mask] = -1
+            labels[-self.end_mask:] = -1
+
+        return torch.tensor(spect_slice), torch.tensor(labels)
+
+    def __len__(self):
+        return len(self.files)
+
+    def get_unique_labels(self):
+        return self.unique_labels.keys()
+
+
+class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
 
     def __init__(self,
                  dataset_type,
@@ -65,7 +137,6 @@ class SpectrogramDataset(torch.utils.data.Dataset):
                     spect = np.log2(spect)
 
                 if spect.shape[1] >= self.max_spec_length:
-
                     spectrograms_list.append([label, spect])
                     self.spect_lengths[label].append(spect.shape[1])
 
@@ -105,3 +176,26 @@ class SpectrogramDataset(torch.utils.data.Dataset):
 
     def get_unique_labels(self):
         return self.unique_labels.keys()
+
+
+if __name__ == '__main__':
+
+    from glob import glob
+
+    fpath = '/home/tc229954/data/beetles/extracted_data/train/mel_no_log_400_no_vert_trim/*'
+    train_files = glob(fpath)
+    s = SpectrogramDatasetMultiLabel(
+        train_files,
+        apply_log=True,
+        vertical_trim=0,
+        bootstrap_sample=False,
+        mask_beginning_and_end=True)
+
+    batch_size = 32
+    d = torch.utils.data.DataLoader(s,
+                                    batch_size=batch_size,
+                                    num_workers=0,
+                                    collate_fn=None if batch_size == 1 else pad_batch)
+    for x, x_mask, y in d:
+        print(x.shape, x_mask.shape, y.shape)
+        break
