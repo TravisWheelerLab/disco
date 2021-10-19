@@ -44,29 +44,44 @@ class SimpleLabeler:
 
         self.wav_file = wav_file
         self.output_csv_path = output_csv_path
+
+        n = 0
+
+        if os.path.isfile(args.output_csv_path):
+            exit()
+            try:
+                previous_labels = pd.read_csv(args.output_csv_path, delimiter=',')
+                n = int(previous_labels['End Time (s)'].iloc[-1])
+                print('Already labeled this wav file, with {} labels!'.format(previous_labels.shape[0]))
+                print('setting initial window to last labeled chirp!')
+            except:
+                n = 0
+                print("labels exist but couldn't parse columns, starting from beginning")
+
         self.waveform, self.sample_rate = infer.load_wav_file(self.wav_file)
 
         self.hop_length = 200
 
         self.spectrogram = torchaudio.transforms.MelSpectrogram(sample_rate=self.sample_rate,
                                                                 n_fft=800,
-                                                                hop_length=self.hop_length,
-                                                                )(self.waveform).log2().numpy().squeeze()
-        self.spectrogram = self.spectrogram[20:, :]
+                                                                hop_length=self.hop_length, )(self.waveform)
+        self.spectrogram[self.spectrogram == 0] = 1
+        self.spectrogram = self.spectrogram.log2().numpy().squeeze()
+        self.vertical_cut = 20
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, figsize=(8, 6))
 
-        self.n = 0
+        self.n = n
         self.xmin = 0
         self.xmax = 0
         self.interval = 400
         self.label_list = []
 
-        self.ax1.imshow(self.spectrogram[:, self.n:self.n + self.interval])
+        self.ax1.imshow(self.spectrogram[self.vertical_cut:, self.n:self.n + self.interval])
 
         self.ax1.set_title('Press left mouse button and drag '
                            'to select a region in the top graph '
-                           '0 percent through spectrogram')
+                           '{:d} percent through spectrogram'.format(int(self.n / self.spectrogram.shape[-1])))
 
         textstr = 'keys control which label is\n' \
                   'assigned to the selected region.\n' \
@@ -105,22 +120,22 @@ class SimpleLabeler:
         plt.show()
 
     def save_labels(self):
-
-        label_df = pd.DataFrame.from_dict(self.label_list)
-        if os.path.isfile(self.output_csv_path):
-            label_df.to_csv(self.output_csv_path, index=False, mode='a', header=False)
-        else:
-            label_df.to_csv(self.output_csv_path, index=False, mode='w')
+        if len(self.label_list):
+            label_df = pd.DataFrame.from_dict(self.label_list)
+            if os.path.isfile(self.output_csv_path):
+                label_df.to_csv(self.output_csv_path, index=False, mode='a', header=False)
+            else:
+                label_df.to_csv(self.output_csv_path, index=False, mode='w')
 
     def _redraw_ax2(self):
-        self.ax2.imshow(self.spectrogram[:, self.n + self.xmin: self.n + self.xmax])
+        self.ax2.imshow(self.spectrogram[self.vertical_cut:, self.n + self.xmin: self.n + self.xmax])
         self.ax2.set_title('selected region')
         self.fig.canvas.draw()
 
     def _redraw_ax1(self):
         # could be
         self.ax1.clear()
-        self.ax1.imshow(self.spectrogram[:, self.n:self.n + self.interval], aspect='auto')
+        self.ax1.imshow(self.spectrogram[self.vertical_cut:, self.n:self.n + self.interval], aspect='auto')
         self.ax1.set_title('Press left mouse button and drag '
                            'to select a region in the top graph '
                            '{:d} percent through spectrogram'.format(int(100 * self.n / self.spectrogram.shape[-1])))
@@ -173,7 +188,7 @@ class SimpleLabeler:
             print('tightening window')
             self.interval -= 10
             self._redraw_ax1()
-        elif key.key in ('f', 'F'):
+        elif key.key in ('g', 'G'):
             self.n = self.n + self.interval // 2  # could be briefer but this is very clear
             self._redraw_ax1()
         elif key.key in ('j', 'J'):
@@ -183,6 +198,14 @@ class SimpleLabeler:
             print('reversing window')
             self.n = self.n - self.interval // 2
             self._redraw_ax1()
+        elif key.key in ('c', 'C'):
+            print('shifting top limit down')
+            self.vertical_cut = self.vertical_cut - 1
+            self._redraw_ax1()
+        elif key.key in ('v', 'V'):
+            print('shifting top limit up')
+            self.vertical_cut = self.vertical_cut + 1
+            self._redraw_ax1()
         else:
             print("unknown value: hit one of a, b, x")
 
@@ -191,7 +214,7 @@ if __name__ == '__main__':
     args = parser()
 
     # fix outputs to make them in the same format as the existing data
-
     labeler = SimpleLabeler(args.wav_file, args.output_csv_path)
+    plt.show()
     labeler.show()
     labeler.save_labels()
