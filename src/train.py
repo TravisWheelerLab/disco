@@ -135,7 +135,8 @@ def train_func(hparams):
         'plugins': DDPPlugin(find_unused_parameters=False) if hparams.gpus else None,
         'precision': 16 if hparams.gpus else 32,
         'default_root_dir': hparams.log_dir,
-        'log_every_n_steps': 1
+        'log_every_n_steps': 1,
+        'terminate_on_nan': True,
     }
 
     if hparams.tune_initial_lr:
