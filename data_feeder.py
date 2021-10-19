@@ -9,8 +9,9 @@ import torch
 
 import spectrogram_analysis as sa
 
-LABEL_TO_INDEX = {'A': 0, 'B': 1, 'X': 2}
+LABEL_TO_INDEX = {'A': 0, 'B': 1, 'X': 2, 'BACKGROUND': 2}
 INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
+EXCLUDED_CLASSES = ('Y', 'C')
 
 
 class SpectrogramDataset(torch.utils.data.Dataset):

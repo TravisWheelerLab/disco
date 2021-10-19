@@ -1,11 +1,14 @@
-import time as t
+import time
 import random
 import math
+from sklearn.model_selection import train_test_split
 import torch
 import numpy as np
+import pickle
 import os
 
 import spectrogram_analysis as sa
+from data_feeder import INDEX_TO_LABEL, LABEL_TO_INDEX
 
 
 class Sound:
@@ -18,7 +21,6 @@ class Sound:
                  unix_time,
                  spectrogram_type,
                  dataset="train"):
-
         self.data_out_path = data_out_path
         self.sound_type = sound_type
         self.file_name = file_name
@@ -40,14 +42,18 @@ class Sound:
         np.save(filepath, self.spectrogram_clip)
 
 
-def offload_data(data_out_path, csvs_and_wav_files, cutoff, mel, log, n_fft, vert_trim, file_wise=False, classes_excluded=[], train_pct=80):
+def offload_data(data_out_path, csvs_and_wav_files, cutoff, mel, log, n_fft, vert_trim, file_wise=False,
+                 classes_excluded=[], train_pct=80):
     # this function ensures that the function saving these files (offload) has the correct information about where each
     # sound from each file goes.
     test_set_marker = determine_filewise_locations(csvs_and_wav_files.keys(), train_pct)
 
     idx_test_arr = 0
     for filename, (wav, csv) in csvs_and_wav.items():
+        print(filename, end=' ')
         spectrogram, label_to_spectrogram = sa.process_wav_file(wav, csv, n_fft, mel, log, vert_trim)
+        continue
+        exit()
         file = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram, mel, n_fft, log, vert_trim)
         if cutoff and file != '1_M14F15_8_7':
             cutoff_kmeans_spectrograms(file)
@@ -59,10 +65,12 @@ def offload_data(data_out_path, csvs_and_wav_files, cutoff, mel, log, n_fft, ver
         else:
             data_set = None
 
-        offload(data_out_path, file, file_wise, classes_excluded=classes_excluded, train_pct=train_pct, data_set=data_set,
+        offload(data_out_path, file, file_wise, classes_excluded=classes_excluded, train_pct=train_pct,
+                data_set=data_set,
                 spectrogram_type=file.spectrogram_type)
         print(filename, "done processing.")
         idx_test_arr += 1
+
 
 # need to save contiguous labels.
 # But first I want to visualize all of the data I labeled.
@@ -101,7 +109,13 @@ def cutoff_kmeans_spectrograms(bf_obj, bci=45, eci=65):
                 bf_obj.label_to_spectrogram[sound_type][index] = spect[:, first_hi:]
 
 
-def offload(data_out_path, beetle_object, file_wise, classes_excluded, train_pct, data_set, spectrogram_type):
+def offload(data_out_path,
+            beetle_object,
+            file_wise,
+            classes_excluded,
+            train_pct,
+            data_set,
+            spectrogram_type):
     # saves each sound from each file into a sound object array depending on filewise/examplewise organization,
     # then saves entire array at the end.
     sound_objects = []
@@ -111,14 +125,15 @@ def offload(data_out_path, beetle_object, file_wise, classes_excluded, train_pct
                 if isinstance(example, torch.Tensor):
                     example = example.numpy()
                 if sound_type not in classes_excluded:
-                    sound_objects.append(Sound(data_out_path, sound_type, beetle_object.name, example, t.time(), dataset=data_set,
-                                               spectrogram_type=spectrogram_type))
+                    sound_objects.append(
+                        Sound(data_out_path, sound_type, beetle_object.name, example, time.time(), dataset=data_set,
+                              spectrogram_type=spectrogram_type))
         print(beetle_object.name, "done appending.")
     else:
         for sound_type, spectrogram_list in beetle_object.label_to_spectrogram.items():
             for example in spectrogram_list:
                 if sound_type not in classes_excluded:
-                    sound_objects.append(Sound(data_out_path, sound_type, beetle_object.name, example, t.time(),
+                    sound_objects.append(Sound(data_out_path, sound_type, beetle_object.name, example, time.time(),
                                                spectrogram_type=spectrogram_type))
         print(beetle_object.name, "done appending.")
         random.shuffle(sound_objects)
@@ -143,32 +158,66 @@ def create_directories(spectrogram_type):
         if not os.path.exists(directory_path):
             os.makedirs(directory_path)
 
-if __name__ == '__main__':
 
-    begin_time = t.time()
+def save_data(out_path, data_list):
+
+    os.makedirs(out_path, exist_ok=True)
+
+    for features, label_vector in data_list:
+        if label_vector.shape[0] > 10000:
+            # way too big
+            continue
+        uniq = np.unique(label_vector, return_counts=True)
+        label = np.argmax(uniq[1])
+        if INDEX_TO_LABEL[label] == 'X' and len(uniq[0]) != 1:
+            lvec = label_vector[label_vector != LABEL_TO_INDEX['BACKGROUND']]
+            uniq = np.unique(lvec, return_counts=True)
+            label = np.argmax(uniq[1])
+
+        out_fpath = os.path.join(out_path,
+                                 INDEX_TO_LABEL[label] + str(time.time()) + '.pkl')
+
+        with open(out_fpath, 'wb') as dst:
+            pickle.dump([features, label_vector], dst)
+
+
+if __name__ == '__main__':
+    import sys
 
     mel = True
-    log = True
-    n_fft = 900
-    vert_trim = None
-    cutoff = True
+    log = False
+    n_fft = int(sys.argv[1])
+    vert_trim = 0
+    cutoff = False
     file_wise = False
 
-    print("cutoff 2-means spectrograms has been set to", cutoff)
-
-    if vert_trim is None:
-        vert_trim = sa.determine_default_vert_trim(mel, log, n_fft)
-
     spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
-    create_directories(spect_type)
+    print(spect_type)
 
-    data_dir = '/home/tc229954/data/beetles/extra_beetle_songs/audio_2020/'
-    data_out = '/home/tc229954/data/beetles/relabeled_data'
-    csvs_and_wav = sa.load_csv_and_wav_files_from_directory(data_dir)
-    print("csvs and wav files loaded in.")
+    data_dir = '/home/tc229954/data/beetles/more_labeled_training_data'
 
-    offload_data(data_out, csvs_and_wav, cutoff=cutoff, mel=mel, log=log, n_fft=n_fft, vert_trim=vert_trim, file_wise=file_wise,
-                 classes_excluded=['C', 'Y'])
+    csv_and_wav = sa.load_csv_and_wav_files_from_directory(data_dir)
 
-    end_time = t.time()
-    print('Elapsed time is %f seconds.' % (end_time - begin_time))
+    out = []
+
+    for filename, (wav, csv) in csv_and_wav.items():
+        features_and_labels = sa.process_wav_file(wav, csv, n_fft, mel, log, vert_trim)
+        out.extend(features_and_labels)
+
+    random.shuffle(out)
+    indices = np.arange(len(out))
+    train_idx, test_idx, _, _ = train_test_split(indices, indices, test_size=0.15)
+    test_idx, val_idx, _, _ = train_test_split(test_idx, test_idx, test_size=0.5)
+
+    train_split = np.asarray(out)[train_idx]
+    val_split = np.asarray(out)[val_idx]
+    test_split = np.asarray(out)[test_idx]
+    print(train_split.shape, val_split.shape, test_split.shape)
+
+    train_path = '/home/tc229954/data/beetles/extracted_data/train/{}'.format(spect_type)
+    validation_path = '/home/tc229954/data/beetles/extracted_data/validation/{}'.format(spect_type)
+    test_path = '/home/tc229954/data/beetles/extracted_data/test/{}'.format(spect_type)
+
+    save_data(train_path, train_split)
+    save_data(validation_path, val_split)
+    save_data(test_path, test_split)
