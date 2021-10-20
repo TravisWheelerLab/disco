@@ -21,6 +21,7 @@ class Sound:
                  unix_time,
                  spectrogram_type,
                  dataset="train"):
+
         self.data_out_path = data_out_path
         self.sound_type = sound_type
         self.file_name = file_name
@@ -50,10 +51,7 @@ def offload_data(data_out_path, csvs_and_wav_files, cutoff, mel, log, n_fft, ver
 
     idx_test_arr = 0
     for filename, (wav, csv) in csvs_and_wav.items():
-        print(filename, end=' ')
         spectrogram, label_to_spectrogram = sa.process_wav_file(wav, csv, n_fft, mel, log, vert_trim)
-        continue
-        exit()
         file = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram, mel, n_fft, log, vert_trim)
         if cutoff and file != '1_M14F15_8_7':
             cutoff_kmeans_spectrograms(file)
@@ -164,6 +162,7 @@ def save_data(out_path, data_list):
     os.makedirs(out_path, exist_ok=True)
 
     for features, label_vector in data_list:
+
         if label_vector.shape[0] > 10000:
             # way too big
             continue
@@ -178,7 +177,7 @@ def save_data(out_path, data_list):
                                  INDEX_TO_LABEL[label] + str(time.time()) + '.pkl')
 
         with open(out_fpath, 'wb') as dst:
-            pickle.dump([features, label_vector], dst)
+            pickle.dump([features.numpy(), label_vector], dst)
 
 
 if __name__ == '__main__':
@@ -212,7 +211,6 @@ if __name__ == '__main__':
     train_split = np.asarray(out)[train_idx]
     val_split = np.asarray(out)[val_idx]
     test_split = np.asarray(out)[test_idx]
-    print(train_split.shape, val_split.shape, test_split.shape)
 
     train_path = '/home/tc229954/data/beetles/extracted_data/train/{}'.format(spect_type)
     validation_path = '/home/tc229954/data/beetles/extracted_data/validation/{}'.format(spect_type)

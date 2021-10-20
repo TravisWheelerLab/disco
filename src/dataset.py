@@ -22,15 +22,15 @@ def pad_batch(batch):
 
     mxlen = np.max([f.shape[-1] for f in features])
     padded_batch = torch.zeros((len(batch), features[0].shape[0], mxlen))
-    masks = torch.zeros((len(batch), features[0].shape[0], mxlen))
-    padded_labels = torch.zeros((len(batch), mxlen)) + MASK_FLAG
+    masks = torch.zeros((len(batch), 1, mxlen))
+    padded_labels = torch.zeros((len(batch), mxlen), dtype=torch.int64) + MASK_FLAG
 
     for i, (f, l) in enumerate(zip(features, labels)):
         padded_batch[i, :, :f.shape[-1]] = f
         masks[i, :, f.shape[-1]:] = True
         padded_labels[i, :l.shape[-1]] = l
 
-    return padded_batch, masks, padded_labels
+    return padded_batch, masks.to(bool), padded_labels
 
 
 def _load_pickle(f):
@@ -41,7 +41,6 @@ def _load_pickle(f):
 class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
     """
     Multiple labels per example - more in the vein of FCNN labels.
-
     """
 
     def __init__(self,
@@ -50,36 +49,43 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
                  vertical_trim=0,
                  bootstrap_sample=False,
                  mask_beginning_and_end=False,
-                 begin_mask=30,
-                 end_mask=10):
+                 begin_mask=None,
+                 end_mask=None):
 
         self.mask_beginning_and_end = mask_beginning_and_end
+        if mask_beginning_and_end and (begin_mask is None or end_mask is None):
+            raise ValueError("If mask_beginning_and_end is true begin_mask and end_mask must"
+                             "not be None")
+
         self.apply_log = apply_log
         self.vertical_trim = vertical_trim
         self.bootstrap_sample = bootstrap_sample
         self.begin_mask = begin_mask
         self.end_mask = end_mask
-
+        self.files = files
         self.bootstrapped_files = np.random.choice(self.files, size=len(self.files),
                                                    replace=True) if self.bootstrap_sample else None
         self.files = self.bootstrapped_files if self.bootstrap_sample else files
+        self.examples = [_load_pickle(f) for f in self.files]
 
     def __getitem__(self, idx):
         # returns a tuple with [0] the class label and [1] a slice of the spectrogram or the entire image.
-        spect_slice, labels = _load_pickle(self.files[idx])
+        spect_slice, labels = self.examples[idx]
         spect_slice = spect_slice[self.vertical_trim:]
         spect_slice[spect_slice == 0] = 1
+
         if self.apply_log:
             spect_slice = np.log2(spect_slice)
 
-        if self.mask_beginning_and_end and len(np.unique(labels)) == 1:
-            labels[:self.begin_mask] = -1
-            labels[-self.end_mask:] = -1
+        if self.mask_beginning_and_end:
+            if len(np.unique(labels)) == 1:
+                labels[self.begin_mask] = -1
+                labels[-self.end_mask:] = -1
 
         return torch.tensor(spect_slice), torch.tensor(labels)
 
     def __len__(self):
-        return len(self.files)
+        return len(self.examples)
 
     def get_unique_labels(self):
         return self.unique_labels.keys()
