@@ -77,15 +77,15 @@ class UNet1D(pl.LightningModule):
 
     def _setup_layers(self):
         base = 2
-        power = 7
+        power = 6
         self.conv1 = ConvBlock(self.in_channels, base**power, self.filter_width)
         self.conv2 = ConvBlock(base**power, base**power+1, self.filter_width)
-        self.conv3 = ConvBlock(base**power+1, base**power+2, self.filter_width)
-        self.conv4 = ConvBlock(base**power+2, base**power+3, self.filter_width)
-        self.conv5 = ConvBlock(base**power+3, base**power+3, self.filter_width)
-        self.conv6 = ConvBlock(base**power+3, base**power+2, self.filter_width)
-        self.conv7 = ConvBlock(base**power+2, base**power+1, self.filter_width)
-        self.conv8 = ConvBlock(base**power+1, base**power, self.filter_width)
+        self.conv3 = ConvBlock(base**(power+1), base**(power+2), self.filter_width)
+        self.conv4 = ConvBlock(base**(power+2), base**(power+3), self.filter_width)
+        self.conv5 = ConvBlock(base**(power+3), base**(power+3), self.filter_width)
+        self.conv6 = ConvBlock(base**(power+3), base**(power+2), self.filter_width)
+        self.conv7 = ConvBlock(base**(power+2), base**(power+1), self.filter_width)
+        self.conv8 = ConvBlock(base**(power+1), base**power, self.filter_width)
         self.conv9 = ConvBlock(base**power, base**power, self.filter_width)
 
         self.conv_out = nn.Conv1d(base**power, 3, kernel_size=1, padding=0)
