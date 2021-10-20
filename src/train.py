@@ -12,7 +12,7 @@ import spectrogram_analysis as sa
 from pytorch_lightning.plugins import DDPPlugin
 from glob import glob
 
-from models import SimpleCNN
+from models import SimpleCNN, UNet1D
 from argparse import ArgumentParser
 from dataset import SpectrogramDatasetMultiLabel, pad_batch
 
@@ -28,9 +28,6 @@ def train_parser():
                          help='number of ffts used to create the spectrogram')
     tunable.add_argument('--learning_rate', type=float, required=True,
                          help='initial learning rate')
-    tunable.add_argument('--begin_cutoff_idx', type=int, required=True,
-                         help='how many columns to cut off at the beginning of each'
-                              'labeled region')
     tunable.add_argument('--vertical_trim', type=int, required=True,
                          help='how many rows to remove from the low-frequency range of the spectrogram.'
                               'This is probably unnecessary because NaNs are easily removed in preprocessing.')
@@ -96,10 +93,10 @@ def train_func(hparams):
     val_dataset = SpectrogramDatasetMultiLabel(val_files,
                                                apply_log=hparams.log,
                                                vertical_trim=hparams.vertical_trim,
-                                               bootstrap_sample=hparams.bootstrap,
-                                               mask_beginning_and_end=hparams.mask_beginning_and_end,
-                                               begin_mask=hparams.begin_mask,
-                                               end_mask=hparams.end_mask)
+                                               bootstrap_sample=False,
+                                               mask_beginning_and_end=False,
+                                               begin_mask=None,
+                                               end_mask=None)
     # batch size of 1 since we're evaluating on lots of differently sized
     # labeled regions. Could implement a mask to zero out bits of predictions
     # but this is too much work for the amount of time it takes to evaluate our validation
@@ -119,18 +116,17 @@ def train_func(hparams):
     in_channels = DEFAULT_SPECTROGRAM_NUM_ROWS - hparams.vertical_trim
 
     # TODO: refactor this to incorporate data loaders more easily.
-    model = SimpleCNN(in_channels,
-                      hparams.learning_rate,
-                      hparams.mel,
-                      hparams.log,
-                      hparams.n_fft,
-                      hparams.begin_cutoff_idx,
-                      hparams.vertical_trim,
-                      hparams.mask_beginning_and_end,
-                      hparams.begin_mask,
-                      hparams.end_mask,
-                      train_dataset.files,
-                      val_dataset.files)
+    model = UNet1D(in_channels,
+                   hparams.learning_rate,
+                   hparams.mel,
+                   hparams.log,
+                   hparams.n_fft,
+                   hparams.vertical_trim,
+                   hparams.mask_beginning_and_end,
+                   hparams.begin_mask,
+                   hparams.end_mask,
+                   train_dataset.files,
+                   val_dataset.files)
 
     save_best = pl.callbacks.model_checkpoint.ModelCheckpoint(
         monitor='val_loss',
