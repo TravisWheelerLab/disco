@@ -58,6 +58,7 @@ def main(args):
     if device == 'cpu':
         torch.set_num_threads(args.num_threads)
     models = infer.assemble_ensemble(args.saved_model_directory, args.model_extension, device, args.input_channels)
+
     if len(models) < 2:
         raise ValueError('expected more than 1 model, found {}. Is the model directory and extension correct?'.format(len(models)))
 
@@ -97,8 +98,7 @@ def main(args):
     if args.debug is not None:
 
         debug_path = args.debug
-        if not os.path.isdir(debug_path):
-            os.mkdir(debug_path)
+        os.makedirs(debug_path, exist_ok=True)
 
         spectrogram_path = os.path.join(debug_path,       'raw_spectrogram.pkl')
         hmm_prediction_path = os.path.join(debug_path,    'hmm_predictions.pkl')

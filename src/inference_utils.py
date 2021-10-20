@@ -235,7 +235,12 @@ def assemble_ensemble(model_directory, model_extension, device,
                              apply_log=False,
                              n_fft=None,
                              begin_cutoff_idx=None,
-                             vertical_trim=None).to(device)
+                             vertical_trim=20,
+                             mask_beginning_and_end=None,
+                             begin_mask=None,
+                             end_mask=None,
+                             train_files=None,
+                             val_files=None).to(device)
         skeleton.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
         models.append(skeleton.eval())
 
