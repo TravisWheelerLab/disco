@@ -63,11 +63,13 @@ class SimpleLabeler:
         self.hop_length = 200
 
         self.spectrogram = torchaudio.transforms.MelSpectrogram(sample_rate=self.sample_rate,
-                                                                n_fft=800,
-                                                                hop_length=self.hop_length, )(self.waveform)
+                                                                n_fft=1250,
+                                                                f_min=1000,
+                                                                hop_length=self.hop_length,
+                                                                )(self.waveform)
         self.spectrogram[self.spectrogram == 0] = 1
         self.spectrogram = self.spectrogram.log2().numpy().squeeze()
-        self.vertical_cut = 20
+        self.vertical_cut = 0
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, figsize=(8, 6))
 
@@ -189,10 +191,10 @@ class SimpleLabeler:
             self.interval -= 10
             self._redraw_ax1()
         elif key.key in ('g', 'G'):
-            self.n = self.n + self.interval // 2  # could be briefer but this is very clear
+            self.n = self.n + self.interval // 2
             self._redraw_ax1()
         elif key.key in ('j', 'J'):
-            self.n = self.n + 10 * self.interval
+            self.n = int(self.spectrogram.shape[-1]*np.random.rand())
             self._redraw_ax1()
         elif key.key in ('d', 'D'):
             print('reversing window')
