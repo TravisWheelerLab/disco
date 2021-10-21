@@ -6,7 +6,7 @@ import numpy as np
 
 MASK_CHARACTER = -1
 
-__all__ = ['SimpleCNN']
+__all__ = ['MASK_CHARACTER', 'SimpleCNN']
 
 
 class SimpleCNN(pl.LightningModule):
@@ -17,7 +17,6 @@ class SimpleCNN(pl.LightningModule):
                  mel,
                  apply_log,
                  n_fft,
-                 begin_cutoff_idx,
                  vertical_trim,
                  mask_beginning_and_end,
                  begin_mask,
@@ -26,6 +25,23 @@ class SimpleCNN(pl.LightningModule):
                  val_files):
 
         super(SimpleCNN, self).__init__()
+        self._setup_layers()
+        self.accuracy = torchmetrics.Accuracy()
+        self.learning_rate = learning_rate
+        self.mel = mel
+        self.apply_log = apply_log
+        self.n_fft = n_fft
+        self.vertical_trim = vertical_trim
+        self.in_channels = in_channels
+        self.mask_beginning_and_end = mask_beginning_and_end
+        self.begin_mask = begin_mask
+        self.end_mask = end_mask
+        self.train_files = list(train_files)
+        self.val_files = list(val_files)
+
+        self.save_hyperparameters()
+
+    def _setup_layers(self):
         self.conv1 = torch.nn.Conv1d(in_channels=in_channels, out_channels=256, kernel_size=3, padding=1)
         self.conv2 = torch.nn.Conv1d(256, 512, 3, padding=1)
         self.conv3 = torch.nn.Conv1d(512, 512, 3, padding=1)
@@ -35,22 +51,6 @@ class SimpleCNN(pl.LightningModule):
         self.conv7 = torch.nn.Conv1d(512, 256, 3, padding=1)
         self.conv8 = torch.nn.Conv1d(in_channels=256, out_channels=32, kernel_size=1, padding=0)
         self.conv9 = torch.nn.Conv1d(in_channels=32, out_channels=3, kernel_size=1, padding=0)
-
-        self.accuracy = torchmetrics.Accuracy()
-        self.learning_rate = learning_rate
-        self.mel = mel
-        self.apply_log = apply_log
-        self.n_fft = n_fft
-        self.begin_cutoff_idx = begin_cutoff_idx
-        self.vertical_trim = vertical_trim
-        self.in_channels = in_channels
-        self.mask_beginning_and_end = mask_beginning_and_end
-        self.begin_mask = begin_mask
-        self.end_mask = end_mask
-        self.train_files = train_files
-        self.val_files = val_files
-
-        self.save_hyperparameters()
 
     def _masked_forward(self, x, x_mask):
         x = self.conv1(x)
@@ -105,7 +105,6 @@ class SimpleCNN(pl.LightningModule):
 
     def _shared_step(self, batch):
         if len(batch) == 3:
-            # oof masked batch
             x, x_mask, y = batch
             logits = self._masked_forward(x, x_mask)
             loss = F.nll_loss(logits, y, ignore_index=MASK_CHARACTER)
@@ -116,7 +115,7 @@ class SimpleCNN(pl.LightningModule):
         else:
             x, y = batch
             logits = self.forward(x)
-            loss = F.nll_loss(logits, y)
+            loss = F.nll_loss(logits, y, ignore_index=MASK_CHARACTER)
             preds = logits.argmax(dim=1)
             acc = self.accuracy(preds, y)
 
