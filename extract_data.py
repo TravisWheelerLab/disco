@@ -161,7 +161,7 @@ def save_data(out_path, data_list):
 
     os.makedirs(out_path, exist_ok=True)
 
-    for features, label_vector in data_list:
+    for i, (features, label_vector) in enumerate(data_list):
 
         if label_vector.shape[0] > 10000:
             # way too big
@@ -174,7 +174,7 @@ def save_data(out_path, data_list):
             label = np.argmax(uniq[1])
 
         out_fpath = os.path.join(out_path,
-                                 INDEX_TO_LABEL[label] + str(time.time()) + '.pkl')
+                                 INDEX_TO_LABEL[label] + '_' + str(i) + '.pkl')
 
         with open(out_fpath, 'wb') as dst:
             pickle.dump([features.numpy(), label_vector], dst)
@@ -182,6 +182,9 @@ def save_data(out_path, data_list):
 
 if __name__ == '__main__':
     import sys
+    # have to set seed for reproducibility.
+    random.seed(0)
+    np.random.seed(0)
 
     mel = True
     log = False
@@ -205,8 +208,10 @@ if __name__ == '__main__':
 
     random.shuffle(out)
     indices = np.arange(len(out))
-    train_idx, test_idx, _, _ = train_test_split(indices, indices, test_size=0.15)
-    test_idx, val_idx, _, _ = train_test_split(test_idx, test_idx, test_size=0.5)
+    train_idx, test_idx, _, _ = train_test_split(indices, indices, test_size=0.15,
+                                                 random_state=0)
+    test_idx, val_idx, _, _ = train_test_split(test_idx, test_idx, test_size=0.5,
+                                               random_state=0)
 
     train_split = np.asarray(out)[train_idx]
     val_split = np.asarray(out)[val_idx]
