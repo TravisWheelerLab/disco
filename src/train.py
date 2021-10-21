@@ -12,7 +12,7 @@ import spectrogram_analysis as sa
 from pytorch_lightning.plugins import DDPPlugin
 from glob import glob
 
-from models import SimpleCNN, UNet1D
+from models import SimpleCNN, UNet1D, UNet1DAttn
 from argparse import ArgumentParser
 from dataset import SpectrogramDatasetMultiLabel, pad_batch
 
@@ -116,17 +116,17 @@ def train_func(hparams):
     in_channels = DEFAULT_SPECTROGRAM_NUM_ROWS - hparams.vertical_trim
 
     # TODO: refactor this to incorporate data loaders more easily.
-    model = UNet1D(in_channels,
-                   hparams.learning_rate,
-                   hparams.mel,
-                   hparams.log,
-                   hparams.n_fft,
-                   hparams.vertical_trim,
-                   hparams.mask_beginning_and_end,
-                   hparams.begin_mask,
-                   hparams.end_mask,
-                   train_dataset.files,
-                   val_dataset.files)
+    model = UNet1DAttn(in_channels,
+                       hparams.learning_rate,
+                       hparams.mel,
+                       hparams.log,
+                       hparams.n_fft,
+                       hparams.vertical_trim,
+                       hparams.mask_beginning_and_end,
+                       hparams.begin_mask,
+                       hparams.end_mask,
+                       train_dataset.files,
+                       val_dataset.files)
 
     save_best = pl.callbacks.model_checkpoint.ModelCheckpoint(
         monitor='val_loss',
