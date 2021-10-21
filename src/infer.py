@@ -29,7 +29,7 @@ def parser():
     ap.add_argument('--tile_overlap', default=32, type=int,
                     help='how much to overlap consecutive predictions. Larger values will mean slower performance as '
                          'there is more repeated computation')
-    ap.add_argument('--tile_size', default=256, type=int,
+    ap.add_argument('--tile_size', default=1024, type=int,
                     help='length of input spectrogram')
     ap.add_argument('--batch_size', default=32, type=int,
                     help='batch size')
