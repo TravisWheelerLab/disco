@@ -24,6 +24,7 @@ class ConvBlock(nn.Module):
             kernel_size=filter_width,
             padding=1 if filter_width == 3 else pad_width
         )
+        self.bn1 = nn.BatchNorm1d(out_channels)
 
         self.conv2 = nn.Conv1d(
             out_channels,
@@ -32,17 +33,27 @@ class ConvBlock(nn.Module):
             padding=1 if filter_width == 3 else pad_width
         )
 
+        self.bn2 = nn.BatchNorm1d(out_channels)
+
         self.act = nn.ReLU()
 
     def forward(self, x):
-        x = self.act(self.conv1(x))
-        x = self.act(self.conv2(x))
+        x = self.act(self.bn2(self.conv1(x)))
+        x = self.act(self.bn1(self.conv2(x) + x))
         return x
 
 
 class UNet1DAttn(pl.LightningModule):
+    """
+    Since we're convolving over the time dimension, the application of attention is somewhat
+    redundant. Attention is usually applied to get the model to look at long-range dependencies,
+    and we get that (albeit in a less dense way) through the successive application of convolutions and
+    downsampling. I think this might shine when applied to temporal stacks of images; each channel of
+    activation maps post 2D conv would be considered separate tokens.
+    """
 
-    def __init__(self, in_channels,
+    def __init__(self,
+                 in_channels,
                  learning_rate,
                  mel,
                  apply_log,
@@ -71,12 +82,13 @@ class UNet1DAttn(pl.LightningModule):
         self.end_mask = end_mask
         self.train_files = list(train_files)
         self.val_files = list(val_files)
+        self.initial_power = 5
 
         self.save_hyperparameters()
 
     def _setup_layers(self):
         base = 2
-        power = 7
+        power = 5
         self.conv1 = ConvBlock(self.in_channels, base ** power, self.filter_width)
         self.a1 = nn.TransformerEncoderLayer(base ** power, 1, dim_feedforward=base ** (power + 1))
 
@@ -106,28 +118,28 @@ class UNet1DAttn(pl.LightningModule):
         d1 = self.downsample(x1)
 
         d1 = d1.transpose(-1, -2)
-        d1 = self.a1(d1)
+        d1 = self.a1(d1) + d1
         d1 = d1.transpose(-1, -2)
 
         x2 = self.conv2(d1)
         d2 = self.downsample(x2)
 
         d2 = d2.transpose(-1, -2)
-        d2 = self.a2(d2)
+        d2 = self.a2(d2) + d2
         d2 = d2.transpose(-1, -2)
 
         x3 = self.conv3(d2)
         d3 = self.downsample(x3)
 
         d3 = d3.transpose(-1, -2)
-        d3 = self.a3(d3)
+        d3 = self.a3(d3) + d3
         d3 = d3.transpose(-1, -2)
 
         x4 = self.conv4(d3)
         d4 = self.downsample(x4)
 
         d4 = d4.transpose(-1, -2)
-        d4 = self.a4(d4)
+        d4 = self.a4(d4) + d4
         d4 = d4.transpose(-1, -2)
 
         x5 = self.conv5(d4)
@@ -152,28 +164,28 @@ class UNet1DAttn(pl.LightningModule):
         d1 = self.downsample(x1)
 
         d1 = d1.transpose(-1, -2)
-        d1 = self.a1(d1)
+        d1 = self.a1(d1) + d1
         d1 = d1.transpose(-1, -2)
 
         x2 = self.conv2(d1)
         d2 = self.downsample(x2)
 
         d2 = d2.transpose(-1, -2)
-        d2 = self.a2(d2)
+        d2 = self.a2(d2) + d2
         d2 = d2.transpose(-1, -2)
 
         x3 = self.conv3(d2)
         d3 = self.downsample(x3)
 
         d3 = d3.transpose(-1, -2)
-        d3 = self.a3(d3)
+        d3 = self.a3(d3) + d3
         d3 = d3.transpose(-1, -2)
 
         x4 = self.conv4(d3)
         d4 = self.downsample(x4)
 
         d4 = d4.transpose(-1, -2)
-        d4 = self.a4(d4)
+        d4 = self.a4(d4) + d4
         d4 = d4.transpose(-1, -2)
 
         x5 = self.conv5(d4)
@@ -241,7 +253,10 @@ class UNet1DAttn(pl.LightningModule):
         return {'val_loss': loss, 'val_acc': acc}
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        return {'optimizer': optimizer,
+                'lr_scheduler': torch.optim.lr_scheduler.StepLR(optimizer, step_size=150,
+                                                                gamma=0.5)}
 
     def training_epoch_end(self, outputs):
         train_loss = self.all_gather([x['loss'] for x in outputs])

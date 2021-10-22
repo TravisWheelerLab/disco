@@ -14,32 +14,39 @@ def setup_hyperparser():
                      type=float,
                      default=1e-3,
                      tunable=True,
-                     low=1e-7,
-                     high=1e-1,
+                     low=1e-4,
+                     high=5e-2,
                      log_base=10,
-                     nb_samples=5,
+                     nb_samples=30,
                      )
     parser.opt_list('--n_fft',
                     type=int,
-                    default=100,
+                    default=650,
                     tunable=True,
-                    options=[1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350, 1400, 400,
-                             450, 500, 550, 600, 650, 700, 750, 800, 800, 850, 900, 950]
+                    options=[650, 750, 850, 950, 1050, 1150, 1250]
                     )
     parser.opt_range('--vertical_trim',
                      type=int,
                      default=0,
-                     tunable=True,
+                     tunable=False,
                      low=0,
                      high=40,
                      nb_samples=5,
                      )
-    parser.opt_range('--begin_cutoff_idx',
+    parser.opt_range('--begin_mask',
                      type=int,
                      default=0,
-                     tunable=True,
-                     low=0,
-                     high=40,
+                     tunable=False,
+                     low=20,
+                     high=30,
+                     nb_samples=2,
+                     )
+    parser.opt_range('--end_mask',
+                     type=int,
+                     default=10,
+                     tunable=False,
+                     low=10,
+                     high=20,
                      nb_samples=5,
                      )
 
@@ -47,6 +54,7 @@ def setup_hyperparser():
     parser.add_argument('--test_tube_exp_name', default='my_test')
     parser.add_argument('--log', action='store_true')
     parser.add_argument('--mel', action='store_true')
+    parser.add_argument('--apply_attn', action='store_true')
     parser.add_argument('--bootstrap', action='store_true')
     parser.add_argument('--batch_size', type=int, required=True)
     parser.add_argument('--tune_initial_lr', action='store_true')
@@ -59,6 +67,8 @@ def setup_hyperparser():
     parser.add_argument('--data_path', type=str, required=True)
     parser.add_argument('--model_name', type=str, default='model.pt')
     parser.add_argument('--num_workers', type=int, required=True)
+    parser.add_argument('--mask_beginning_and_end', action='store_true',
+                        help='whether or not to mask the beginning and end of sequences')
     return parser.parse_args()
 
 
@@ -68,7 +78,7 @@ if __name__ == '__main__':
     # init cluster
     cluster = SlurmCluster(
         hyperparam_optimizer=hyperparams,
-        log_path='/home/tc229954/beetles-logs/',
+        log_path=hyperparams.log_dir,
         python_cmd='python',
     )
 
@@ -76,14 +86,13 @@ if __name__ == '__main__':
     cluster.add_command("conda activate beetles")
 
     cluster.add_slurm_cmd(cmd='partition',
-                          value='wheeler_lab_large_cpu,wheeler_lab_small_cpu',
+                          value='wheeler_lab_gpu',
                           comment='partition')
 
     cluster.per_experiment_nb_gpus = hyperparams.gpus
-    cluster.per_experiment_nb_cpus = 4
 
     cluster.optimize_parallel_cluster_gpu(train,
-                                          nb_trials=20,
+                                          nb_trials=30,
                                           job_name='hparam_tuner',
                                           job_display_name='tune',
                                           )
