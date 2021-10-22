@@ -72,14 +72,15 @@ class UNet1D(pl.LightningModule):
         self.end_mask = end_mask
         self.train_files = list(train_files)
         self.val_files = list(val_files)
+        self.initial_power = 5
 
         self.save_hyperparameters()
 
     def _setup_layers(self):
         base = 2
-        power = 6
+        power = 5
         self.conv1 = ConvBlock(self.in_channels, base**power, self.filter_width)
-        self.conv2 = ConvBlock(base**power, base**power+1, self.filter_width)
+        self.conv2 = ConvBlock(base**power, base**(power+1), self.filter_width)
         self.conv3 = ConvBlock(base**(power+1), base**(power+2), self.filter_width)
         self.conv4 = ConvBlock(base**(power+2), base**(power+3), self.filter_width)
         self.conv5 = ConvBlock(base**(power+3), base**(power+3), self.filter_width)
@@ -121,7 +122,7 @@ class UNet1D(pl.LightningModule):
         x9 = self.conv9(u4)
         x = self.conv_out(x9)
         x[x_mask.expand(-1, 3, -1)] = 0
-        return torch.nn.functional.log_softmax(x)
+        return torch.nn.functional.log_softmax(x, dim=1)
 
     def _forward(self, x):
         x1 = self.conv1(x)
@@ -150,7 +151,7 @@ class UNet1D(pl.LightningModule):
 
         x9 = self.conv9(u4)
         x = self.conv_out(x9)
-        return torch.nn.functional.log_softmax(x)
+        return torch.nn.functional.log_softmax(x, dim=1)
 
     def forward(self, x, mask=None):
         x, pad_len = self._pad_batch(x)
@@ -201,7 +202,10 @@ class UNet1D(pl.LightningModule):
         return {'val_loss': loss, 'val_acc': acc}
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        return {'optimizer': optimizer,
+                'lr_scheduler': torch.optim.lr_scheduler.StepLR(optimizer, step_size=150,
+                                                                gamma=0.7)}
 
     def training_epoch_end(self, outputs):
         train_loss = self.all_gather([x['loss'] for x in outputs])
