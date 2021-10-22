@@ -26,7 +26,7 @@ def parser():
                     help='.wav file to predict')
     ap.add_argument('--output_csv_path', default=None, type=str,
                     help='where to save the final predictions')
-    ap.add_argument('--tile_overlap', default=32, type=int,
+    ap.add_argument('--tile_overlap', default=128, type=int,
                     help='how much to overlap consecutive predictions. Larger values will mean slower performance as '
                          'there is more repeated computation')
     ap.add_argument('--tile_size', default=1024, type=int,

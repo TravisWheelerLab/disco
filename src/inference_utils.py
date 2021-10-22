@@ -12,7 +12,7 @@ import pomegranate as pom
 from glob import glob
 from collections import defaultdict
 
-from models import SimpleCNN
+from models import SimpleCNN, UNet1D
 
 # Should this be a configurable argument?
 np.random.seed(0)
@@ -25,7 +25,6 @@ DEFAULT_MODEL_DIRECTORY = os.path.join(os.path.expanduser('~'), '.cache', 'beetl
 
 
 def load_in_hmm():
-
     # TODO: add argument to control the number of sound types
     # and pass it into the HMM
     a_dist = pom.DiscreteDistribution({0: 0.995, 1: 0.00005, 2: 0.00495})
@@ -59,7 +58,6 @@ def download_models():
 
 
 def aggregate_predictions(predictions):
-
     if predictions.ndim != 1:
         raise ValueError('expected array of size N, got {}'.format(predictions.shape))
 
@@ -124,8 +122,10 @@ def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_len
             list_of_dicts_for_dataframe.append(dataframe_dict)
         i += 1
 
-    # use stdlib to create csv (dictwriter)
     df = pd.DataFrame.from_dict(list_of_dicts_for_dataframe)
+    dirname = os.path.dirname(output_csv_path)
+    if not os.path.isdir(dirname):
+        os.makedirs(dirname, exist_ok=True)
     df.to_csv(output_csv_path, index=False)
 
     return df
@@ -229,18 +229,17 @@ def assemble_ensemble(model_directory, model_extension, device,
 
     models = []
     for model_path in model_paths:
-        skeleton = SimpleCNN(in_channels,
-                             learning_rate=1e-2,
-                             mel=False,
-                             apply_log=False,
-                             n_fft=None,
-                             begin_cutoff_idx=None,
-                             vertical_trim=20,
-                             mask_beginning_and_end=None,
-                             begin_mask=None,
-                             end_mask=None,
-                             train_files=None,
-                             val_files=None).to(device)
+        skeleton = UNet1D(in_channels,
+                          learning_rate=1e-2,
+                          mel=False,
+                          apply_log=False,
+                          n_fft=None,
+                          vertical_trim=20,
+                          mask_beginning_and_end=None,
+                          begin_mask=None,
+                          end_mask=None,
+                          train_files=[1],
+                          val_files=[1]).to(device)
         skeleton.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
         models.append(skeleton.eval())
 
