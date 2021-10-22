@@ -7,164 +7,147 @@ import numpy as np
 import pickle
 import os
 
-import spectrogram_analysis as sa
 from data_feeder import INDEX_TO_LABEL, LABEL_TO_INDEX
 
-
-class Sound:
-
-    def __init__(self,
-                 data_out_path,
-                 sound_type,
-                 file_name,
-                 spectrogram_clip,
-                 unix_time,
-                 spectrogram_type,
-                 dataset="train"):
-
-        self.data_out_path = data_out_path
-        self.sound_type = sound_type
-        self.file_name = file_name
-        self.spectrogram_clip = spectrogram_clip
-        self.dataset = dataset
-        self.trimmed = False
-        self.unix_time = unix_time
-        self.spectrogram_type = spectrogram_type
-
-    def save(self):
-        # saves an individual sound as a .npy file in the path <data_set>/spect/ so they can be
-        # read in by the neural network
-        if isinstance(self.spectrogram_clip, torch.Tensor):
-            self.spectrogram_clip = self.spectrogram_clip.numpy()
-        filename = self.sound_type + '.' + self.file_name + '.' + str(self.unix_time)
-        save_dir = os.path.join(self.data_out_path, self.dataset, self.spectrogram_type)
-        os.makedirs(save_dir, exist_ok=True)
-        filepath = os.path.join(save_dir, filename)
-        np.save(filepath, self.spectrogram_clip)
+LABEL_TO_INDEX = {'A': 0, 'B': 1, 'X': 2, 'BACKGROUND': 2}
+INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
+EXCLUDED_CLASSES = ('Y', 'C')
 
 
-def offload_data(data_out_path, csvs_and_wav_files, cutoff, mel, log, n_fft, vert_trim, file_wise=False,
-                 classes_excluded=[], train_pct=80):
-    # this function ensures that the function saving these files (offload) has the correct information about where each
-    # sound from each file goes.
-    test_set_marker = determine_filewise_locations(csvs_and_wav_files.keys(), train_pct)
-
-    idx_test_arr = 0
-    for filename, (wav, csv) in csvs_and_wav.items():
-        spectrogram, label_to_spectrogram = sa.process_wav_file(wav, csv, n_fft, mel, log, vert_trim)
-        file = sa.BeetleFile(filename, csv, wav, spectrogram, label_to_spectrogram, mel, n_fft, log, vert_trim)
-        if cutoff and file != '1_M14F15_8_7':
-            cutoff_kmeans_spectrograms(file)
-        if file_wise:
-            if test_set_marker[idx_test_arr]:
-                data_set = "test"
-            else:
-                data_set = "train"
-        else:
-            data_set = None
-
-        offload(data_out_path, file, file_wise, classes_excluded=classes_excluded, train_pct=train_pct,
-                data_set=data_set,
-                spectrogram_type=file.spectrogram_type)
-        print(filename, "done processing.")
-        idx_test_arr += 1
+def w2s_idx(idx, hop_length):
+    # waveform to spectrogram index
+    return idx // hop_length
 
 
-# need to save contiguous labels.
-# But first I want to visualize all of the data I labeled.
-def determine_filewise_locations(filenames, train_pct):
-    # if filewise saving scheme, creates a boolean array that determines which file(s) will be test/train.
-    test_set_marker = []
-    n_test_files = max(1, math.floor((1 - train_pct / 100) * len(csvs_and_wav.keys())))
-    for i in range(len(filenames)):
-        if i < n_test_files:
-            test_set_marker.append(True)
-        else:
-            test_set_marker.append(False)
-    random.shuffle(test_set_marker)
-    return test_set_marker
+def create_label_to_spectrogram(spect, labels, hop_length,
+                                neighbor_tolerance=100):
+    # takes in a specific spectrogram dictated by process_wav_file and returns a dictionary with a key as
+    # a song type and a list of tensors of those spectrograms as a value. e.g.:
+    # len(label_to_spectrogram['A']) = 49 (number of sounds of this subtype)
+    # type(label_to_spectrogram['A']) = class 'list'
+    # type(label_to_spectrogram['A'][0]) = class 'torch.Tensor'
+    labels['begin spect idx'] = [w2s_idx(x, hop_length) for x in labels['begin idx']]
+    labels['end spect idx'] = [w2s_idx(x, hop_length) for x in labels['end idx']]
 
-
-def cutoff_kmeans_spectrograms(bf_obj, bci=45, eci=65):
-    # locates the first spectrogram column of high intensity in a given spectrogram using 2-means clustering
-    # and clips the spectrogram at that spot. This removes the milliseconds of human error background at the beginning
-    # of a chirp that is not actually the chirp.
-    sound_types = bf_obj.label_to_spectrogram.keys()
-    bf_obj.fit_kmeans_subset(sound_types, 2, bci, eci)
-
-    for sound_type, spectrogram_list in bf_obj.label_to_spectrogram.items():
-        if sound_type != 'X' or 'Y' or 'C':
-            for index, spect in enumerate(spectrogram_list):
-                spect = spect.numpy()
-                classified_points_list = bf_obj.classify_subset(spect, bci, eci)
-                first_hi = None
-                k = 0
-                for point in classified_points_list:
-                    if point:
-                        first_hi = k
-                        break
-                    k += 1
-                bf_obj.label_to_spectrogram[sound_type][index] = spect[:, first_hi:]
-
-
-def offload(data_out_path,
-            beetle_object,
-            file_wise,
-            classes_excluded,
-            train_pct,
-            data_set,
-            spectrogram_type):
-    # saves each sound from each file into a sound object array depending on filewise/examplewise organization,
-    # then saves entire array at the end.
-    sound_objects = []
-    if file_wise:
-        for sound_type, spectrogram_list in beetle_object.label_to_spectrogram.items():
-            for example in spectrogram_list:
-                if isinstance(example, torch.Tensor):
-                    example = example.numpy()
-                if sound_type not in classes_excluded:
-                    sound_objects.append(
-                        Sound(data_out_path, sound_type, beetle_object.name, example, time.time(), dataset=data_set,
-                              spectrogram_type=spectrogram_type))
-        print(beetle_object.name, "done appending.")
+    contiguous_indices = []
+    if labels.shape[0] == 1:
+        contiguous_indices.append([0])
     else:
-        for sound_type, spectrogram_list in beetle_object.label_to_spectrogram.items():
-            for example in spectrogram_list:
-                if sound_type not in classes_excluded:
-                    sound_objects.append(Sound(data_out_path, sound_type, beetle_object.name, example, time.time(),
-                                               spectrogram_type=spectrogram_type))
-        print(beetle_object.name, "done appending.")
-        random.shuffle(sound_objects)
-        test_data_cutoff = round(len(sound_objects) * (100 - train_pct) / 100)
-        for example_index in range(test_data_cutoff):
-            sound_objects[example_index].dataset = "test"
-            sound_objects[example_index].spectrogram_type = spectrogram_type
-    save_all_sounds(sound_objects)
+        labels = labels.sort_values(by='begin idx')
+        i = 0
+        while i < labels.shape[0] - 1:
+            contig = [i]
+            while (labels.iloc[i + 1]['begin idx'] - labels.iloc[i]['end idx']) <= neighbor_tolerance:
+                contig.extend([i + 1])
+                i += 1
+                if i == labels.shape[0] - 1:
+                    break
+            if i == labels.shape[0] - 2 and i + 1 not in contig:
+                contiguous_indices.append([i + 1])
+            contiguous_indices.append(contig)
+            i += 1
+
+    features_and_labels = []
+    for contig in contiguous_indices:
+        contiguous_labels = labels.iloc[contig, :]
+        begin = contiguous_labels.iloc[0]['begin spect idx']
+        end = contiguous_labels.iloc[-1]['end spect idx']
+        spect_slice = spect[:, begin:end]
+        if end - begin == 0:
+            continue
+
+        label_vector = np.zeros((spect_slice.shape[1]))
+        first = True
+
+        for _, row in contiguous_labels.iterrows():
+            if row['Sound_Type'] in EXCLUDED_CLASSES:
+                continue
+            if first:
+                overall_begin = row['begin spect idx']
+                first = False
+            # have to do the shifty shift
+            sound_begin = row['begin spect idx'] - overall_begin
+            sound_end = row['end spect idx'] - overall_begin
+            label_vector[sound_begin:sound_end] = LABEL_TO_INDEX[row['Sound_Type']]
+        features_and_labels.append([spect_slice, label_vector])
+
+    return features_and_labels
 
 
-def save_all_sounds(sound_objects_list):
-    # simple function that calls save for each sound file in a list of sound objects.
-    for sound in sound_objects_list:
-        sound.save()
-    print("sounds saved.")
+def convert_time_to_index(time, sample_rate):
+    # np.round is good enough for our purposes
+    # since we have a really high sample rate, and the chirps exist for a second or two
+    return np.round(time * sample_rate).astype(np.int)
 
 
-def create_directories(spectrogram_type):
-    datasets = ['train', 'test', 'validation']
-    for dataset in datasets:
-        directory_path = os.path.join('data', dataset, spectrogram_type, 'spect')
-        if not os.path.exists(directory_path):
-            os.makedirs(directory_path)
+def process_wav_file(wav_filename,
+                     csv_filename,
+                     n_fft,
+                     mel_scale,
+                     hop_length=200):
+    # reads the csv into a pandas df called labels, extracts waveform and sample_rate.
+    labels = pd.read_csv(csv_filename)
+    waveform, sample_rate = torchaudio.load(wav_filename)
+    # adds additional columns to give indices of these chirp locations
+    labels['begin idx'] = convert_time_to_index(labels['Begin Time (s)'], sample_rate)
+    labels['end idx'] = convert_time_to_index(labels['End Time (s)'], sample_rate)
+
+    # creates a spectrogram with a log2 transform
+    if mel_scale:
+        spect = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate,
+                                                     n_fft=n_fft,
+                                                     hop_length=hop_length)(waveform)
+    else:
+        spect = torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length)(waveform)
+
+    # dictionary containing all pre-labeled chirps and their associated spectrograms
+    spect = spect.squeeze()
+    features_and_labels = create_label_to_spectrogram(spect, labels, hop_length=hop_length)
+
+    return features_and_labels
+
+
+def load_csv_and_wav_files_from_directory(data_dir):
+    # takes in a directory String and returns a dictionary with a key as the file label and a value
+    # as a list with index 0 as the wav file and index 1 as the csv file
+    dirs = os.listdir(data_dir)
+    csvs_and_wav = {}
+    for d in dirs:
+        if os.path.isdir(os.path.join(data_dir, d)):
+            labels = glob(os.path.join(data_dir, d, "*.csv"))
+            wav = glob(os.path.join(data_dir, d, "*WAV")) + glob(os.path.join(data_dir, d, "*wav"))
+            if len(wav) and len(labels):
+                csvs_and_wav[os.path.splitext(os.path.basename(wav[0]))[0]] = [wav[0], labels[0]]
+            else:
+                # print('found {} wav files and {} csvs in directory {}'.format(len(wav), len(labels), d))
+                pass
+    return csvs_and_wav
+
+
+def form_spectrogram_type(mel, n_fft):
+    # creates a string to attach to the BeetleFile object that will allow for offloading the files in data_loader
+    # to go in the correct directory that matches the type of spectrogram we created.
+    directory_location = ''
+
+    # add mel information
+    if mel:
+        directory_location = directory_location + 'mel_'
+    else:
+        directory_location = directory_location + 'no_mel_'
+
+    directory_location = directory_location + str(n_fft)
+
+    return directory_location
 
 
 def save_data(out_path, data_list):
-
     os.makedirs(out_path, exist_ok=True)
 
     for i, (features, label_vector) in enumerate(data_list):
 
         if label_vector.shape[0] > 10000:
-            # way too big
+            # TODO: fix this error in create_label_to_spectrogram
+            # way too big - indicates error in label assign
             continue
         uniq = np.unique(label_vector, return_counts=True)
         label = np.argmax(uniq[1])
@@ -180,30 +163,37 @@ def save_data(out_path, data_list):
             pickle.dump([features.numpy(), label_vector], dst)
 
 
-if __name__ == '__main__':
-    import sys
-    # have to set seed for reproducibility.
-    random.seed(0)
-    np.random.seed(0)
+def parser():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--mel_scale', action='store_true')
+    ap.add_argument('--n_fft', required=True, type=int)
+    ap.add_argument('--data_dir', required=True, type=str)
+    ap.add_argument('--output_data_path', required=True, type=str)
+    ap.add_argument('--vert_trim', required=False, default=None)
+    ap.add_argument('--random_seed', type=int, default=42,
+                    help='what number to use as the random seed. Default:'
+                         'Deep Thought\'s answer')
 
-    mel = True
-    log = False
-    n_fft = int(sys.argv[1])
-    vert_trim = 0
-    cutoff = False
-    file_wise = False
+    return ap.parse_args()
 
-    spect_type = sa.form_spectrogram_type(mel, n_fft, log, vert_trim)
-    print(spect_type)
 
-    data_dir = '/home/tc229954/data/beetles/more_labeled_training_data'
+def main(args):
+    random.seed(args.random_seed)
+    np.random.seed(args.random_seed)
 
-    csv_and_wav = sa.load_csv_and_wav_files_from_directory(data_dir)
+    mel = args.mel_scale
+    n_fft = args.n_fft
+
+    spect_type = form_spectrogram_type(mel, n_fft)
+
+    data_dir = args.data_dir
+
+    csv_and_wav = load_csv_and_wav_files_from_directory(data_dir)
 
     out = []
 
     for filename, (wav, csv) in csv_and_wav.items():
-        features_and_labels = sa.process_wav_file(wav, csv, n_fft, mel, log, vert_trim)
+        features_and_labels = process_wav_file(wav, csv, n_fft, mel)
         out.extend(features_and_labels)
 
     random.shuffle(out)
@@ -217,10 +207,16 @@ if __name__ == '__main__':
     val_split = np.asarray(out)[val_idx]
     test_split = np.asarray(out)[test_idx]
 
-    train_path = '/home/tc229954/data/beetles/extracted_data/train/{}'.format(spect_type)
-    validation_path = '/home/tc229954/data/beetles/extracted_data/validation/{}'.format(spect_type)
-    test_path = '/home/tc229954/data/beetles/extracted_data/test/{}'.format(spect_type)
+    train_path = os.path.join(args.output_data_path, spect_type, 'train')
+    validation_path = os.path.join(args.output_data_path, spect_type, 'validation')
+    test_path = os.path.join(args.output_data_path, spect_type, 'test')
 
     save_data(train_path, train_split)
     save_data(validation_path, val_split)
     save_data(test_path, test_split)
+
+
+if __name__ == '__main__':
+    # have to set seed for reproducibility.
+    extraction_args = parser()
+    main(extraction_args)
