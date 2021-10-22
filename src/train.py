@@ -42,6 +42,7 @@ def train_parser():
                                                                               'spectrogram was computed')
     non_tunable.add_argument('--log', action='store_true', help='whether or not to apply a log2 transform to the'
                                                                 'spectrogram')
+    non_tunable.add_argument('--apply_attn', action='store_true', help='use 1d Unet with attention')
     non_tunable.add_argument('--mel', action='store_true', help='use a mel-transformed spectrogram')
     non_tunable.add_argument('--bootstrap', action='store_true', help='train a model with a sample of the training set'
                                                                       '(replace=True)')
@@ -78,9 +79,14 @@ def train_func(hparams):
 
     spect_type = 'mel_no_log_{}_no_vert_trim'.format(hparams.n_fft)
     print(spect_type)
+    train_path = os.path.join(hparams.data_path, 'train', spect_type, "*")
+    val_path = os.path.join(hparams.data_path, 'validation', spect_type, "*")
 
-    train_files = glob(os.path.join(hparams.data_path, 'train', spect_type, "*"))
-    val_files = glob(os.path.join(hparams.data_path, 'validation', spect_type, "*"))
+    if not len(glob(train_path)) or not len(glob(val_path)):
+        raise ValueError('no files found in one of {}, {}'.format(train_path, val_path))
+
+    train_files = glob(train_path)
+    val_files = glob(val_path)
 
     train_dataset = SpectrogramDatasetMultiLabel(train_files,
                                                  apply_log=hparams.log,
@@ -116,17 +122,23 @@ def train_func(hparams):
     in_channels = DEFAULT_SPECTROGRAM_NUM_ROWS - hparams.vertical_trim
 
     # TODO: refactor this to incorporate data loaders more easily.
-    model = UNet1DAttn(in_channels,
-                       hparams.learning_rate,
-                       hparams.mel,
-                       hparams.log,
-                       hparams.n_fft,
-                       hparams.vertical_trim,
-                       hparams.mask_beginning_and_end,
-                       hparams.begin_mask,
-                       hparams.end_mask,
-                       train_dataset.files,
-                       val_dataset.files)
+    model_kwargs = {
+        'in_channels': in_channels,
+        'learning_rate': hparams.learning_rate,
+        'mel': hparams.mel,
+        'apply_log': hparams.log,
+        'n_fft': hparams.n_fft,
+        'vertical_trim': hparams.vertical_trim,
+        'mask_beginning_and_end': hparams.mask_beginning_and_end,
+        'begin_mask': hparams.begin_mask,
+        'end_mask': hparams.end_mask,
+        'train_files': train_dataset.files,
+        'val_files': val_dataset.files}
+
+    if hparams.apply_attn:
+        model = UNet1DAttn(**model_kwargs)
+    else:
+        model = UNet1D(**model_kwargs)
 
     save_best = pl.callbacks.model_checkpoint.ModelCheckpoint(
         monitor='val_loss',
@@ -134,12 +146,14 @@ def train_func(hparams):
         mode='min',
         save_top_k=1)
 
+    lr_monitor = pl.callbacks.lr_monitor.LearningRateMonitor()
+
     trainer_kwargs = {
         'gpus': hparams.gpus,
         'num_nodes': hparams.num_nodes,
         'max_epochs': hparams.epochs,
         'check_val_every_n_epoch': hparams.check_val_every_n_epoch,
-        'callbacks': [save_best],
+        'callbacks': [save_best, lr_monitor],
         'accelerator': 'ddp' if hparams.gpus else None,
         'plugins': DDPPlugin(find_unused_parameters=False) if hparams.gpus else None,
         'precision': 16 if hparams.gpus else 32,
