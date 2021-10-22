@@ -16,7 +16,6 @@ MASK_FLAG = -1
 
 
 def pad_batch(batch):
-
     features = [b[0] for b in batch]
     labels = [b[1] for b in batch]
 
@@ -40,7 +39,7 @@ def _load_pickle(f):
 
 class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
     """
-    Multiple labels per example - more in the vein of FCNN labels.
+    Multiple labels per example - more similar to FCNN labels.
     """
 
     def __init__(self,
@@ -63,24 +62,31 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
         self.begin_mask = begin_mask
         self.end_mask = end_mask
         self.files = files
-        self.bootstrapped_files = np.random.choice(self.files, size=len(self.files),
-                                                   replace=True) if self.bootstrap_sample else None
-        self.files = self.bootstrapped_files if self.bootstrap_sample else files
+        self.files = np.random.choice(self.files, size=len(self.files),
+                                      replace=True) if self.bootstrap_sample else self.files
         self.examples = [_load_pickle(f) for f in self.files]
 
     def __getitem__(self, idx):
-        # returns a tuple with [0] the class label and [1] a slice of the spectrogram or the entire image.
+
         spect_slice, labels = self.examples[idx]
         spect_slice = spect_slice[self.vertical_trim:]
-        spect_slice[spect_slice == 0] = 1
 
         if self.apply_log:
+            # take care of NaNs after taking the log.
+            spect_slice[spect_slice == 0] = 1
             spect_slice = np.log2(spect_slice)
 
         if self.mask_beginning_and_end:
             if len(np.unique(labels)) == 1:
-                labels[self.begin_mask] = -1
-                labels[-self.end_mask:] = -1
+                # if there's only one class
+                if labels.shape[0] > (self.begin_mask + self.end_mask):
+                    # and if the label vector is longer than where we're supposed to mask
+                    labels[self.begin_mask] = MASK_FLAG
+                    labels[-self.end_mask:] = MASK_FLAG
+                else:
+                    # if it's not, throw it out. We don't want any possibility of bad data
+                    # when training the model so we'll waste some compute.
+                    labels[:] = MASK_FLAG
 
         return torch.tensor(spect_slice), torch.tensor(labels)
 

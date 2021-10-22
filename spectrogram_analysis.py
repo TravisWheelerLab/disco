@@ -205,8 +205,6 @@ def create_label_to_spectrogram(spect, labels, hop_length, vertical_trim,
                 if i == labels.shape[0] - 1:
                     break
             if i == labels.shape[0] - 2 and i + 1 not in contig:
-                # this is a weird conditional to take care of the case when the last index isn't
-                # in a run.
                 contiguous_indices.append([i + 1])
             contiguous_indices.append(contig)
             i += 1
