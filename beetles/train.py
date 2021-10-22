@@ -8,7 +8,6 @@ seed_everything(int(time() * 1000))
 import os
 import torch
 import pytorch_lightning as pl
-import spectrogram_analysis as sa
 from pytorch_lightning.plugins import DDPPlugin
 from glob import glob
 
