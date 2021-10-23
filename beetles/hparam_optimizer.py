@@ -1,4 +1,4 @@
-from train import train_func
+from beetles.train import train_func
 
 from test_tube.hpc import SlurmCluster, HyperOptArgumentParser
 

@@ -1,26 +1,15 @@
-import pdb
 import matplotlib
 import matplotlib.pyplot as plt
-import inference_utils as infer
 import torchaudio
 import numpy as np
 import pandas as pd
 import os
-
-np.random.seed(19680801)
-
 from argparse import ArgumentParser
 from matplotlib.widgets import SpanSelector
 
+np.random.seed(19680801)
 
-def parser():
-    ap = ArgumentParser()
-    ap.add_argument('--wav_file', required=True, type=str,
-                    help='which .wav file to analyze')
-    ap.add_argument('--output_csv_path', required=True, type=str,
-                    help='where to save the labels')
-    return ap.parse_args()
-
+import beetles.inference_utils as infer
 
 def add_example(label_list, wav_file, begin_idx, end_idx, sound_type,
                 hop_length=None, sample_rate=None):
@@ -47,10 +36,10 @@ class SimpleLabeler:
 
         n = 0
 
-        if os.path.isfile(args.output_csv_path):
+        if os.path.isfile(output_csv_path):
             exit()
             try:
-                previous_labels = pd.read_csv(args.output_csv_path, delimiter=',')
+                previous_labels = pd.read_csv(output_csv_path, delimiter=',')
                 n = int(previous_labels['End Time (s)'].iloc[-1])
                 print('Already labeled this wav file, with {} labels!'.format(previous_labels.shape[0]))
                 print('setting initial window to last labeled chirp!')
@@ -97,7 +86,7 @@ class SimpleLabeler:
                   'key:\n' \
                   'y: save A chirp\n' \
                   'w: save B chirp\n' \
-                  'e: save background\n'\
+                  'e: save background\n' \
                   'r: delete last label\n' \
                   'a: widen window\n' \
                   't: tighten window\n' \
@@ -194,7 +183,7 @@ class SimpleLabeler:
             self.n = self.n + self.interval // 2
             self._redraw_ax1()
         elif key.key in ('j', 'J'):
-            self.n = int(self.spectrogram.shape[-1]*np.random.rand())
+            self.n = int(self.spectrogram.shape[-1] * np.random.rand())
             self._redraw_ax1()
         elif key.key in ('d', 'D'):
             print('reversing window')
@@ -208,15 +197,19 @@ class SimpleLabeler:
             print('shifting top limit up')
             self.vertical_cut = self.vertical_cut + 1
             self._redraw_ax1()
+        elif key.key == 'q':
+            print('saving and quitting')
         else:
-            print("unknown value: hit one of a, b, x")
+            print("unknown key pressed")
 
 
-if __name__ == '__main__':
-    args = parser()
-
-    # fix outputs to make them in the same format as the existing data
+def main(args):
     labeler = SimpleLabeler(args.wav_file, args.output_csv_path)
     plt.show()
     labeler.show()
     labeler.save_labels()
+
+
+if __name__ == '__main__':
+    pargs = parser()
+    main(pargs)

@@ -3,32 +3,20 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
-import inference_utils as infer
+import beetles.inference_utils as infer
 from glob import glob
 from argparse import ArgumentParser
 
-import heuristics
-from inference_utils import smooth_predictions_with_hmm
+import beetles.heuristics
+from beetles.inference_utils import smooth_predictions_with_hmm
 
 
-def parser():
-    ap = ArgumentParser()
-    ap.add_argument('--debug_data_path', type=str,
-                    help='location of debugging data',
-                    required=True)
-    ap.add_argument('--sample_rate', type=int, default=48000,
-                    help='sample rate of audio recording')
-    ap.add_argument('--hop_length', type=int, default=200,
-                    help='length of hops b/t subsequent spectrogram windows')
-    ap.add_argument('--apply_heuristics', action='store_true',
-                    help='whether or not to apply heuristics specified in heuristics.py'
-                         'this will run the hmm on the processed predictions'
-                         '(this will NOT change results, just visualize them!)')
-
-    return ap.parse_args()
-
-
-def main(data_root, hop_length, sample_rate, apply_heuristics):
+def main(args):
+    # TODO: refactor so this function isn't so massive
+    data_root = args.debug_data_path
+    hop_length = args.hop_length
+    sample_rate = args.sample_rate
+    apply_heuristics = args.apply_heuristics
 
     medians = infer.load_pickle(os.path.join(data_root, 'median_predictions.pkl'))
     medians = np.expand_dims(np.transpose(medians), 0)
@@ -117,4 +105,4 @@ def main(data_root, hop_length, sample_rate, apply_heuristics):
 
 if __name__ == '__main__':
     args = parser()
-    main(args.debug_data_path, args.hop_length, args.sample_rate, args.apply_heuristics)
+    main(args)

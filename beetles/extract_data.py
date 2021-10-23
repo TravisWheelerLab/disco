@@ -1,13 +1,14 @@
 import time
 import random
-import math
-from sklearn.model_selection import train_test_split
 import torch
+import torchaudio
 import numpy as np
+import pandas as pd
 import pickle
 import os
 
-from data_feeder import INDEX_TO_LABEL, LABEL_TO_INDEX
+from glob import glob
+from sklearn.model_selection import train_test_split
 
 LABEL_TO_INDEX = {'A': 0, 'B': 1, 'X': 2, 'BACKGROUND': 2}
 INDEX_TO_LABEL = {0: 'A', 1: 'B', 2: 'X'}
@@ -163,20 +164,6 @@ def save_data(out_path, data_list):
             pickle.dump([features.numpy(), label_vector], dst)
 
 
-def parser():
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--mel_scale', action='store_true')
-    ap.add_argument('--n_fft', required=True, type=int)
-    ap.add_argument('--data_dir', required=True, type=str)
-    ap.add_argument('--output_data_path', required=True, type=str)
-    ap.add_argument('--vert_trim', required=False, default=None)
-    ap.add_argument('--random_seed', type=int, default=42,
-                    help='what number to use as the random seed. Default:'
-                         'Deep Thought\'s answer')
-
-    return ap.parse_args()
-
-
 def main(args):
     random.seed(args.random_seed)
     np.random.seed(args.random_seed)
@@ -218,5 +205,5 @@ def main(args):
 
 if __name__ == '__main__':
     # have to set seed for reproducibility.
-    extraction_args = parser()
-    main(extraction_args)
+    args = parser()
+    main(args)

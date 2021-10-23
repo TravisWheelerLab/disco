@@ -8,7 +8,7 @@
 source ~/anaconda/bin/activate
 conda activate beetles
 
-time python train.py \
+time beetles train \
      --gpus 1 \
      --log_dir "$HOME"/beetles-logs/final_unet_ensemble_with_correct_dimension/ \
      --vertical_trim 20 \

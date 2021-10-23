@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from .inference_utils import DEFAULT_MODEL_DIRECTORY
+from beetles.inference_utils import DEFAULT_MODEL_DIRECTORY
 
 
 def parser():
@@ -127,17 +127,17 @@ def parser():
 def main():
     args = parser().parse_args()
     if args.command == 'label':
-        from simple_labeler import main
+        from beetles.simple_labeler import main
         main(args)
     elif args.command == 'train':
-        from train import main
+        from beetles.train import main
         main(args)
     elif args.command == 'extract':
-        from extract_data import main
+        from beetles.extract_data import main
         main(args)
     elif args.command == 'viz':
-        from interactive_plot import main
+        from beetles.interactive_plot import main
         main(args)
     elif args.command == 'infer':
-        from infer import main
+        from beetles.infer import main
         main(args)

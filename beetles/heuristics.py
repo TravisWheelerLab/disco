@@ -1,5 +1,5 @@
 import numpy as np
-import inference_utils as infer
+import beetles.inference_utils as infer
 
 
 def threshold_based_on_mean_uncertainty(predictions, iqr):
@@ -59,7 +59,7 @@ def threshold_bs_on_iqr(predictions, iqr):
     """
     a_idx = infer.NAME_TO_CLASS_CODE['A']
     iqr_a = iqr[a_idx]
-    iqr_threshold = 0.20
+    iqr_threshold = 0.10
     conditional = (iqr_a >= iqr_threshold).astype(bool) & (predictions == infer.NAME_TO_CLASS_CODE['B']).astype(bool)
     predictions[conditional] = infer.NAME_TO_CLASS_CODE['B']
     return predictions
@@ -74,7 +74,7 @@ def threshold_as_on_iqr(predictions, iqr):
     """
     iqr_background = iqr[infer.NAME_TO_CLASS_CODE['BACKGROUND']]
     iqr_a = iqr[infer.NAME_TO_CLASS_CODE['A']]
-    iqr_threshold = 0.20
+    iqr_threshold = 0.10
     conditional = (iqr_background >= iqr_threshold).astype(bool) & (predictions == infer.NAME_TO_CLASS_CODE['A']).astype(bool)
     conditional = conditional & (iqr_a >= iqr_threshold).astype(bool) & (predictions == infer.NAME_TO_CLASS_CODE['A']).astype(bool)
     predictions[conditional] = infer.NAME_TO_CLASS_CODE['BACKGROUND']

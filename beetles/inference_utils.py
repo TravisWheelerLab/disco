@@ -12,7 +12,7 @@ import pomegranate as pom
 from glob import glob
 from collections import defaultdict
 
-from models import SimpleCNN, UNet1D
+from beetles.models import SimpleCNN, UNet1D
 
 # Should this be a configurable argument?
 np.random.seed(0)
