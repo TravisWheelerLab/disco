@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup_args = dict(
     name='beetles',
-    version='0.0.1',
+    version='0.0.2',
     packages=['beetles', 'beetles.models'],
     package_dir={'': '.'},
     url='https://github.com/TravisWheelerLab/beetles-cnn/archive/refs/tags/v0.0.1-alpha.tar.gz',
@@ -14,14 +14,14 @@ setup_args = dict(
         [console_scripts]
         beetles=beetles.cli:main
     """,
-    install_requires=['matplotlib',
-                      'pomegranate',
+    install_requires=['torch',
+                      'numpy',
                       'torchaudio',
                       'pytorch_lightning',
+                      'matplotlib',
                       'tqdm',
-                      'numpy',
+                      'pomegranate',
                       'pandas',
-                      'torch',
                       'requests',
                       'torchmetrics',
                       'scikit_learn']

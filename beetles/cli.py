@@ -4,6 +4,7 @@ from beetles.inference_utils import DEFAULT_MODEL_DIRECTORY
 
 def parser():
     ap = ArgumentParser()
+    ap.add_argument('--version', action='version', version='0.0.1-alpha')
     # infer
     subparsers = ap.add_subparsers(title='actions', required=True, dest="command")
 
