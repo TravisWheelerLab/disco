@@ -1,12 +1,17 @@
+
+This portion of the software requires that `beetles infer` has already been run.
+The relevant command is:
+
 `beetles viz --debug_data_path <output of beetles infer>`
 
-`--debug_data_path` needs to contain five files 
+The directory at `--debug_data_path` needs to contain five files 
 (produced by `beetles infer --debug <viz_path`): classifications.csv,
 raw_spectrogram.pkl, hmm_predictions.pkl, median_predictions.pkl, iqrs.pkl. 
 
 
 This command displays an matplotlib window with a slider to allow interactive
-visualization of ensemble predictions.
+visualization of ensemble predictions. Click or slide on a region of the slider
+to move the visualization window.
 
 ![App from beetles viz.](https://github.com/TravisWheelerLab/beetles-cnn/blob/infer/resources/example_inference_image.png)
 The app displays the raw spectrogram as the top image, along with annotations
