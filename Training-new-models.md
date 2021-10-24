@@ -6,3 +6,4 @@ Example (with bootstrapping enable)
 ```
 beetles train --data_path <output of extract> --log_dir ~/my_logs/ --gpus 1 --bootstrap
 ```
+`--data_path` should have three subdirectories: `train`, `test`, and `validation`, containing the train files, test files, and validation files, respectively.
