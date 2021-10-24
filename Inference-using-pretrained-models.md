@@ -14,7 +14,7 @@ Save predictions with `--output_csv_path <my_results.csv>`
 
 Save data for visualizing predictions in matplotlib with 
 `--debug <directory_name_here>`. More information on how to use the --debug flag
-is [here](./Visualizing-data.md). 
+is [here](Visualizing-data.md). . 
 
 
 ```
