@@ -127,8 +127,3 @@ def train_func(hparams):
 
 def main(args):
     train_func(args)
-
-
-if __name__ == '__main__':
-    args = train_parser()
-    main(args)

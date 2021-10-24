@@ -187,25 +187,3 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
     def get_unique_labels(self):
         return self.unique_labels.keys()
 
-
-if __name__ == '__main__':
-
-    from glob import glob
-
-    fpath = '/home/tc229954/data/beetles/extracted_data/train/mel_no_log_400_no_vert_trim/*'
-    train_files = glob(fpath)
-    s = SpectrogramDatasetMultiLabel(
-        train_files,
-        apply_log=True,
-        vertical_trim=0,
-        bootstrap_sample=False,
-        mask_beginning_and_end=True)
-
-    batch_size = 32
-    d = torch.utils.data.DataLoader(s,
-                                    batch_size=batch_size,
-                                    num_workers=0,
-                                    collate_fn=None if batch_size == 1 else pad_batch)
-    for x, x_mask, y in d:
-        print(x.shape, x_mask.shape, y.shape)
-        break

@@ -208,8 +208,3 @@ def main(args):
     plt.show()
     labeler.show()
     labeler.save_labels()
-
-
-if __name__ == '__main__':
-    pargs = parser()
-    main(pargs)

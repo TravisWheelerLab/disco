@@ -12,6 +12,7 @@ import beetles.inference_utils as infer
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
 
+
 def main(args):
     if args.tile_size % 2 != 0:
         raise ValueError('tile_size must be even, got {}'.format(args.tile_size))
@@ -77,8 +78,3 @@ def main(args):
         infer.pickle_data(hmm_predictions, hmm_prediction_path)
         infer.pickle_data(medians, median_prediction_path)
         infer.pickle_data(iqr, iqr_path)
-
-
-if __name__ == '__main__':
-    args = parser()
-    main()

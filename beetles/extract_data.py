@@ -22,11 +22,14 @@ def w2s_idx(idx, hop_length):
 
 def create_label_to_spectrogram(spect, labels, hop_length,
                                 neighbor_tolerance=100):
-    # takes in a specific spectrogram dictated by process_wav_file and returns a dictionary with a key as
-    # a song type and a list of tensors of those spectrograms as a value. e.g.:
-    # len(label_to_spectrogram['A']) = 49 (number of sounds of this subtype)
-    # type(label_to_spectrogram['A']) = class 'list'
-    # type(label_to_spectrogram['A'][0]) = class 'torch.Tensor'
+    """
+    Accepts a spectrogram (torch.Tensor) and labels (pd.DataFrame) and returns
+    a song type and a list of tensors of those spectrograms as a value. e.g.:
+    len(label_to_spectrogram['A']) = 49 (number of sounds of this subtype)
+    type(label_to_spectrogram['A']) = class 'list'
+    type(label_to_spectrogram['A'][0]) = class 'torch.Tensor'
+    """
+
     labels['begin spect idx'] = [w2s_idx(x, hop_length) for x in labels['begin idx']]
     labels['end spect idx'] = [w2s_idx(x, hop_length) for x in labels['end idx']]
 
@@ -201,9 +204,3 @@ def main(args):
     save_data(train_path, train_split)
     save_data(validation_path, val_split)
     save_data(test_path, test_split)
-
-
-if __name__ == '__main__':
-    # have to set seed for reproducibility.
-    args = parser()
-    main(args)

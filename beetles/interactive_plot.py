@@ -102,7 +102,3 @@ def main(args):
     spos.on_changed(update)
     plt.show()
 
-
-if __name__ == '__main__':
-    args = parser()
-    main(args)
