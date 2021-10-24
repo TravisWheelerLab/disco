@@ -65,11 +65,14 @@ def main(args):
                      colors=infer.SOUND_TYPE_TO_COLOR[name])
 
     for cls in infer.SOUND_TYPE_TO_COLOR.keys():
-        ax[0].plot([0, 0], [0, spectrogram.shape[0]], '{}-'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
-                   label='begin of {} chirp'.format(cls))
+        if cls != 'BACKGROUND':
+            ax[0].plot([0, 0], [0, spectrogram.shape[0]], '{}-'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
+                       label='begin of {} chirp'.format(cls))
     for cls in infer.SOUND_TYPE_TO_COLOR.keys():
-        ax[0].plot([0, 0], [0, spectrogram.shape[0]], '{}-.'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
-                   label='begin of {} chirp'.format(cls))
+        if cls != 'BACKGROUND':
+            ax[0].plot([0, 0], [0, spectrogram.shape[0]], '{}-.'.format(infer.SOUND_TYPE_TO_COLOR[cls]),
+                       label='end of {} chirp'.format(cls))
+
     ax[0].legend(bbox_to_anchor=(1.04, 1), loc="upper left")
     ax[1].imshow(prediction_array, aspect='auto', interpolation='nearest')
     ax[1].set_yticks([0, 1, 2, 3])

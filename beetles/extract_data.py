@@ -171,10 +171,8 @@ def main(args):
     random.seed(args.random_seed)
     np.random.seed(args.random_seed)
 
-    mel = args.mel_scale
+    mel = True if not args.no_mel_scale else False  # i want default True
     n_fft = args.n_fft
-
-    spect_type = form_spectrogram_type(mel, n_fft)
 
     data_dir = args.data_dir
 
@@ -189,17 +187,17 @@ def main(args):
     random.shuffle(out)
     indices = np.arange(len(out))
     train_idx, test_idx, _, _ = train_test_split(indices, indices, test_size=0.15,
-                                                 random_state=0)
+                                                 random_state=args.random_seed)
     test_idx, val_idx, _, _ = train_test_split(test_idx, test_idx, test_size=0.5,
-                                               random_state=0)
+                                               random_state=args.random_seed)
 
     train_split = np.asarray(out)[train_idx]
     val_split = np.asarray(out)[val_idx]
     test_split = np.asarray(out)[test_idx]
 
-    train_path = os.path.join(args.output_data_path, spect_type, 'train')
-    validation_path = os.path.join(args.output_data_path, spect_type, 'validation')
-    test_path = os.path.join(args.output_data_path, spect_type, 'test')
+    train_path = os.path.join(args.output_data_path, 'train')
+    validation_path = os.path.join(args.output_data_path, 'validation')
+    test_path = os.path.join(args.output_data_path, 'test')
 
     save_data(train_path, train_split)
     save_data(validation_path, val_split)

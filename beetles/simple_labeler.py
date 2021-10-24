@@ -11,6 +11,7 @@ np.random.seed(19680801)
 
 import beetles.inference_utils as infer
 
+
 def add_example(label_list, wav_file, begin_idx, end_idx, sound_type,
                 hop_length=None, sample_rate=None):
     begin_time = infer.convert_spectrogram_index_to_seconds(begin_idx,
@@ -33,11 +34,12 @@ class SimpleLabeler:
 
         self.wav_file = wav_file
         self.output_csv_path = output_csv_path
+        if not os.path.isdir(os.path.dirname(os.path.abspath(self.output_csv_path))):
+            os.makedirs(os.path.dirname(os.path.abspath(self.output_csv_path)))
 
         n = 0
 
-        if os.path.isfile(output_csv_path):
-            exit()
+        if os.path.isfile(self.output_csv_path):
             try:
                 previous_labels = pd.read_csv(output_csv_path, delimiter=',')
                 n = int(previous_labels['End Time (s)'].iloc[-1])

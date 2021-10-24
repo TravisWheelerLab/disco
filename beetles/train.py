@@ -19,12 +19,9 @@ DEFAULT_SPECTROGRAM_NUM_ROWS = 128
 
 
 def train_func(hparams):
-    # TODO: Don't hardcode this.
 
-    spect_type = 'mel_no_log_{}_no_vert_trim'.format(hparams.n_fft)
-    print(spect_type)
-    train_path = os.path.join(hparams.data_path, 'train', spect_type, "*")
-    val_path = os.path.join(hparams.data_path, 'validation', spect_type, "*")
+    train_path = os.path.join(hparams.data_path, 'train', "*")
+    val_path = os.path.join(hparams.data_path, 'validation', "*")
 
     if not len(glob(train_path)) or not len(glob(val_path)):
         raise ValueError('no files found in one of {}, {}'.format(train_path, val_path))
@@ -77,7 +74,8 @@ def train_func(hparams):
         'begin_mask': hparams.begin_mask,
         'end_mask': hparams.end_mask,
         'train_files': train_dataset.files,
-        'val_files': val_dataset.files}
+        'val_files': val_dataset.files,
+    }
 
     if hparams.apply_attn:
         model = UNet1DAttn(**model_kwargs)
