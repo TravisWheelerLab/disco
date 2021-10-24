@@ -223,9 +223,8 @@ def assemble_ensemble(model_directory, model_extension, device,
         print('no models found at {}, downloading to {}'.format(model_directory,
                                                                 DEFAULT_MODEL_DIRECTORY))
 
-        # todo: change save path to whatever is passed in
         download_models()
-        model_paths = glob(os.path.join(model_directory, "*" + model_extension))
+        model_paths = glob(os.path.join(DEFAULT_MODEL_DIRECTORY, "*" + model_extension))
 
     models = []
     for model_path in model_paths:
