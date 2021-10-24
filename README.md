@@ -10,3 +10,4 @@ Quickstart:
 pip install beetles
 ```
 Learn how to use the tools provided in this package [here](https://github.com/TravisWheelerLab/beetles-cnn/wiki).
+
