@@ -1,4 +1,4 @@
-You can perform inference on a .wav file with `beetles infer`. Unless you specify a `--saved_model_directory` models will be downloaded from an s3 bucket to `$HOME/.cache/beetles/`.
+You can perform inference on a .wav file with `beetles infer`. Unless you specify a `--saved_model_directory` models will be downloaded from an s3 bucket to `$HOME/.cache/beetles/`. The hyperparameters that were used to train the models in the s3 bucket are defaults in `beetles infer`. *If you retrain models with different hparams you must pass them in to the infer utility*.
 
 ```
 beetles infer --wav_file <example.wav> <OPTS>
