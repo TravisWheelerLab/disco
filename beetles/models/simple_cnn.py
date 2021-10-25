@@ -6,23 +6,24 @@ import numpy as np
 
 MASK_CHARACTER = -1
 
-__all__ = ['MASK_CHARACTER', 'SimpleCNN']
+__all__ = ["MASK_CHARACTER", "SimpleCNN"]
 
 
 class SimpleCNN(pl.LightningModule):
-
-    def __init__(self,
-                 in_channels,
-                 learning_rate,
-                 mel,
-                 apply_log,
-                 n_fft,
-                 vertical_trim,
-                 mask_beginning_and_end,
-                 begin_mask,
-                 end_mask,
-                 train_files,
-                 val_files):
+    def __init__(
+        self,
+        in_channels,
+        learning_rate,
+        mel,
+        apply_log,
+        n_fft,
+        vertical_trim,
+        mask_beginning_and_end,
+        begin_mask,
+        end_mask,
+        train_files,
+        val_files,
+    ):
 
         super(SimpleCNN, self).__init__()
         self._setup_layers()
@@ -42,15 +43,21 @@ class SimpleCNN(pl.LightningModule):
         self.save_hyperparameters()
 
     def _setup_layers(self):
-        self.conv1 = torch.nn.Conv1d(in_channels=in_channels, out_channels=256, kernel_size=3, padding=1)
+        self.conv1 = torch.nn.Conv1d(
+            in_channels=in_channels, out_channels=256, kernel_size=3, padding=1
+        )
         self.conv2 = torch.nn.Conv1d(256, 512, 3, padding=1)
         self.conv3 = torch.nn.Conv1d(512, 512, 3, padding=1)
         self.conv4 = torch.nn.Conv1d(512, 1024, 3, padding=1)
         self.conv5 = torch.nn.Conv1d(1024, 512, 1, padding=0)
         self.conv6 = torch.nn.Conv1d(512, 512, 3, padding=1)
         self.conv7 = torch.nn.Conv1d(512, 256, 3, padding=1)
-        self.conv8 = torch.nn.Conv1d(in_channels=256, out_channels=32, kernel_size=1, padding=0)
-        self.conv9 = torch.nn.Conv1d(in_channels=32, out_channels=3, kernel_size=1, padding=0)
+        self.conv8 = torch.nn.Conv1d(
+            in_channels=256, out_channels=32, kernel_size=1, padding=0
+        )
+        self.conv9 = torch.nn.Conv1d(
+            in_channels=32, out_channels=3, kernel_size=1, padding=0
+        )
 
     def _masked_forward(self, x, x_mask):
         x = self.conv1(x)
@@ -123,31 +130,31 @@ class SimpleCNN(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         loss, acc = self._shared_step(batch)
-        return {'loss': loss, 'train_acc': acc}
+        return {"loss": loss, "train_acc": acc}
 
     def validation_step(self, batch, batch_nb):
         loss, acc = self._shared_step(batch)
-        return {'val_loss': loss, 'val_acc': acc}
+        return {"val_loss": loss, "val_acc": acc}
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
     def training_epoch_end(self, outputs):
-        train_loss = self.all_gather([x['loss'] for x in outputs])
-        train_acc = self.all_gather([x['train_acc'] for x in outputs])
+        train_loss = self.all_gather([x["loss"] for x in outputs])
+        train_acc = self.all_gather([x["train_acc"] for x in outputs])
         loss = torch.mean(torch.stack(train_loss))
         acc = torch.mean(torch.stack(train_acc))
-        self.log('train_loss', loss)
-        self.log('train_acc', acc)
-        self.log('learning_rate', self.learning_rate)
+        self.log("train_loss", loss)
+        self.log("train_acc", acc)
+        self.log("learning_rate", self.learning_rate)
 
     def on_train_start(self):
-        self.log('hp_metric', self.learning_rate + self.n_fft)
+        self.log("hp_metric", self.learning_rate + self.n_fft)
 
     def validation_epoch_end(self, outputs):
-        val_loss = self.all_gather([x['val_loss'] for x in outputs])
-        val_acc = self.all_gather([x['val_acc'] for x in outputs])
+        val_loss = self.all_gather([x["val_loss"] for x in outputs])
+        val_acc = self.all_gather([x["val_acc"] for x in outputs])
         val_loss = torch.mean(torch.stack(val_loss))
         val_acc = torch.mean(torch.stack(val_acc))
-        self.log('val_loss', val_loss)
-        self.log('val_acc', val_acc)
+        self.log("val_loss", val_loss)
+        self.log("val_acc", val_acc)

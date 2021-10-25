@@ -3,13 +3,12 @@ import torchmetrics
 import pytorch_lightning as pl
 from torch import nn
 
-__all__ = ['UNet1DAttn']
+__all__ = ["UNet1DAttn"]
 # TODO: add mask character to something global
 MASK_CHARACTER = -1
 
 
 class ConvBlock(nn.Module):
-
     def __init__(self, in_channels, out_channels, filter_width):
         super(ConvBlock, self).__init__()
 
@@ -22,7 +21,7 @@ class ConvBlock(nn.Module):
             in_channels,
             out_channels,
             kernel_size=filter_width,
-            padding=1 if filter_width == 3 else pad_width
+            padding=1 if filter_width == 3 else pad_width,
         )
         self.bn1 = nn.BatchNorm1d(out_channels)
 
@@ -30,7 +29,7 @@ class ConvBlock(nn.Module):
             out_channels,
             out_channels,
             kernel_size=filter_width,
-            padding=1 if filter_width == 3 else pad_width
+            padding=1 if filter_width == 3 else pad_width,
         )
 
         self.bn2 = nn.BatchNorm1d(out_channels)
@@ -52,19 +51,21 @@ class UNet1DAttn(pl.LightningModule):
     activation maps post 2D conv would be considered separate tokens.
     """
 
-    def __init__(self,
-                 in_channels,
-                 learning_rate,
-                 mel,
-                 apply_log,
-                 n_fft,
-                 vertical_trim,
-                 mask_beginning_and_end,
-                 begin_mask,
-                 end_mask,
-                 train_files,
-                 val_files,
-                 divisible_by=16):
+    def __init__(
+        self,
+        in_channels,
+        learning_rate,
+        mel,
+        apply_log,
+        n_fft,
+        vertical_trim,
+        mask_beginning_and_end,
+        begin_mask,
+        end_mask,
+        train_files,
+        val_files,
+        divisible_by=16,
+    ):
 
         super(UNet1DAttn, self).__init__()
         self.in_channels = in_channels
@@ -90,21 +91,39 @@ class UNet1DAttn(pl.LightningModule):
         base = 2
         power = 5
         self.conv1 = ConvBlock(self.in_channels, base ** power, self.filter_width)
-        self.a1 = nn.TransformerEncoderLayer(base ** power, 1, dim_feedforward=base ** (power + 1))
+        self.a1 = nn.TransformerEncoderLayer(
+            base ** power, 1, dim_feedforward=base ** (power + 1)
+        )
 
         self.conv2 = ConvBlock(base ** power, base ** (power + 1), self.filter_width)
-        self.a2 = nn.TransformerEncoderLayer(base ** (power + 1), 1, dim_feedforward=base ** (power + 1))
+        self.a2 = nn.TransformerEncoderLayer(
+            base ** (power + 1), 1, dim_feedforward=base ** (power + 1)
+        )
 
-        self.conv3 = ConvBlock(base ** (power + 1), base ** (power + 2), self.filter_width)
-        self.a3 = nn.TransformerEncoderLayer(base ** (power + 2), 1, dim_feedforward=base ** (power + 1))
+        self.conv3 = ConvBlock(
+            base ** (power + 1), base ** (power + 2), self.filter_width
+        )
+        self.a3 = nn.TransformerEncoderLayer(
+            base ** (power + 2), 1, dim_feedforward=base ** (power + 1)
+        )
 
-        self.conv4 = ConvBlock(base ** (power + 2), base ** (power + 3), self.filter_width)
-        self.a4 = nn.TransformerEncoderLayer(base ** (power + 3), 1, dim_feedforward=base ** (power + 1))
+        self.conv4 = ConvBlock(
+            base ** (power + 2), base ** (power + 3), self.filter_width
+        )
+        self.a4 = nn.TransformerEncoderLayer(
+            base ** (power + 3), 1, dim_feedforward=base ** (power + 1)
+        )
 
-        self.conv5 = ConvBlock(base ** (power + 3), base ** (power + 3), self.filter_width)
+        self.conv5 = ConvBlock(
+            base ** (power + 3), base ** (power + 3), self.filter_width
+        )
 
-        self.conv6 = ConvBlock(base ** (power + 3), base ** (power + 2), self.filter_width)
-        self.conv7 = ConvBlock(base ** (power + 2), base ** (power + 1), self.filter_width)
+        self.conv6 = ConvBlock(
+            base ** (power + 3), base ** (power + 2), self.filter_width
+        )
+        self.conv7 = ConvBlock(
+            base ** (power + 2), base ** (power + 1), self.filter_width
+        )
         self.conv8 = ConvBlock(base ** (power + 1), base ** power, self.filter_width)
         self.conv9 = ConvBlock(base ** power, base ** power, self.filter_width)
 
@@ -246,52 +265,57 @@ class UNet1DAttn(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         loss, acc = self._shared_step(batch)
-        return {'loss': loss, 'train_acc': acc}
+        return {"loss": loss, "train_acc": acc}
 
     def validation_step(self, batch, batch_nb):
         loss, acc = self._shared_step(batch)
-        return {'val_loss': loss, 'val_acc': acc}
+        return {"val_loss": loss, "val_acc": acc}
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
-        return {'optimizer': optimizer,
-                'lr_scheduler': torch.optim.lr_scheduler.StepLR(optimizer, step_size=150,
-                                                                gamma=0.5)}
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": torch.optim.lr_scheduler.StepLR(
+                optimizer, step_size=150, gamma=0.5
+            ),
+        }
 
     def training_epoch_end(self, outputs):
-        train_loss = self.all_gather([x['loss'] for x in outputs])
-        train_acc = self.all_gather([x['train_acc'] for x in outputs])
+        train_loss = self.all_gather([x["loss"] for x in outputs])
+        train_acc = self.all_gather([x["train_acc"] for x in outputs])
         loss = torch.mean(torch.stack(train_loss))
         acc = torch.mean(torch.stack(train_acc))
-        self.log('train_loss', loss)
-        self.log('train_acc', acc)
-        self.log('learning_rate', self.learning_rate)
+        self.log("train_loss", loss)
+        self.log("train_acc", acc)
+        self.log("learning_rate", self.learning_rate)
 
     def on_train_start(self):
-        self.log('hp_metric', self.learning_rate + self.n_fft)
+        self.log("hp_metric", self.learning_rate + self.n_fft)
 
     def validation_epoch_end(self, outputs):
-        val_loss = self.all_gather([x['val_loss'] for x in outputs])
-        val_acc = self.all_gather([x['val_acc'] for x in outputs])
+        val_loss = self.all_gather([x["val_loss"] for x in outputs])
+        val_acc = self.all_gather([x["val_acc"] for x in outputs])
         val_loss = torch.mean(torch.stack(val_loss))
         val_acc = torch.mean(torch.stack(val_acc))
-        self.log('val_loss', val_loss)
-        self.log('val_acc', val_acc)
+        self.log("val_loss", val_loss)
+        self.log("val_acc", val_acc)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # batch size by channels (feature depth) by sequence length
-    model = UNet1DAttn(in_channels=128,
-                       learning_rate=None,
-                       mel=None,
-                       apply_log=None,
-                       n_fft=None,
-                       vertical_trim=None,
-                       mask_beginning_and_end=None,
-                       begin_mask=None,
-                       end_mask=None,
-                       train_files=[1],
-                       val_files=[1])
+    model = UNet1DAttn(
+        in_channels=128,
+        learning_rate=None,
+        mel=None,
+        apply_log=None,
+        n_fft=None,
+        vertical_trim=None,
+        mask_beginning_and_end=None,
+        begin_mask=None,
+        end_mask=None,
+        train_files=[1],
+        val_files=[1],
+    )
 
     for i in range(48, 500, 1):
         random_data = torch.rand((16, 128, i))

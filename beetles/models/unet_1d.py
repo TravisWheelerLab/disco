@@ -4,13 +4,12 @@ import pytorch_lightning as pl
 from torch import nn
 
 
-__all__ = ['UNet1D']
+__all__ = ["UNet1D"]
 # TODO: add mask character to something global
 MASK_CHARACTER = -1
 
 
 class ConvBlock(nn.Module):
-
     def __init__(self, in_channels, out_channels, filter_width):
         super(ConvBlock, self).__init__()
 
@@ -20,17 +19,11 @@ class ConvBlock(nn.Module):
             pad_width = filter_width // 2
 
         self.conv1 = nn.Conv1d(
-            in_channels,
-            out_channels,
-            kernel_size=filter_width,
-            padding=pad_width
+            in_channels, out_channels, kernel_size=filter_width, padding=pad_width
         )
 
         self.conv2 = nn.Conv1d(
-            out_channels,
-            out_channels,
-            kernel_size=filter_width,
-            padding=pad_width
+            out_channels, out_channels, kernel_size=filter_width, padding=pad_width
         )
 
         self.act = nn.ReLU()
@@ -42,19 +35,21 @@ class ConvBlock(nn.Module):
 
 
 class UNet1D(pl.LightningModule):
-
-    def __init__(self, in_channels,
-                 learning_rate,
-                 mel,
-                 apply_log,
-                 n_fft,
-                 vertical_trim,
-                 mask_beginning_and_end,
-                 begin_mask,
-                 end_mask,
-                 train_files,
-                 val_files,
-                 divisible_by=16):
+    def __init__(
+        self,
+        in_channels,
+        learning_rate,
+        mel,
+        apply_log,
+        n_fft,
+        vertical_trim,
+        mask_beginning_and_end,
+        begin_mask,
+        end_mask,
+        train_files,
+        val_files,
+        divisible_by=16,
+    ):
 
         super(UNet1D, self).__init__()
         self.in_channels = in_channels
@@ -79,17 +74,27 @@ class UNet1D(pl.LightningModule):
     def _setup_layers(self):
         base = 2
         power = 5
-        self.conv1 = ConvBlock(self.in_channels, base**power, self.filter_width)
-        self.conv2 = ConvBlock(base**power, base**(power+1), self.filter_width)
-        self.conv3 = ConvBlock(base**(power+1), base**(power+2), self.filter_width)
-        self.conv4 = ConvBlock(base**(power+2), base**(power+3), self.filter_width)
-        self.conv5 = ConvBlock(base**(power+3), base**(power+3), self.filter_width)
-        self.conv6 = ConvBlock(base**(power+3), base**(power+2), self.filter_width)
-        self.conv7 = ConvBlock(base**(power+2), base**(power+1), self.filter_width)
-        self.conv8 = ConvBlock(base**(power+1), base**power, self.filter_width)
-        self.conv9 = ConvBlock(base**power, base**power, self.filter_width)
+        self.conv1 = ConvBlock(self.in_channels, base ** power, self.filter_width)
+        self.conv2 = ConvBlock(base ** power, base ** (power + 1), self.filter_width)
+        self.conv3 = ConvBlock(
+            base ** (power + 1), base ** (power + 2), self.filter_width
+        )
+        self.conv4 = ConvBlock(
+            base ** (power + 2), base ** (power + 3), self.filter_width
+        )
+        self.conv5 = ConvBlock(
+            base ** (power + 3), base ** (power + 3), self.filter_width
+        )
+        self.conv6 = ConvBlock(
+            base ** (power + 3), base ** (power + 2), self.filter_width
+        )
+        self.conv7 = ConvBlock(
+            base ** (power + 2), base ** (power + 1), self.filter_width
+        )
+        self.conv8 = ConvBlock(base ** (power + 1), base ** power, self.filter_width)
+        self.conv9 = ConvBlock(base ** power, base ** power, self.filter_width)
 
-        self.conv_out = nn.Conv1d(base**power, 3, kernel_size=1, padding=0)
+        self.conv_out = nn.Conv1d(base ** power, 3, kernel_size=1, padding=0)
         self.act = nn.ReLU()
         self.downsample = nn.MaxPool2d(kernel_size=(1, 2))
         self.upsample = nn.Upsample(scale_factor=2)
@@ -195,40 +200,43 @@ class UNet1D(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         loss, acc = self._shared_step(batch)
-        return {'loss': loss, 'train_acc': acc}
+        return {"loss": loss, "train_acc": acc}
 
     def validation_step(self, batch, batch_nb):
         loss, acc = self._shared_step(batch)
-        return {'val_loss': loss, 'val_acc': acc}
+        return {"val_loss": loss, "val_acc": acc}
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
-        return {'optimizer': optimizer,
-                'lr_scheduler': torch.optim.lr_scheduler.StepLR(optimizer, step_size=150,
-                                                                gamma=0.7)}
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": torch.optim.lr_scheduler.StepLR(
+                optimizer, step_size=150, gamma=0.7
+            ),
+        }
 
     def training_epoch_end(self, outputs):
-        train_loss = self.all_gather([x['loss'] for x in outputs])
-        train_acc = self.all_gather([x['train_acc'] for x in outputs])
+        train_loss = self.all_gather([x["loss"] for x in outputs])
+        train_acc = self.all_gather([x["train_acc"] for x in outputs])
         loss = torch.mean(torch.stack(train_loss))
         acc = torch.mean(torch.stack(train_acc))
-        self.log('train_loss', loss)
-        self.log('train_acc', acc)
-        self.log('learning_rate', self.learning_rate)
+        self.log("train_loss", loss)
+        self.log("train_acc", acc)
+        self.log("learning_rate", self.learning_rate)
 
     def on_train_start(self):
-        self.log('hp_metric', self.learning_rate + self.n_fft)
+        self.log("hp_metric", self.learning_rate + self.n_fft)
 
     def validation_epoch_end(self, outputs):
-        val_loss = self.all_gather([x['val_loss'] for x in outputs])
-        val_acc = self.all_gather([x['val_acc'] for x in outputs])
+        val_loss = self.all_gather([x["val_loss"] for x in outputs])
+        val_acc = self.all_gather([x["val_acc"] for x in outputs])
         val_loss = torch.mean(torch.stack(val_loss))
         val_acc = torch.mean(torch.stack(val_acc))
-        self.log('val_loss', val_loss)
-        self.log('val_acc', val_acc)
+        self.log("val_loss", val_loss)
+        self.log("val_acc", val_acc)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pass
     # batch size by channels (feature depth) by sequence length
     #     model = UNet1D(in_channels=128,
