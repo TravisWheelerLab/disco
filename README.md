@@ -1,3 +1,5 @@
+[![Generic badge](https://img.shields.io/badge/Contributions-Welcome-brightgreen.svg)](CONTRIBUTING.md)
+<a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/TravisWheelerLab/beetles-cnn/infer/resources/logo.png?token=AJS27PC7BHRUWXA4DUEKWYDBP33SA" width="95%">
