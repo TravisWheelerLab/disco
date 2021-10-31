@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
-from beetles.inference_utils import DEFAULT_MODEL_DIRECTORY
+import os
+import json
 
 __all__ = [
     "LABEL_TO_INDEX",
@@ -14,9 +15,19 @@ __all__ = [
     "DEFAULT_SPECTROGRAM_NUM_ROWS",
 ]
 
+file = open('../resources/annotations_key.json')
+objects = json.load(file)
+file.close()
 
-LABEL_TO_INDEX = {"A": 0, "B": 1, "X": 2}
-INDEX_TO_LABEL = {0: "A", 1: "B", 2: "X"}
+INDEX_TO_LABEL = {}
+LABEL_TO_INDEX = {}
+
+for o in objects:
+    index = int(o['index'])
+    label = o['label']
+    LABEL_TO_INDEX[label] = index
+    INDEX_TO_LABEL[index] = label
+
 MASK_FLAG = -1
 EXCLUDED_CLASSES = ("Y", "C")
 CLASS_CODE_TO_NAME = {0: "A", 1: "B", 2: "BACKGROUND"}
