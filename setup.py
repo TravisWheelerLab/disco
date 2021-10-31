@@ -12,7 +12,7 @@ setup_args = dict(
     description="Tool for labeling and training DNNs on spectrogram data",
     entry_points="""
         [console_scripts]
-        beetles=beetles.cli:main
+        beetles=beetles:main
     """,
     install_requires=[
         "torch",

@@ -17,11 +17,13 @@ from beetles.models import SimpleCNN, UNet1D
 # Should this be a configurable argument?
 np.random.seed(0)
 
-CLASS_CODE_TO_NAME = {0: "A", 1: "B", 2: "BACKGROUND"}
-NAME_TO_CLASS_CODE = {v: k for k, v in CLASS_CODE_TO_NAME.items()}
-SOUND_TYPE_TO_COLOR = {"A": "r", "B": "y", "BACKGROUND": "k"}
-AWS_DOWNLOAD_LINK = "https://beetles-cnn-models.s3.amazonaws.com/m_{}.pt"
-DEFAULT_MODEL_DIRECTORY = os.path.join(os.path.expanduser("~"), ".cache", "beetles")
+from beetles import (
+    CLASS_CODE_TO_NAME,
+    NAME_TO_CLASS_CODE,
+    SOUND_TYPE_TO_COLOR,
+    AWS_DOWNLOAD_LINK,
+    DEFAULT_MODEL_DIRECTORY,
+)
 
 
 def load_in_hmm():

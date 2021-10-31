@@ -8,9 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-LABEL_TO_INDEX = {"A": 0, "B": 1, "X": 2}
-INDEX_TO_LABEL = {0: "A", 1: "B", 2: "X"}
-MASK_FLAG = -1
+from beetles import INDEX_TO_LABEL, LABEL_TO_INDEX, MASK_FLAG
 
 
 def pad_batch(batch):

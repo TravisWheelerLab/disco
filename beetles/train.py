@@ -14,8 +14,7 @@ from argparse import ArgumentParser
 
 from beetles.models import SimpleCNN, UNet1D, UNet1DAttn
 from beetles.dataset import SpectrogramDatasetMultiLabel, pad_batch
-
-DEFAULT_SPECTROGRAM_NUM_ROWS = 128
+from beetles import DEFAULT_SPECTROGRAM_NUM_ROWS
 
 
 def train_func(hparams):
