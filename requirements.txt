@@ -1,0 +1,12 @@
+matplotlib
+test_tube
+pomegranate
+torchaudio
+pytorch_lightning
+tqdm
+numpy
+pandas
+torch
+requests
+torchmetrics
+scikit_learn
