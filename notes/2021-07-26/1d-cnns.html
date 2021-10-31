@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="Stylesheet" type="text/css" href="../../style.css">
+<title>1d-cnns</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+<p>
+Tip: Check GPU memory usage with nvidia-smi. If your process isn't using all of
+the GPU memory, turn up the batch size until the entire GPU is allocated. This
+will make your models train faster. Note: If Volatile-GPU Util (%) isn't very
+high, you need to make your data loading code faster.
+</p>
+
+<p>
+<span id="-How to set up a 1d CNN"></span><strong id="How to set up a 1d CNN">How to set up a 1d CNN</strong>
+</p>
+
+<p>
+Recall: 2D CNN. We made a dummy first dimension (the 1x in all of the shapes
+below).
+</p>
+
+<pre python>
+
+conv2d() 1xHxL
+conv2d() 1xHxL 1xHxL
+conv2d() 1xHxL
+maxPoolAlongColumnDimension() 1xH//2xL
+conv2d() 1xH//2xL
+conv2d() 1xH//2xL
+conv2d() 1xH//2xL
+conv2d() 1xH//2xL
+
+globalPoolAlongColumnDimension() 1x1xL # (maybe a max or an average or something)
+# (or a sum or something to reduce the number of rows to 1)
+# finally, 
+output = conv2d() 3x1xL # 3 classes, one row for each class prediction.
+</pre>
+
+<p>
+After the mean operation, we used 1-d convolutions.
+1xHxL -&gt; 1xL
+</p>
+
+<p>
+Features: one for each timepoint vector of spectrogram intensities, (contents of
+the frequency bin).
+</p>
+
+<p>
+So the dimension of the input is now <span id="-n_featuresxL"></span><strong id="n_featuresxL">n_featuresxL</strong>
+Features are also called channels.
+Pretty sure pytorch is channels first (so a tensor of inptu with be
+n_featuresxL).
+</p>
+
+<p>
+H=n_features=channels
+</p>
+
+<pre python>
+    conv1d() HxL
+    conv1d() HxL 
+    conv1d() HxL
+    conv1d() HxL
+    conv1d() HxL
+    conv1d() HxL
+    conv1d() 3xL
+</pre>
+
+<p>
+Why not len 5 kernels? 2 len 3 kernels do the same thing.
+Max pooling increases the receptive field exponentially.
+</p>
+
+</body>
+</html>

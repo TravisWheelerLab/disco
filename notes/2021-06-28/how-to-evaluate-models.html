@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="Stylesheet" type="text/css" href="../../style.css">
+<title>how-to-evaluate-models</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+<p>
+todo:
+</p>
+<ul>
+<li>
+Get the code on the cluster so it can run on a GPU (alternatively, ask
+      around to see if there are any machines with GPUs available since there
+      usually aren't any free GPUs on the cluster)
+
+<li>
+Figure out some way to visualize predictions.
+
+<li>
+Write code to make evaluating an arbitrary spectrogram easy
+
+<li>
+Do some research on hyperparameter tuning frameworks
+
+<li>
+Research confusion matrices and implement them for our problem
+
+</ul>
+
+<p>
+<span id="-How are we going to see if these models are doing well or not?"></span><strong id="How are we going to see if these models are doing well or not?">How are we going to see if these models are doing well or not?</strong>
+</p>
+
+<p>
+We need to get rid of sampling length 40 spectrograms in the test set (because
+we care about metrics for the full spectrogram, not a random length-40 one), and
+transition to a "full spectrogram" evaluation.
+</p>
+
+<p>
+This will require either padding batches or evaluating each test example on a
+per-example basis (batch size of 1).
+</p>
+
+<p>
+Let's pad the batch to the maximum length with zeros to evaluate and mask out
+the padded areas when we're calculating accuracy.
+</p>
+
+<p>
+<span id="-Right now (during the meeting), the model isn't training, even on the train set"></span><strong id="Right now (during the meeting), the model isn't training, even on the train set">Right now (during the meeting), the model isn't training, even on the train set</strong>
+</p>
+
+<p>
+<span id="-What should we do?"></span><strong id="What should we do?">What should we do?</strong>
+</p>
+
+<ul>
+<li>
+See if the model can overfit on 4 examples <span id="-first thing to do"></span><strong id="first thing to do">first thing to do</strong>
+
+<li>
+Ensure that our accuracy metrics are correct 
+  (maybe turn down the batch size (to 1 or 2) and manually examine the
+  predictions and labels
+
+<li>
+Visualize a spectrogram and the associated label vector and make sure the
+  labels are correct
+
+<li>
+Make sure the loss calculation is actually working as we expect
+
+</ul>
+
+<p>
+<span id="-I sat down for 20 mins and debugged the model"></span><strong id="I sat down for 20 mins and debugged the model">I sat down for 20 mins and debugged the model</strong>
+</p>
+
+<p>
+First, the accuracy metric didn't have the correct denom. so it was always
+downweighted by a factor of 3. The torch.numel() calls were on the logits
+tensor, not the argmaxed logits tensor (increasing the denom by a factor of 3).
+That's where the unusually low accuracy was coming from.
+</p>
+
+<p>
+I was able to find this bug by overfitting on a single batch and seeing that the
+loss was 0 but the accuracy was 0.333.
+</p>
+
+<p>
+I tested multiple configurations after fixing that to make sure everything was
+working: (all of these tests were successful)
+</p>
+
+<ol>
+<li>
+Turned the model size down considerably.
+
+<li>
+Removed the random subsampling of spectrograms (effectively reducing the
+   complexity of the data)
+
+<li>
+Overfit on a small subset of data to accuracy=1 and loss=0.
+
+<li>
+Overfit on a little larger set (not really necessary).
+
+<li>
+Trained on the full set without subsampling and a batch size of 1 to make
+   sure the model could learn something on the full dataset.
+
+<li>
+Trained on the full set w random subsampling (for both test and train)
+
+<li>
+Increased model size and trained again.
+
+</ol>
+
+<p>
+I looked at accuracy for test and train to evaluate whether or not the model was
+working. (good metric for back of envelope evaluation)
+</p>
+
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="Stylesheet" type="text/css" href="../../style.css">
+<title>saving-data-to-disk</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+<ul>
+<li>
+Make some way of saving labeled data to disk
+
+<ul>
+<li>
+Some way to create the spectrograms
+
+<li>
+Fine-tune the labels to remove erroneous data
+
+<li>
+pseudocode: 
+
+</ul>
+</ul>
+    
+<pre python>
+    
+    # we have beetle-file object! 
+    beetle_files = get_beetle_files(directory) # have this
+    train, test = split_train_test(beetle_files, train_pct=80) # TODO
+    # split train test can split on a file-wise basis or an example-wise basis
+    # for examining different aspects of the data
+    for beetle file in [test, train]:
+        do_kmeans(beetle_file) # have this
+	remove_mislabeled_data(beetle_file) # TODO
+	# X = BACKGROUND
+	For example in As, Bs, Xs, Ys, Cs: # have this 
+	    save(example) # TODO
+</pre>
+  
+<ul>
+<li>
+Maybe the code above will save files in the directory structure below with
+    filename in the next bullet point
+
+</ul>
+
+<pre bash>
+  
+  root
+    ├── test_data
+    │   ├── spect
+    └── train_data
+        ├── spect
+
+</pre>
+<ul>
+<li>
+spect contains examples, where the filename is something like
+   &lt;original_beetle_file&gt;.&lt;indices of slice&gt;.&lt;class_name is one of &lt;A,B,X,Y,C&gt;&gt;
+
+</ul>
+
+</body>
+</html>
