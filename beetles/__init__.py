@@ -15,9 +15,8 @@ __all__ = [
     "DEFAULT_SPECTROGRAM_NUM_ROWS",
 ]
 
-file = open('../resources/annotations_key.json')
-objects = json.load(file)
-file.close()
+with open('../resources/annotations_key.json', 'r') as src:
+    objects = json.load(src)
 
 INDEX_TO_LABEL = {}
 LABEL_TO_INDEX = {}
@@ -33,7 +32,7 @@ EXCLUDED_CLASSES = ("Y", "C")
 CLASS_CODE_TO_NAME = {0: "A", 1: "B", 2: "BACKGROUND"}
 NAME_TO_CLASS_CODE = {v: k for k, v in CLASS_CODE_TO_NAME.items()}
 SOUND_TYPE_TO_COLOR = {"A": "r", "B": "y", "BACKGROUND": "k"}
-AWS_DOWNLOAD_LINK = "https://beetles-cnn-models.s3.amazonaws.com/m_{}.pt"
+AWS_DOWNLOAD_LINK = "https://beetles-cnn-models.s3.amazonaws.com/model_{}.pt"
 DEFAULT_MODEL_DIRECTORY = os.path.join(os.path.expanduser("~"), ".cache", "beetles")
 DEFAULT_SPECTROGRAM_NUM_ROWS = 128
 

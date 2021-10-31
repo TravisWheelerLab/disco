@@ -21,11 +21,11 @@ setup_args = dict(
         "pytorch_lightning",
         "matplotlib",
         "tqdm",
-        "pomegranate",
         "pandas",
         "requests",
         "torchmetrics",
         "scikit_learn",
+        "pomegranate"
     ],
 )
 
