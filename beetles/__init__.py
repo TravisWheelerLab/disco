@@ -13,20 +13,29 @@ __all__ = [
     "AWS_DOWNLOAD_LINK",
     "DEFAULT_MODEL_DIRECTORY",
     "DEFAULT_SPECTROGRAM_NUM_ROWS",
+    "HMM_WEIGHTS"
 ]
 
 file = open('../resources/annotations_key.json')
 objects = json.load(file)
 file.close()
-
 INDEX_TO_LABEL = {}
 LABEL_TO_INDEX = {}
-
 for o in objects:
     index = int(o['index'])
     label = o['label']
     LABEL_TO_INDEX[label] = index
     INDEX_TO_LABEL[index] = label
+
+file = open('../resources/hmm_weights.json')
+hmm_objects = json.load(file)
+file.close()
+DISTRIBUTIONS = hmm_objects['distributions']
+for i in range(len(DISTRIBUTIONS)):
+    DISTRIBUTIONS[i] = {int(k): v for k, v in DISTRIBUTIONS[i].items()}
+TRANSITION_MATRIX = hmm_objects['transition_matrix']
+STARTS = hmm_objects['starts']
+HMM_WEIGHTS = [DISTRIBUTIONS, TRANSITION_MATRIX, STARTS]
 
 MASK_FLAG = -1
 EXCLUDED_CLASSES = ("Y", "C")

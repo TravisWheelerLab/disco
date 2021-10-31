@@ -23,22 +23,22 @@ from beetles import (
     SOUND_TYPE_TO_COLOR,
     AWS_DOWNLOAD_LINK,
     DEFAULT_MODEL_DIRECTORY,
+    HMM_WEIGHTS
 )
 
 
-def load_in_hmm():
-    # TODO: add argument to control the number of sound types
-    # and pass it into the HMM
-    a_dist = pom.DiscreteDistribution({0: 0.995, 1: 0.00005, 2: 0.00495})
-    b_dist = pom.DiscreteDistribution({0: 0.1, 1: 0.88, 2: 0.020})
-    x_dist = pom.DiscreteDistribution({0: 0.35, 1: 0.05, 2: 0.60})
-    dists = [a_dist, b_dist, x_dist]
+def load_in_hmm(weights_list):
+    distributions = weights_list[0]
+    transition_matrix = weights_list[1]
+    starts = weights_list[2]
 
-    matrix = np.array(
-        [[0.995, 0.00000, 0.005], [0.0000, 0.995, 0.005], [0.00001, 0.00049, 0.9995]]
-    )
+    dists = []
+    for dist in distributions:
+        dists.append(pom.DiscreteDistribution(dist))
 
-    starts = np.array([0, 0, 1])
+    matrix = np.array(transition_matrix)
+    starts = np.array(starts)
+
     hmm_model = pom.HiddenMarkovModel.from_matrix(matrix, dists, starts)
     hmm_model.bake()
 
@@ -149,7 +149,7 @@ def smooth_predictions_with_hmm(unsmoothed_predictions):
             "expected array of size N, got {}".format(unsmoothed_predictions.shape)
         )
 
-    hmm = load_in_hmm()
+    hmm = load_in_hmm(HMM_WEIGHTS)
     # forget about the first element b/c it's the start state
     smoothed_predictions = np.asarray(
         hmm.predict(sequence=unsmoothed_predictions, algorithm="viterbi")[1:]
