@@ -28,7 +28,7 @@ data_dir
    │   ├── 1_M14F15_8_7.WAV
    │   └── 1_M14F15_8_7.csv
 ```
-The extraction script finds all first-level subdirectories in data_dir, then pairs together the .wav and .csv files in each subdirectory for extraction, whether or not their names match. An object that contains labels and features is then created for each .wav/.csv pair, and stored in memory. This entire object is shuffled and then split into test/train/validation data (7.5/85/7.5% splits, respectively). The test/train/validation data are saved in three separate directories: `--data_dir/test, --data_dir/train, --data_dir/validation`. The model training tool relies on this structure.
+The extraction script finds all first-level subdirectories in data_dir, then pairs together the .wav and .csv files in each subdirectory for extraction, whether or not their names match. An object that contains labels and features is then created in memory for each .wav/.csv pair. The entire object is shuffled and then split into test/train/validation data (7.5/85/7.5% splits, respectively). The test/train/validation data are saved in three separate directories: `--data_dir/test, --data_dir/train, --data_dir/validation`. The model training tool relies on this structure.
 
 `beetles extract` can accept a few other arguments, like the number of ffts to use when calculating the spectrogram and whether or not to use a MelSpectrogram. Sensible defaults are provided.
 
