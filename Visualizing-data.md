@@ -37,6 +37,4 @@ transition between B chirps and background, meaning that different members of
 the ensemble learned slightly different definitions of background and B chirp.
 
 When trying to interpret a new color (yellow in the uncertainty row, for
-example), just find the RGB vector that describes it and you'll have access to
-between which classes the uncertainty lies.
-
+example), just find the RGB vector that describes it.
