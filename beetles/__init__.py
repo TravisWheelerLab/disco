@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 import os
 import json
+import beetles
 
 __all__ = [
     "LABEL_TO_INDEX",
@@ -15,8 +16,12 @@ __all__ = [
     "DEFAULT_SPECTROGRAM_NUM_ROWS",
 ]
 
-with open('../resources/annotations_key.json', 'r') as src:
-    objects = json.load(src)
+if os.path.isfile(os.path.join(os.environ["HOME"], '.cache', 'beetles', 'conf.json')):
+    pass
+else:
+
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'annotations_key.json'), 'r') as src:
+        objects = json.load(src)
 
 INDEX_TO_LABEL = {}
 LABEL_TO_INDEX = {}
@@ -294,9 +299,9 @@ def main():
 
         main(args)
     elif args.command == "train":
-        from beetles.train import main
+        from beetles.train import train
 
-        main(args)
+        train(args)
     elif args.command == "extract":
         from beetles.extract_data import main
 
@@ -306,6 +311,6 @@ def main():
 
         main(args)
     elif args.command == "infer":
-        from beetles.infer import main
+        from beetles.infer import infer
 
-        main(args)
+        infer(args)
