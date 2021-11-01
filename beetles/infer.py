@@ -12,7 +12,7 @@ import beetles.inference_utils as infer
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
 
-__all__ = ['run_inference']
+__all__ = ["run_inference"]
 
 
 def run_inference(args):

@@ -14,29 +14,56 @@ __all__ = [
     "AWS_DOWNLOAD_LINK",
     "DEFAULT_MODEL_DIRECTORY",
     "DEFAULT_SPECTROGRAM_NUM_ROWS",
-    "HMM_WEIGHTS"
+    "HMM_WEIGHTS",
 ]
 
+DEFAULT_MODEL_DIRECTORY = os.path.join(os.path.expanduser("~"), ".cache", "beetles")
+
+if os.path.isfile(
+    os.path.join(os.path.expanduser("~"), ".cache", "beetles", "annotations_key.json")
+):
+    with open(
+        os.path.join(
+            os.path.expanduser("~"), ".cache", "beetles", "annotations_key.json"
+        ),
+        "r",
+    ) as src:
+        objects = json.load(src)
+else:
+    with open(
+        os.path.join(os.path.dirname(__file__), "resources", "annotations_key.json"),
+        "r",
+    ) as src:
+        objects = json.load(src)
 # TODO: Replace capitalized objects with a dedicated config object
-with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'resources', 'annotations_key.json'), 'r') as src:
-    objects = json.load(src)
 
 INDEX_TO_LABEL = {}
 LABEL_TO_INDEX = {}
 for o in objects:
-    index = int(o['index'])
-    label = o['label']
+    index = int(o["index"])
+    label = o["label"]
     LABEL_TO_INDEX[label] = index
     INDEX_TO_LABEL[index] = label
 
-with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'resources', 'hmm_weights.json'), 'r') as src:
-    hmm_objects = json.load(src)
+if os.path.isfile(
+    os.path.join(os.path.expanduser("~"), ".cache", "beetles", "hmm_weights.json")
+):
+    with open(
+        os.path.join(os.path.expanduser("~"), ".cache", "beetles", "hmm_weights.json"),
+        "r",
+    ) as src:
+        hmm_objects = json.load(src)
+else:
+    with open(
+        os.path.join(os.path.dirname(__file__), "resources", "hmm_weights.json"), "r"
+    ) as src:
+        hmm_objects = json.load(src)
 
-DISTRIBUTIONS = hmm_objects['distributions']
+DISTRIBUTIONS = hmm_objects["distributions"]
 for i in range(len(DISTRIBUTIONS)):
     DISTRIBUTIONS[i] = {int(k): v for k, v in DISTRIBUTIONS[i].items()}
-TRANSITION_MATRIX = hmm_objects['transition_matrix']
-STARTS = hmm_objects['starts']
+TRANSITION_MATRIX = hmm_objects["transition_matrix"]
+STARTS = hmm_objects["starts"]
 HMM_WEIGHTS = [DISTRIBUTIONS, TRANSITION_MATRIX, STARTS]
 
 MASK_FLAG = -1
@@ -45,7 +72,6 @@ CLASS_CODE_TO_NAME = {0: "A", 1: "B", 2: "BACKGROUND"}
 NAME_TO_CLASS_CODE = {v: k for k, v in CLASS_CODE_TO_NAME.items()}
 SOUND_TYPE_TO_COLOR = {"A": "r", "B": "y", "BACKGROUND": "k"}
 AWS_DOWNLOAD_LINK = "https://beetles-cnn-models.s3.amazonaws.com/model_{}.pt"
-DEFAULT_MODEL_DIRECTORY = os.path.join(os.path.expanduser("~"), ".cache", "beetles")
 DEFAULT_SPECTROGRAM_NUM_ROWS = 128
 
 
@@ -53,7 +79,7 @@ def parser():
     ap = ArgumentParser()
     ap.add_argument("--version", action="version", version="0.0.1-alpha")
     # infer
-    subparsers = ap.add_subparsers(title="actions", required=True, dest="command")
+    subparsers = ap.add_subparsers(title="actions", dest="command")
 
     infer_parser = subparsers.add_parser("infer", add_help=True)
     infer_parser.add_argument(
@@ -226,18 +252,13 @@ def parser():
         "tensorboard",
     )
     non_tunable.add_argument(
-        "--data_path",
-        type=str,
-        required=True,
-        help="where the data are saved on disk. Assumes"
-        "the data were saved with np.save and reside"
-        "in <test/train/validation>/spect/*npy",
+        "--data_path", type=str, required=True, help="where the data are saved"
     )
     non_tunable.add_argument(
         "--model_name",
         type=str,
         default="model.pt",
-        help="custom model name for saving the model" "after training has completed",
+        help="custom model name for saving the model" " after training has completed",
     )
     non_tunable.add_argument(
         "--num_workers",
@@ -251,7 +272,7 @@ def parser():
     extract_parser.add_argument(
         "--no_mel_scale",
         action="store_false",
-        help="whether or not to calculate a mel spectrogram. Default:" " calculate it.",
+        help="whether or not to calculate a mel spectrogram. Default: calculate it.",
     )
     extract_parser.add_argument(
         "--n_fft",
@@ -272,7 +293,7 @@ def parser():
         "--random_seed",
         type=int,
         default=42,
-        help="what number to use as the random seed. Default:" " Deep Thought's answer",
+        help="what number to use as the random seed. Default: Deep Thought's answer",
     )
     # label
     label_parser = subparsers.add_parser("label", add_help=True)
@@ -300,7 +321,8 @@ def parser():
 
 
 def main():
-    args = parser().parse_args()
+    ap = parser()
+    args = ap.parse_args()
     if args.command == "label":
         from beetles.simple_labeler import main
 
@@ -321,3 +343,5 @@ def main():
         from beetles.infer import run_inference
 
         run_inference(args)
+    else:
+        ap.print_usage()

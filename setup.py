@@ -1,10 +1,10 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup_args = dict(
     name="beetles",
     version="0.0.2",
-    packages=["beetles", "beetles.models"],
-    package_dir={"": "."},
+    packages=find_packages(),
+    package_data={'beetles':['resources/annotations_key.json', 'resources/hmm_weights.json']},
     url="https://github.com/TravisWheelerLab/beetles-cnn/archive/refs/tags/v0.0.1-alpha.tar.gz",
     license="MIT",
     author="thomas colligan",

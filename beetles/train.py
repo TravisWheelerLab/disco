@@ -16,7 +16,7 @@ from beetles.models import SimpleCNN, UNet1D, UNet1DAttn
 from beetles.dataset import SpectrogramDatasetMultiLabel, pad_batch
 from beetles import DEFAULT_SPECTROGRAM_NUM_ROWS
 
-__all__ = ['train']
+__all__ = ["train"]
 
 
 def train(hparams):
