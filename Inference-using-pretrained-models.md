@@ -8,8 +8,6 @@ beetles infer --wav_file <example.wav> <OPTS>
 (same architecture, different weights) to estimate predictive uncertainty. GPUs
 are recommended. 
 
-The infer command can save predictions and visualization/debugging data.
-
 Save predictions with `--output_csv_path <my_results.csv>` 
 
 Save data for visualizing predictions in matplotlib with 
@@ -18,8 +16,8 @@ is [here](https://github.com/TravisWheelerLab/beetles-cnn/wiki/Visualizing-data)
 
 Results are saved as comma-delimited files with the same columns as
 [Raven](https://ravensoundsoftware.com/knowledge-base/selection-labels/).
-The models are only set up to predict three Sound_Types: A, B, and Background.
-
+The models right are only set up to predict three Sound_Types: A, B, and Background, and output looks
+something like this:
 ```
 Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz),Sound_Type
 1,0,0,0.0,2.120833333333333,0,0,BACKGROUND
@@ -31,7 +29,7 @@ Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz),
 this command to predict the wav file in `resources/`. You can either clone to
 repo for access to resources/ or download the files manually.
 ```
-beetles infer --wav_file resources/example.wav --debug <your_path_here>
+beetles infer --wav_file resources/example.wav --debug <your_path_here> --output_csv_path example_preds.csv
 ```
 then, to visualize:
 ```
@@ -57,7 +55,7 @@ Once you're allocated resources, run the inference script with
 beetles infer --wav_file <your file> --output_csv_path <your desired path> --debug <where to save the debugging data for viz.>
 ```
 Then, type `exit` or Ctrl-D to quit the interactive session.
-We'll use the login node of the cluster to run the visualization script. The -Y option on ssh allows us to use X11 forwarding.
+Use the login node of the cluster to run the visualization script. The -Y option on ssh allows us to use X11 forwarding.
 ```
 beetles viz --debug_data_path <same path as above>
 ```
