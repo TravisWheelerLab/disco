@@ -1,11 +1,8 @@
 
-This portion of the software requires that `beetles infer` has already been run.
-The relevant command is:
-
 `beetles viz --debug_data_path <output of beetles infer>`
 
 The directory at `--debug_data_path` needs to contain five files 
-(produced by `beetles infer --debug <viz_path`): classifications.csv,
+(produced by `beetles infer --debug <viz_path>`): classifications.csv,
 raw_spectrogram.pkl, hmm_predictions.pkl, median_predictions.pkl, iqrs.pkl. 
 
 
@@ -19,7 +16,7 @@ for beginning and ends of different chirps. Background labels aren't shown.
 
 The second image shows the median predictions as probabilities, the
 uncertainties associated with each prediction (labeled iqrs, for inter-quartile
-ranges), the prediction of the ensemble as a discrete number (labeled median
+ranges), the class prediction of the ensemble (labeled median
 argmax), and the predictions post-hmm. The predictions post-hmm are used to
 create the vertical lines in the spectrogram plot.
 
