@@ -37,6 +37,43 @@ then, to visualize:
 ```
 beetles viz --debug_data_path <your_path_here>
 ```
+## Running inference/visualization on the cluster
+Log in:
+```
+ssh -Y <your_username>@<cluster_address> # -Y means enable trusted Xwindow forwarding
+```
+Create a conda env:
+```
+conda create -n beetles python=3.8
+conda activate beetles 
+pip install beetles
+```
+Ask for an interactive session with a GPU:
+```
+srun --partition <your_gpu_partition_name> --gres=gpu:1 --pty bash
+```
+Once you're allocated resources, run the inference script with
+```
+beetles infer --wav_file <your file> --output_csv_path <your desired path> --debug <where to save the debugging data for viz.>
+```
+Then, type `exit` or Ctrl-D to quit the interactive session.
+We'll use the login node of the cluster to run the visualization script. The -Y option on ssh allows us to use X11 forwarding.
+```
+beetles viz --debug_data_path <same path as above>
+```
+
+Alternatively, you can wrap the inference routine in a python script and use sbatch to submit the inference job.
+Here's an example script:
+```python
+from beetles.infer import run_inference
+
+run_inference(
+    wav_file="/where/you/saved/the/wav/file",
+    output_csv_path="predictions.csv",
+    debug='/save/debug/data/here'
+)
+```
+
 
 ### How inference works
 
