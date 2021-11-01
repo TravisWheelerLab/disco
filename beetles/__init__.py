@@ -341,7 +341,8 @@ def main():
         main(args)
     elif args.command == "infer":
         from beetles.infer import run_inference
-        delattr(args, 'command')
+
+        delattr(args, "command")
         run_inference(**dict(vars(args)))
     else:
         ap.print_usage()

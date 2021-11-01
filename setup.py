@@ -4,7 +4,9 @@ setup_args = dict(
     name="beetles",
     version="1.0",
     packages=find_packages(),
-    package_data={'beetles':['resources/annotations_key.json', 'resources/hmm_weights.json']},
+    package_data={
+        "beetles": ["resources/annotations_key.json", "resources/hmm_weights.json"]
+    },
     url="https://github.com/TravisWheelerLab/beetles-cnn/archive/refs/tags/v0.0.1-alpha.tar.gz",
     license="MIT",
     author="thomas colligan",
@@ -25,7 +27,7 @@ setup_args = dict(
         "requests",
         "torchmetrics",
         "scikit_learn",
-        "pomegranate"
+        "pomegranate",
     ],
 )
 

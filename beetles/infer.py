@@ -13,19 +13,21 @@ import beetles.inference_utils as infer
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
-def run_inference(wav_file=None,
-                  output_csv_path=None,
-                  saved_model_directory=None,
-                  model_extension=".pt",
-                  tile_overlap=128,
-                  tile_size=1024,
-                  batch_size=32,
-                  input_channels=108,
-                  hop_length=200,
-                  vertical_trim=20,
-                  n_fft=1150,
-                  debug=None,
-                  num_threads=4):
+def run_inference(
+    wav_file=None,
+    output_csv_path=None,
+    saved_model_directory=None,
+    model_extension=".pt",
+    tile_overlap=128,
+    tile_size=1024,
+    batch_size=32,
+    input_channels=108,
+    hop_length=200,
+    vertical_trim=20,
+    n_fft=1150,
+    debug=None,
+    num_threads=4,
+):
 
     if wav_file is None or output_csv_path is None:
         raise ValueError("specify both wav_file and output_csv_path")
