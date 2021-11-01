@@ -16,8 +16,10 @@ from beetles.models import SimpleCNN, UNet1D, UNet1DAttn
 from beetles.dataset import SpectrogramDatasetMultiLabel, pad_batch
 from beetles import DEFAULT_SPECTROGRAM_NUM_ROWS
 
+__all__ = ['train']
 
-def train_func(hparams):
+
+def train(hparams):
 
     train_path = os.path.join(hparams.data_path, "train", "*")
     val_path = os.path.join(hparams.data_path, "validation", "*")
@@ -125,4 +127,4 @@ def train_func(hparams):
 
 
 def main(args):
-    train_func(args)
+    train(args)

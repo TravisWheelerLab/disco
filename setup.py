@@ -10,6 +10,7 @@ setup_args = dict(
     author="thomas colligan",
     author_email="thomas.colligan@umontana.edu",
     description="Tool for labeling and training DNNs on spectrogram data",
+    include_package_data=True,
     entry_points="""
         [console_scripts]
         beetles=beetles:main

@@ -45,18 +45,20 @@ def load_in_hmm(weights_list):
     return hmm_model
 
 
-def download_models():
-    directory = DEFAULT_MODEL_DIRECTORY
+def download_models(directory):
     if not os.path.isdir(directory):
         os.makedirs(directory)
 
-    for model_id in tqdm.tqdm(range(1, 11), desc="download status"):
+    for model_id in tqdm.tqdm(range(0, 10), desc="download status"):
         download_url = AWS_DOWNLOAD_LINK.format(model_id)
-        download_destination = os.path.join(directory, "m_{}.pt".format(model_id))
+        download_destination = os.path.join(directory, "model_{}.pt".format(model_id))
         if not os.path.isfile(download_destination):
             f = requests.get(download_url)
-            with open(download_destination, "wb") as dst:
-                dst.write(f.content)
+            if f.status_code == 200:
+                with open(download_destination, "wb") as dst:
+                    dst.write(f.content)
+            else:
+                raise requests.RequestException(f"Couldn't download model with code {f.status_code}")
 
 
 def aggregate_predictions(predictions):
@@ -184,14 +186,14 @@ def load_prediction_csv(csv_path, hop_length, sample_rate):
 
 
 def plot_predictions_and_confidences(
-    original_spectrogram,
-    median_predictions,
-    prediction_iqrs,
-    hmm_predictions,
-    processed_predictions,
-    save_prefix,
-    n_images=10,
-    len_sample=1000,
+        original_spectrogram,
+        median_predictions,
+        prediction_iqrs,
+        hmm_predictions,
+        processed_predictions,
+        save_prefix,
+        n_images=10,
+        len_sample=1000,
 ):
     len_spect = len_sample // 2
     inits = np.round(
@@ -201,12 +203,12 @@ def plot_predictions_and_confidences(
     for i, center in enumerate(inits):
         fig, ax = plt.subplots(nrows=2, figsize=(13, 10), sharex=True)
         ax[0].imshow(
-            original_spectrogram[:, center - len_spect : center + len_spect],
+            original_spectrogram[:, center - len_spect: center + len_spect],
             aspect="auto",
         )
-        med_slice = median_predictions[:, center - len_spect : center + len_spect]
-        iqr_slice = prediction_iqrs[:, center - len_spect : center + len_spect]
-        hmm_slice = hmm_predictions[center - len_spect : center + len_spect]
+        med_slice = median_predictions[:, center - len_spect: center + len_spect]
+        iqr_slice = prediction_iqrs[:, center - len_spect: center + len_spect]
+        hmm_slice = hmm_predictions[center - len_spect: center + len_spect]
         med_slice = np.transpose(med_slice)
         iqr_slice = np.transpose(iqr_slice)
 
@@ -214,7 +216,7 @@ def plot_predictions_and_confidences(
         iqr_slice = np.expand_dims(iqr_slice, 0)
 
         hmm_rgb = convert_argmaxed_array_to_rgb(hmm_slice)
-        processed_slice = processed_predictions[center - len_spect : center + len_spect]
+        processed_slice = processed_predictions[center - len_spect: center + len_spect]
         processed_rgb = convert_argmaxed_array_to_rgb(processed_slice)
 
         median_argmax = convert_argmaxed_array_to_rgb(np.argmax(med_slice, axis=-1))
@@ -263,7 +265,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels):
             )
         )
 
-        download_models()
+        download_models(DEFAULT_MODEL_DIRECTORY)
         model_paths = glob(os.path.join(DEFAULT_MODEL_DIRECTORY, "*" + model_extension))
 
     models = []
@@ -323,7 +325,7 @@ def calculate_median_and_iqr(ensemble_preds):
 
 
 def evaluate_spectrogram(
-    spectrogram_dataset, models, tile_overlap, original_spectrogram_shape, device="cpu"
+        spectrogram_dataset, models, tile_overlap, original_spectrogram_shape, device="cpu"
 ):
     assert_accuracy = False
 
@@ -357,16 +359,16 @@ def evaluate_spectrogram(
 
     if assert_accuracy:
         all_features = np.concatenate(all_features, axis=-1)[
-            :, : original_spectrogram_shape[-1]
-        ]
+                       :, : original_spectrogram_shape[-1]
+                       ]
         assert np.all(all_features == spectrogram_iterator.original_spectrogram.numpy())
 
     medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[
-        :, : original_spectrogram_shape[-1]
-    ]
+                            :, : original_spectrogram_shape[-1]
+                            ]
     iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)[
-        :, : original_spectrogram_shape[-1]
-    ]
+                         :, : original_spectrogram_shape[-1]
+                         ]
 
     return medians_full_sequence, iqrs_full_sequence
 
@@ -374,15 +376,15 @@ def evaluate_spectrogram(
 class SpectrogramIterator(torch.nn.Module):
     # TODO: replace args in __init__ with sa.form_spectrogram_type
     def __init__(
-        self,
-        tile_size,
-        tile_overlap,
-        wav_file,
-        vertical_trim,
-        n_fft,
-        hop_length,
-        log_spect,
-        mel_transform,
+            self,
+            tile_size,
+            tile_overlap,
+            wav_file,
+            vertical_trim,
+            n_fft,
+            hop_length,
+            log_spect,
+            mel_transform,
     ):
 
         self.tile_size = tile_size
@@ -398,8 +400,8 @@ class SpectrogramIterator(torch.nn.Module):
 
         waveform, self.sample_rate = load_wav_file(self.wav_file)
         self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)[
-            vertical_trim:
-        ]
+                           vertical_trim:
+                           ]
         self.original_spectrogram = self.spectrogram.clone()
         self.original_shape = self.spectrogram.shape
 
@@ -456,6 +458,6 @@ class SpectrogramIterator(torch.nn.Module):
         # we want to overlap-tile starting from the beginning
         # so that our predictions are seamless.
         x = self.spectrogram[
-            :, center_idx - self.tile_size // 2 : center_idx + self.tile_size // 2
-        ]
+            :, center_idx - self.tile_size // 2: center_idx + self.tile_size // 2
+            ]
         return x

@@ -17,16 +17,9 @@ __all__ = [
     "HMM_WEIGHTS"
 ]
 
-if os.path.isfile(os.path.join(os.environ["HOME"], '.cache', 'beetles', 'conf.json')):
-    pass
-else:
-
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', 'annotations_key.json'), 'r') as src:
-        objects = json.load(src)
-
-with open('../resources/annotations_key.json', 'r') as src:
+# TODO: Replace capitalized objects with a dedicated config object
+with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'resources', 'annotations_key.json'), 'r') as src:
     objects = json.load(src)
-
 
 INDEX_TO_LABEL = {}
 LABEL_TO_INDEX = {}
@@ -36,9 +29,9 @@ for o in objects:
     LABEL_TO_INDEX[label] = index
     INDEX_TO_LABEL[index] = label
 
-file = open('../resources/hmm_weights.json')
-hmm_objects = json.load(file)
-file.close()
+with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'resources', 'hmm_weights.json'), 'r') as src:
+    hmm_objects = json.load(src)
+
 DISTRIBUTIONS = hmm_objects['distributions']
 for i in range(len(DISTRIBUTIONS)):
     DISTRIBUTIONS[i] = {int(k): v for k, v in DISTRIBUTIONS[i].items()}
@@ -325,6 +318,6 @@ def main():
 
         main(args)
     elif args.command == "infer":
-        from beetles.infer import infer
+        from beetles.infer import run_inference
 
-        infer(args)
+        run_inference(args)
