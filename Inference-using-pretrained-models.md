@@ -75,8 +75,7 @@ run_inference(
 
 ### How inference works
 
-10 neural networks were trained on subsets of the training dataset (this
-technique is often known as bagging) with the same sets of hyperparameters.
+10 neural networks were trained on subsets of the training dataset with the same sets of hyperparameters.
 Hyperparameters were tuned by training models on the entire training set without
 subsampling and recording the best performance on the test set.
 
