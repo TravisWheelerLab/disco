@@ -14,8 +14,6 @@ beetles label --wav_file resources/example.wav --output_csv_path test_labels.csv
 ```
 
 ## Extracting
-Spectrograms often aren't fully annotated so saving only the labeled bits of them is necessary
-for training NNs quickly. `beetles extract` will do the job, but currently it expects a rigid directory structure.
 ```
 beetles extract --data_dir data_dir --output_data_path <> <OPTS>
 ```
