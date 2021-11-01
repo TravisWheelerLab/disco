@@ -12,17 +12,32 @@ import beetles.inference_utils as infer
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
 
-__all__ = ["run_inference"]
 
+def run_inference(wav_file=None,
+                  output_csv_path=None,
+                  saved_model_directory=None,
+                  model_extension=".pt",
+                  tile_overlap=128,
+                  tile_size=1024,
+                  batch_size=32,
+                  input_channels=108,
+                  hop_length=200,
+                  vertical_trim=20,
+                  n_fft=1150,
+                  debug=None,
+                  num_threads=4):
 
-def run_inference(args):
-    if args.tile_size % 2 != 0:
-        raise ValueError("tile_size must be even, got {}".format(args.tile_size))
+    if wav_file is None or output_csv_path is None:
+        raise ValueError("specify both wav_file and output_csv_path")
+
+    if tile_size % 2 != 0:
+        raise ValueError("tile_size must be even, got {}".format(tile_size))
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cpu":
-        torch.set_num_threads(args.num_threads)
+        torch.set_num_threads(num_threads)
     models = infer.assemble_ensemble(
-        args.saved_model_directory, args.model_extension, device, args.input_channels
+        saved_model_directory, model_extension, device, input_channels
     )
 
     if len(models) < 2:
@@ -33,24 +48,24 @@ def run_inference(args):
         )
 
     spectrogram_iterator = infer.SpectrogramIterator(
-        args.tile_size,
-        args.tile_overlap,
-        args.wav_file,
-        vertical_trim=args.vertical_trim,
-        n_fft=args.n_fft,
-        hop_length=args.hop_length,
+        tile_size,
+        tile_overlap,
+        wav_file,
+        vertical_trim=vertical_trim,
+        n_fft=n_fft,
+        hop_length=hop_length,
         log_spect=True,
         mel_transform=True,
     )
 
     spectrogram_dataset = torch.utils.data.DataLoader(
-        spectrogram_iterator, shuffle=False, batch_size=args.batch_size, drop_last=False
+        spectrogram_iterator, shuffle=False, batch_size=batch_size, drop_last=False
     )
 
     medians, iqr = infer.evaluate_spectrogram(
         spectrogram_dataset,
         models,
-        args.tile_overlap,
+        tile_overlap,
         spectrogram_iterator.original_shape,
         device=device,
     )
@@ -62,16 +77,16 @@ def run_inference(args):
 
     hmm_predictions = infer.smooth_predictions_with_hmm(predictions)
 
-    if args.output_csv_path is not None:
+    if output_csv_path is not None:
         infer.save_csv_from_predictions(
-            args.output_csv_path,
+            output_csv_path,
             hmm_predictions,
             sample_rate=spectrogram_iterator.sample_rate,
-            hop_length=args.hop_length,
+            hop_length=hop_length,
         )
 
-    if args.debug is not None:
-        debug_path = args.debug
+    if debug is not None:
+        debug_path = debug
         os.makedirs(debug_path, exist_ok=True)
 
         spectrogram_path = os.path.join(debug_path, "raw_spectrogram.pkl")
@@ -85,7 +100,7 @@ def run_inference(args):
             csv_path,
             hmm_predictions,
             sample_rate=spectrogram_iterator.sample_rate,
-            hop_length=args.hop_length,
+            hop_length=hop_length,
         )
 
         infer.pickle_data(spectrogram_iterator.original_spectrogram, spectrogram_path)

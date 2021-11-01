@@ -1,7 +1,6 @@
 from argparse import ArgumentParser
 import os
 import json
-import beetles
 
 __all__ = [
     "LABEL_TO_INDEX",
@@ -102,6 +101,7 @@ def parser():
         "--output_csv_path",
         default=None,
         type=str,
+        required=True,
         help="where to save the final predictions",
     )
     infer_parser.add_argument(
@@ -341,7 +341,7 @@ def main():
         main(args)
     elif args.command == "infer":
         from beetles.infer import run_inference
-
-        run_inference(args)
+        delattr(args, 'command')
+        run_inference(**dict(vars(args)))
     else:
         ap.print_usage()

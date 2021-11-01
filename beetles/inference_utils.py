@@ -46,6 +46,7 @@ def load_in_hmm(weights_list):
 
 
 def download_models(directory):
+
     if not os.path.isdir(directory):
         os.makedirs(directory)
 
@@ -259,10 +260,13 @@ def plot_predictions_and_confidences(
 
 
 def assemble_ensemble(model_directory, model_extension, device, in_channels):
+    if model_directory is None:
+        model_directory = DEFAULT_MODEL_DIRECTORY
+
     model_paths = glob(os.path.join(model_directory, "*" + model_extension))
     if not len(model_paths):
         print(
-            "no models found at {}, downloading to {}".format(
+            "no models found, downloading to {}".format(
                 model_directory, DEFAULT_MODEL_DIRECTORY
             )
         )

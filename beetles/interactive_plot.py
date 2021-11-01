@@ -16,17 +16,14 @@ def main(args):
     data_root = args.debug_data_path
     hop_length = args.hop_length
     sample_rate = args.sample_rate
-    apply_heuristics = args.apply_heuristics
 
     medians = infer.load_pickle(os.path.join(data_root, "median_predictions.pkl"))
     medians = np.expand_dims(np.transpose(medians), 0)
     spectrogram = infer.load_pickle(os.path.join(data_root, "raw_spectrogram.pkl"))
 
-    if not apply_heuristics:
-
-        hmm_predictions = infer.convert_argmaxed_array_to_rgb(
-            infer.load_pickle(os.path.join(data_root, "hmm_predictions.pkl"))
-        )
+    hmm_predictions = infer.convert_argmaxed_array_to_rgb(
+        infer.load_pickle(os.path.join(data_root, "hmm_predictions.pkl"))
+    )
 
     prediction_df = infer.load_prediction_csv(
         os.path.join(data_root, "classifications.csv"),
@@ -42,12 +39,6 @@ def main(args):
     iqr = infer.load_pickle(os.path.join(data_root, "iqrs.pkl"))
 
     predictions = np.argmax(medians.squeeze(), axis=1)
-    if apply_heuristics:
-        for heuristic in heuristics.HEURISTIC_FNS:
-            predictions = heuristic(predictions, iqr)
-        hmm_predictions = infer.convert_argmaxed_array_to_rgb(
-            smooth_predictions_with_hmm(predictions)
-        )
 
     predictions_rgb = infer.convert_argmaxed_array_to_rgb(predictions)
     iqr = np.expand_dims(np.transpose(iqr), 0)
@@ -116,8 +107,8 @@ def main(args):
     spos = Slider(axpos, "x-position", 0.0, medians.shape[1])
 
     n = 800
-    ax[0].imshow(spectrogram[:, 0:n], aspect="auto")
-    ax[1].imshow(prediction_array[:, 0:n], aspect="auto", interpolation="nearest")
+    ax[1].axis([0, n, -0.5, 3.5])
+    ax[0].axis([0, n, 0, spectrogram.shape[0]])
 
     def update(val):
         pos = spos.val
