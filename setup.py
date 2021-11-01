@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup_args = dict(
     name="beetles",
-    version="1.0",
+    version="1.0.2",
     packages=find_packages(),
     package_data={
         "beetles": ["resources/annotations_key.json", "resources/hmm_weights.json"]
