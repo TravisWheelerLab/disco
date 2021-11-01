@@ -87,6 +87,3 @@ are above a uncertainty threshold are then thrown out and a hidden markov model
 is applied to the thresholded predictions to enforce continuity.
 
 Predictions post-hmm are then processed and saved to the final output csv.
-
-TODO: add cli arg to inference routine to let the user specify the uncertainty
-threshold.
