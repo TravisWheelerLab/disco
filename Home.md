@@ -4,4 +4,4 @@ This is a tool for predicting the location of beetle chirps in .wav files with n
 Also covered in this wiki is how to label your own .wav file, extract those labels from the file, and then train new models with your labels!
 See the sidebar to the right for more links.
 
-Jupyter notebook with example of evaluating data (upload into colab for GPU access) is [here](https://github.com/TravisWheelerLab/beetles-cnn/blob/infer/resources/using_beetles_on_colab.ipynb).
+Jupyter notebook with example of evaluating data (upload into colab for GPU access) is [here](https://github.com/TravisWheelerLab/beetles-cnn/blob/main/beetles/resources/using_beetles_on_colab.ipynb).
