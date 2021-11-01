@@ -12,8 +12,10 @@ import beetles.inference_utils as infer
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
 
+__all__ = ["run_inference"]
 
-def main(args):
+
+def run_inference(args):
     if args.tile_size % 2 != 0:
         raise ValueError("tile_size must be even, got {}".format(args.tile_size))
     device = "cuda" if torch.cuda.is_available() else "cpu"

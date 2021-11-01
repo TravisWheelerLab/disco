@@ -10,9 +10,7 @@ import os
 from glob import glob
 from sklearn.model_selection import train_test_split
 
-LABEL_TO_INDEX = {"A": 0, "B": 1, "X": 2, "BACKGROUND": 2}
-INDEX_TO_LABEL = {0: "A", 1: "B", 2: "X"}
-EXCLUDED_CLASSES = ("Y", "C")
+from beetles import INDEX_TO_LABEL, LABEL_TO_INDEX, EXCLUDED_CLASSES
 
 
 def w2s_idx(idx, hop_length):
