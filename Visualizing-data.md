@@ -10,7 +10,7 @@ This command displays an matplotlib window with a slider to allow interactive
 visualization of ensemble predictions. Click or slide on a region of the slider
 to move the visualization window.
 
-![App from beetles viz.](https://github.com/TravisWheelerLab/beetles-cnn/blob/infer/resources/example_inference_image.png)
+![App from beetles viz.](https://github.com/TravisWheelerLab/beetles-cnn/blob/main/beetles/resources/example_inference_image.png)
 The app displays the raw spectrogram as the top image, along with annotations
 for beginning and ends of different chirps. Background labels aren't shown.
 
