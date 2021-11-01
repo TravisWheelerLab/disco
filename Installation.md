@@ -4,6 +4,7 @@ We recommend creating a virtual environment with
 
 ```
 conda create -n <env_name> python=3.8
+conda activate <env_name>
 pip install beetles
 ```
 If pip fails because of conflicting dependencies, install the package without dependencies and install from requirements.txt
