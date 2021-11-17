@@ -69,11 +69,11 @@ class SimpleLabeler:
 
         self.spectrogram = torchaudio.transforms.MelSpectrogram(
             sample_rate=self.sample_rate,
-            n_fft=1250,
-            f_min=1000,
+            n_fft=1150,
             hop_length=self.hop_length,
         )(self.waveform)
         self.spectrogram[self.spectrogram == 0] = 1
+        self.spectrogram = self.spectrogram[0, 20:]
         self.spectrogram = self.spectrogram.log2().numpy().squeeze()
         self.vertical_cut = 0
 
@@ -86,12 +86,15 @@ class SimpleLabeler:
         self.label_list = []
 
         self.ax1.imshow(
-            self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval]
+            self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval], origin='upper'
         )
+        self.ax1.axis('off')
+        self.ax2.axis('off')
+
 
         self.ax1.set_title(
             "Press left mouse button and drag "
-            "to select a region in the top graph "
+            "to select a region in the top graph. "
             "{:d} percent through spectrogram".format(
                 int(self.n / self.spectrogram.shape[-1])
             )
@@ -154,7 +157,8 @@ class SimpleLabeler:
         self.ax2.imshow(
             self.spectrogram[
                 self.vertical_cut :, self.n + self.xmin : self.n + self.xmax
-            ]
+            ],
+            origin='upper'
         )
         self.ax2.set_title("selected region")
         self.fig.canvas.draw()
@@ -165,6 +169,7 @@ class SimpleLabeler:
         self.ax1.imshow(
             self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval],
             aspect="auto",
+            origin='upper'
         )
         self.ax1.set_title(
             "Press left mouse button and drag "

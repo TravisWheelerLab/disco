@@ -95,13 +95,14 @@ def parser():
         help="filename extension of saved model files",
     )
     infer_parser.add_argument(
-        "--wav_file", required=True, type=str, help=".wav file to predict"
+        "wav_file", type=str, help=".wav file to predict"
     )
     infer_parser.add_argument(
+        "-o",
         "--output_csv_path",
         default=None,
         type=str,
-        required=True,
+        required=False,
         help="where to save the final predictions",
     )
     infer_parser.add_argument(
@@ -141,7 +142,7 @@ def parser():
         help="size of the fft to use when calculating spectrogram",
     )
     infer_parser.add_argument(
-        "--debug", type=str, default=None, help="where to save debugging data"
+        "-d", "--debug", type=str, default=None, help="where to save debugging data"
     )
     infer_parser.add_argument(
         "--num_threads",
@@ -306,7 +307,7 @@ def parser():
     # viz
     viz_parser = subparsers.add_parser("viz", add_help=True)
     viz_parser.add_argument(
-        "--debug_data_path", type=str, help="location of debugging data", required=True
+        "data_path", type=str, help="location of debugging data (directory, output of beetles infer --debug"
     )
     viz_parser.add_argument(
         "--sample_rate", type=int, default=48000, help="sample rate of audio recording"
@@ -324,7 +325,7 @@ def main():
     ap = parser()
     args = ap.parse_args()
     if args.command == "label":
-        from beetles.simple_labeler import main
+        from beetles.label import main
 
         main(args)
     elif args.command == "train":
@@ -336,11 +337,13 @@ def main():
 
         main(args)
     elif args.command == "viz":
-        from beetles.interactive_plot import main
+        from beetles.visualize import main
 
         main(args)
     elif args.command == "infer":
         from beetles.infer import run_inference
+        if args.debug is None and args.output_csv_path is None:
+            raise ValueError("Must specify either --output_csv_path or --debug.")
 
         delattr(args, "command")
         run_inference(**dict(vars(args)))
