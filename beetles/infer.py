@@ -12,7 +12,6 @@ import beetles.inference_utils as infer
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
 
-
 def run_inference(
     wav_file=None,
     output_csv_path=None,
@@ -28,9 +27,6 @@ def run_inference(
     debug=None,
     num_threads=4,
 ):
-
-    if wav_file is None or output_csv_path is None:
-        raise ValueError("specify both wav_file and output_csv_path")
 
     if tile_size % 2 != 0:
         raise ValueError("tile_size must be even, got {}".format(tile_size))
@@ -73,6 +69,7 @@ def run_inference(
     )
 
     predictions = np.argmax(medians, axis=0).squeeze()
+
     for heuristic in heuristics.HEURISTIC_FNS:
         print("applying heuristic function", heuristic.__name__)
         predictions = heuristic(predictions, iqr)
@@ -80,6 +77,11 @@ def run_inference(
     hmm_predictions = infer.smooth_predictions_with_hmm(predictions)
 
     if output_csv_path is not None:
+        _, ext = os.path.splitext(output_csv_path)
+
+        if not ext:
+            output_csv_path = f"{output_csv_path}.csv"
+
         infer.save_csv_from_predictions(
             output_csv_path,
             hmm_predictions,
@@ -105,7 +107,7 @@ def run_inference(
             hop_length=hop_length,
         )
 
-        infer.pickle_data(spectrogram_iterator.original_spectrogram, spectrogram_path)
-        infer.pickle_data(hmm_predictions, hmm_prediction_path)
-        infer.pickle_data(medians, median_prediction_path)
-        infer.pickle_data(iqr, iqr_path)
+        infer.pickle_tensor(spectrogram_iterator.original_spectrogram, spectrogram_path)
+        infer.pickle_tensor(hmm_predictions, hmm_prediction_path)
+        infer.pickle_tensor(medians, median_prediction_path)
+        infer.pickle_tensor(iqr, iqr_path)
