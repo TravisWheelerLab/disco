@@ -18,14 +18,6 @@ def load_arrays(data_root):
     iqr = infer.load_pickle(os.path.join(data_root, "iqrs.pkl"))
     return medians, spectrogram, post_hmm, iqr
 
-def load_arrays_npy(data_root):
-    medians = np.load(os.path.join(data_root, "median_predictions.npy"))
-    spectrogram = np.load(os.path.join(data_root, "features.npy"))
-    post_hmm = np.load(os.path.join(data_root, "labels.npy"))
-    iqr = np.load(os.path.join(data_root, "iqrs.npy"))
-    return medians, spectrogram, post_hmm, iqr
-
-
 def main(args):
     # TODO: refactor so this function isn't so massive
     data_root = args.data_path
@@ -106,42 +98,6 @@ def main(args):
     ax[0].imshow(spectrogram, aspect="auto", origin='lower')
     ax[0].set_ylim([0, spectrogram.shape[0]])
 
-    # TODO: refactor so I only plot in a window
-    for class_index, name in infer.CLASS_CODE_TO_NAME.items():
-        subdf = prediction_df.loc[prediction_df["Sound_Type"] == name, :]
-        ax[0].vlines(
-            subdf["Begin Spect Index"],
-            ymin=0,
-            ymax=spectrogram.shape[0],
-            colors=name_to_rgb_code[name],
-        )
-    for class_index, name in infer.CLASS_CODE_TO_NAME.items():
-        subdf = prediction_df.loc[prediction_df["Sound_Type"] == name, :]
-        ax[0].vlines(
-            subdf["End Spect Index"],
-            ymin=0,
-            ymax=spectrogram.shape[0],
-            linestyles="dashed",
-            colors=name_to_rgb_code[name],
-        )
-
-    for cls in infer.SOUND_TYPE_TO_COLOR.keys():
-        if cls != "BACKGROUND":
-            ax[0].plot(
-                [0, 0],
-                [0, spectrogram.shape[0]],
-                "{}-".format(infer.SOUND_TYPE_TO_COLOR[cls]),
-                label="begin of {} chirp".format(cls),
-            )
-    for cls in infer.SOUND_TYPE_TO_COLOR.keys():
-        if cls != "BACKGROUND":
-            ax[0].plot(
-                [0, 0],
-                [0, spectrogram.shape[0]],
-                "{}-.".format(infer.SOUND_TYPE_TO_COLOR[cls]),
-                label="end of {} chirp".format(cls),
-            )
-
     ax[0].set_title("Raw spectrogram")
     ax[0].set_ylabel("frequency bin")
     ax[0].set_yticks([])
@@ -160,10 +116,8 @@ def main(args):
     spos = Slider(axpos, "x-position", 0.0, medians.shape[1])
 
     def update(val):
-        pos = spos.val
-        ax[1].axis([pos, pos + n, 4, 20])
-        ax[0].axis([pos, pos + n, 0, spectrogram.shape[0]])
-        fig.canvas.draw_idle()
+        ax[1].axis([spos.val, spos.val + n, 4, 20])
+        ax[0].axis([spos.val, spos.val + n, 0, spectrogram.shape[0]])
 
     spos.on_changed(update)
     plt.show()
