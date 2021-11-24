@@ -2,20 +2,6 @@ from argparse import ArgumentParser
 import os
 import json
 
-__all__ = [
-    "LABEL_TO_INDEX",
-    "INDEX_TO_LABEL",
-    "MASK_FLAG",
-    "EXCLUDED_CLASSES",
-    "CLASS_CODE_TO_NAME",
-    "NAME_TO_CLASS_CODE",
-    "SOUND_TYPE_TO_COLOR",
-    "AWS_DOWNLOAD_LINK",
-    "DEFAULT_MODEL_DIRECTORY",
-    "DEFAULT_SPECTROGRAM_NUM_ROWS",
-    "HMM_WEIGHTS",
-]
-
 DEFAULT_MODEL_DIRECTORY = os.path.join(os.path.expanduser("~"), ".cache", "beetles")
 
 if os.path.isfile(
@@ -171,12 +157,6 @@ def parser():
         type=int,
         default=20,
         help="how many rows to remove from the low-frequency range of the spectrogram.",
-    )
-    tunable.add_argument(
-        "--mask_beginning_and_end",
-        type=int,
-        default=1,
-        help="whether or not to mask the beginning and end of single-label chirps",
     )
     tunable.add_argument(
         "--begin_mask",
