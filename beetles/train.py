@@ -1,8 +1,6 @@
 from pytorch_lightning import seed_everything
 from time import time
 
-# BE CAREFUL. This will cause inconsistent behavior if training
-# using DDP!
 seed_everything(int(time() * 1000))
 
 import os

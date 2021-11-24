@@ -39,6 +39,8 @@ def add_example(
 
 class SimpleLabeler:
     def __init__(self, wav_file, output_csv_path):
+        # TODO: add config-based keypresses
+        # and records of labels
 
         self.wav_file = wav_file
         self.output_csv_path = output_csv_path
