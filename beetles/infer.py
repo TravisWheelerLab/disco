@@ -14,7 +14,7 @@ from beetles.config import Config
 warnings.filterwarnings("ignore", category=UserWarning)
 
 def run_inference(
-    config_file=None,
+    config,
     wav_file=None,
     output_csv_path=None,
     saved_model_directory=None,
@@ -29,7 +29,6 @@ def run_inference(
     debug=None,
     num_threads=4,
 ):
-    config = Config(config_file=config_file)
 
     if tile_size % 2 != 0:
         raise ValueError("tile_size must be even, got {}".format(tile_size))

@@ -18,9 +18,7 @@ from shopty import ShoptyConfig
 __all__ = ["train"]
 
 
-def train(hparams):
-    
-    beetles_config = Config()
+def train(hparams, config):
 
     train_path = os.path.join(hparams.data_path, "train", "*")
     val_path = os.path.join(hparams.data_path, "validation", "*")
@@ -48,7 +46,7 @@ def train(hparams):
 
     train_dataset = SpectrogramDatasetMultiLabel(
         train_files,
-        config=beetles_config,
+        config=config,
         apply_log=hparams.log,
         vertical_trim=hparams.vertical_trim,
         bootstrap_sample=hparams.bootstrap,
@@ -59,7 +57,7 @@ def train(hparams):
 
     val_dataset = SpectrogramDatasetMultiLabel(
         val_files,
-        config=beetles_config,
+        config=config,
         apply_log=hparams.log,
         vertical_trim=hparams.vertical_trim,
         bootstrap_sample=False,
@@ -72,7 +70,7 @@ def train(hparams):
     # but this is too much work for the amount of time it takes to evaluate our validation
     # set.
     def wrap_pad_batch(batch):
-        return pad_batch(batch, beetles_config.mask_flag)
+        return pad_batch(batch, config.mask_flag)
     
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -105,7 +103,7 @@ def train(hparams):
         "end_mask": hparams.end_mask,
         "train_files": train_dataset.files,
         "val_files": val_dataset.files,
-        "mask_character": beetles_config.mask_flag
+        "mask_character": Config().mask_flag
     }
 
     if hparams.apply_attn:

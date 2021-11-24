@@ -5,7 +5,7 @@ from beetles.config import Config
 
 
 def parser():
-    config = Config()
+    
     ap = ArgumentParser()
     ap.add_argument("--version", action="version", version="0.0.1-alpha")
     # infer
@@ -13,15 +13,9 @@ def parser():
 
     infer_parser = subparsers.add_parser("infer", add_help=True)
     infer_parser.add_argument(
-        "--config_file",
-        type=str,
-        default=None,
-        help="optional yaml config file",
-    )
-    infer_parser.add_argument(
         "--saved_model_directory",
         required=False,
-        default=config.default_model_directory,
+        default=Config().default_model_directory,
         type=str,
         help="where the ensemble of models is stored",
     )
@@ -90,7 +84,7 @@ def parser():
 
     # train
     train_parser = subparsers.add_parser("train", add_help=True)
-
+    
     tunable = train_parser.add_argument_group(
         title="tunable args", description="arguments in this group are" " tunable"
     )
@@ -202,12 +196,6 @@ def parser():
     # extract
     extract_parser = subparsers.add_parser("extract", add_help=True)
     extract_parser.add_argument(
-        "--config_file",
-        type=str,
-        default=None,
-        help="optional yaml config file",
-    )
-    extract_parser.add_argument(
         "--no_mel_scale",
         action="store_false",
         help="whether or not to calculate a mel spectrogram. Default: calculate it.",
@@ -236,16 +224,10 @@ def parser():
     # label
     label_parser = subparsers.add_parser("label", add_help=True)
     label_parser.add_argument(
-        "--config_file",
-        type=str,
-        default=None,
-        help="optional yaml config file defining keypress actions",
+        "wav_file", type=str, help="which .wav file to analyze"
     )
     label_parser.add_argument(
-        "--wav_file", required=True, type=str, help="which .wav file to analyze"
-    )
-    label_parser.add_argument(
-        "--output_csv_path", required=True, type=str, help="where to save the labels"
+        "output_csv_path", type=str, help="where to save the labels"
     )
     # viz
     viz_parser = subparsers.add_parser("viz", add_help=True)
@@ -265,30 +247,38 @@ def parser():
 
 
 def main():
+    config_path = os.path.join(os.path.expanduser("~"), ".cache", "beetles", "params.yaml")
+    if os.path.isfile(config_path):
+        print(f'loading configuration from {config_path}')
+        config = Config(config_file=config_path)
+    else:
+        config = Config()
+        
     ap = parser()
     args = ap.parse_args()
+    
     if args.command == "label":
         from beetles.label import main
 
-        main(args)
+        main(config, args)
     elif args.command == "train":
         from beetles.train import train
 
-        train(args)
+        train(args, config)
     elif args.command == "extract":
         from beetles.extract_data import main
 
-        main(args)
+        main(args, config)
     elif args.command == "viz":
         from beetles.visualize import main
 
-        main(args)
+        main(args, config)
     elif args.command == "infer":
         from beetles.infer import run_inference
         if args.debug is None and args.output_csv_path is None:
             raise ValueError("Must specify either --output_csv_path or --debug.")
 
         delattr(args, "command")
-        run_inference(**dict(vars(args)))
+        run_inference(config, **dict(vars(args)))
     else:
         ap.print_usage()

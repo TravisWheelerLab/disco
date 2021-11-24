@@ -18,7 +18,7 @@ def load_arrays(data_root):
     iqr = infer.load_pickle(os.path.join(data_root, "iqrs.pkl"))
     return medians, spectrogram, post_hmm, iqr
 
-def main(args):
+def main(args, config):
     # TODO: refactor so this function isn't so massive
     data_root = args.data_path
     hop_length = args.hop_length
@@ -29,23 +29,18 @@ def main(args):
     medians = medians.T[np.arange(medians.shape[-1]), median_argmax]
     # when the prediction is confidently background (i.e. the argmax
     # results in the background class, set the probabilities to 0.
-    medians[median_argmax == infer.NAME_TO_CLASS_CODE['BACKGROUND']] = 0
+    medians[median_argmax == config.name_to_class_code['BACKGROUND']] = 0
     medians = np.expand_dims(medians, axis=0)
 
-    # iqr = iqr.T[np.arange(iqr.shape[-1]), median_argmax]
-    # iqr[median_argmax == infer.NAME_TO_CLASS_CODE['BACKGROUND']] = 0
-    # iqr = np.expand_dims(iqr, axis=0)
-    # iqr = 1-iqr
-    # i kind of like the sum of the iqr better as an uncertainty measure.
     iqr = np.sum(iqr.T, axis=1) / 3
     iqr = np.expand_dims(iqr, axis=0)
 
-    post_hmm[post_hmm != infer.NAME_TO_CLASS_CODE["BACKGROUND"]] = 1
+    post_hmm[post_hmm != config.name_to_class_code["BACKGROUND"]] = 1
     post_hmm[post_hmm != 1] = 0
     post_hmm = np.expand_dims(post_hmm, axis=0)
 
     # should be black where the model predicted any class; and white otherwise.
-    median_argmax[median_argmax != infer.NAME_TO_CLASS_CODE["BACKGROUND"]] = 1
+    median_argmax[median_argmax != config.name_to_class_code["BACKGROUND"]] = 1
     median_argmax[median_argmax != 1] = 0
     median_argmax = np.expand_dims(median_argmax, axis=0)
 
@@ -73,16 +68,17 @@ def main(args):
 
     plot_background = True
 
-    for class_index, name in infer.CLASS_CODE_TO_NAME.items():
+    for class_index, name in config.class_code_to_name.items():
         if name != "BACKGROUND" or plot_background:
             all_class = median_argmax == class_index
             x = range(0, all_class.shape[-1])
             ax[1].fill_between(x, 15, 19, where=all_class, color=name_to_rgb_code[name])
 
-    post_hmm = infer.smooth_predictions_with_hmm(median_argmax)
-    post_hmm = heuristics.remove_a_chirps_in_between_b_chirps(post_hmm, iqr_no_mods)
+    post_hmm = infer.smooth_predictions_with_hmm(median_argmax, config=config)
+    post_hmm = heuristics.remove_a_chirps_in_between_b_chirps(post_hmm, iqr_no_mods,
+                                                              config.name_to_class_code)
 
-    for class_index, name in infer.CLASS_CODE_TO_NAME.items():
+    for class_index, name in config.class_code_to_name.items():
         if name != "BACKGROUND" or plot_background:
             all_class = post_hmm == class_index
             x = range(0, all_class.shape[-1])

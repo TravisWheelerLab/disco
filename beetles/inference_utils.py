@@ -265,6 +265,7 @@ def plot_predictions_and_confidences(
 
 def assemble_ensemble(model_directory, model_extension, device, in_channels, 
                       config):
+    
     if model_directory is None:
         model_directory = config.default_model_directory
 

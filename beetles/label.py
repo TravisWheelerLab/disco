@@ -40,12 +40,11 @@ def add_example(
 
 class SimpleLabeler:
     
-    def __init__(self, wav_file, output_csv_path,
-                 config_file):
+    def __init__(self, wav_file, output_csv_path, config):
 
         self.wav_file = wav_file
         self.output_csv_path = output_csv_path
-        self.config = Config(config_file=config_file)
+        self.config = config
         self.forbidden_keys = ("a", "t", "g", "j", "d", "c", "v", "q")
         for key in self.config.label_keys:
             if key in self.forbidden_keys:
@@ -194,13 +193,13 @@ class SimpleLabeler:
     def process_keystroke(self, key):
 
         if key.key in self.config.label_keys:
-            print(f"saving {self.config[key.key]} chirp (r to delete)")
+            print(f"saving {self.config.key_to_label[key.key]} chirp (r to delete)")
             add_example(
                 self.label_list,
                 self.wav_file,
                 self.n + self.xmin,
                 self.n + self.xmax,
-                sound_type=self.config[key.key],
+                sound_type=self.config.key_to_label[key.key],
                 hop_length=self.hop_length,
                 sample_rate=self.sample_rate,
             )
@@ -245,8 +244,8 @@ class SimpleLabeler:
             print("unknown key pressed")
 
 
-def main(args):
-    labeler = SimpleLabeler(args.wav_file, args.output_csv_path, config_file=args.config_file)
+def main(config, args):
+    labeler = SimpleLabeler(args.wav_file, args.output_csv_path, config=config)
     plt.show()
     labeler.show()
     labeler.save_labels()

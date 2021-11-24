@@ -10,8 +10,6 @@ import os
 from glob import glob
 from sklearn.model_selection import train_test_split
 
-from beetles.config import Config
-
 
 def w2s_idx(idx, hop_length):
     # waveform to spectrogram index
@@ -21,7 +19,7 @@ def w2s_idx(idx, hop_length):
 def create_label_to_spectrogram(spect,
                                 labels,
                                 hop_length,
-                                label_to_index,
+                                name_to_class_code,
                                 excluded_classes,
                                 neighbor_tolerance=100):
     """
@@ -73,10 +71,11 @@ def create_label_to_spectrogram(spect,
             if first:
                 overall_begin = row["begin spect idx"]
                 first = False
-            # have to do the shifty shift
+                
             sound_begin = row["begin spect idx"] - overall_begin
             sound_end = row["end spect idx"] - overall_begin
-            label_vector[sound_begin:sound_end] = label_to_index[row["Sound_Type"]]
+            label_vector[sound_begin:sound_end] = name_to_class_code[row["Sound_Type"]]
+            
         features_and_labels.append([spect_slice, label_vector])
 
     return features_and_labels
@@ -110,7 +109,7 @@ def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, config, hop_l
     spect = spect.squeeze()
     features_and_labels = create_label_to_spectrogram(
         spect, labels, hop_length=hop_length,
-        label_to_index=config.label_to_index,
+        name_to_class_code=config.name_to_class_code,
         excluded_classes=config.excluded_classes
     )
 
@@ -179,13 +178,12 @@ def save_data(out_path, data_list, index_to_label):
             pickle.dump([features.numpy(), label_vector], dst)
 
 
-def main(args):
+def main(args, config):
     random.seed(args.random_seed)
     np.random.seed(args.random_seed)
 
     mel = True if not args.no_mel_scale else False  # i want default True
     n_fft = args.n_fft
-    beetles_config = Config(config_file=args.config_file)
 
     data_dir = args.data_dir
 
@@ -194,7 +192,7 @@ def main(args):
     out = []
 
     for filename, (wav, csv) in csv_and_wav.items():
-        features_and_labels = process_wav_file(wav, csv, n_fft, mel, beetles_config)
+        features_and_labels = process_wav_file(wav, csv, n_fft, mel, config)
         out.extend(features_and_labels)
 
     random.shuffle(out)
