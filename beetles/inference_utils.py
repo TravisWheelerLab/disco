@@ -13,8 +13,10 @@ from glob import glob
 from collections import defaultdict
 
 from beetles.models import SimpleCNN, UNet1D
+import beetles.heuristics as heuristics
 
 # Should this be a configurable argument?
+# TODO: make an "ensemble" class.
 np.random.seed(0)
 
 from beetles import (
@@ -72,19 +74,17 @@ def aggregate_predictions(predictions):
     (idx,) = diff.nonzero()
     current_class = predictions[0]
     current_idx = 0
-    class_idx_to_prediction_start_and_end = defaultdict(list)
+    class_idx_to_prediction_start_and_end = []
 
     if len(idx) == 0:
         print("Only one class found after heuristics, csv will only contain one row")
-        class_idx_to_prediction_start_and_end[current_class] = [
-            current_idx,
-            predictions.shape[-1],
-        ]
+        dct = {'class': current_class, 'start': current_idx, 'end': predictions.shape[-1]}
+        class_idx_to_prediction_start_and_end.append(dct)
+
     else:
         for i in range(len(idx)):
-            class_idx_to_prediction_start_and_end[current_class].append(
-                [current_idx, idx[i]]
-            )
+            dct = {'class': current_class, 'start': current_idx, 'end': idx[i]}
+            class_idx_to_prediction_start_and_end.append(dct)
             current_class = predictions[idx[i] + 1]
             current_idx = idx[i] + 1
 
@@ -96,7 +96,11 @@ def convert_spectrogram_index_to_seconds(spect_idx, hop_length, sample_rate):
     return spect_idx * seconds_per_hop
 
 
-def pickle_data(data, path):
+def pickle_tensor(data, path):
+
+    if not isinstance(data, np.ndarray):
+        data = data.numpy()
+
     with open(path, "wb") as dst:
         pickle.dump(data, dst)
 
@@ -111,28 +115,33 @@ def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_len
     # We just need to get the beginning and end of each chirp and convert those
     # to seconds.
     class_idx_to_prediction_start_end = aggregate_predictions(predictions)
+    class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(predictions, predictions,
+                                                                                       return_preds=False)
     # window size by default is n_fft. hop_length is interval b/t consecutive spectrograms
     # i don't think padding is performed when the spectrogram is calculated
     list_of_dicts_for_dataframe = []
     i = 1
-    for class_idx, starts_and_ends in class_idx_to_prediction_start_end.items():
+    for class_to_start_and_end in class_idx_to_prediction_start_end:
         # TODO: handle the case where there's only one prediction per class
-        for start, end in starts_and_ends:
-            dataframe_dict = {
-                "Selection": i,
-                "View": 0,
-                "Channel": 0,
-                "Begin Time (s)": convert_spectrogram_index_to_seconds(
-                    start, hop_length=hop_length, sample_rate=sample_rate
-                ),
-                "End Time (s)": convert_spectrogram_index_to_seconds(
-                    end, hop_length=hop_length, sample_rate=sample_rate
-                ),
-                "Low Freq (Hz)": 0,
-                "High Freq (Hz)": 0,
-                "Sound_Type": CLASS_CODE_TO_NAME[class_idx],
-            }
-            list_of_dicts_for_dataframe.append(dataframe_dict)
+        end = class_to_start_and_end['end']
+        start = class_to_start_and_end['start']
+
+        dataframe_dict = {
+            "Selection": i,
+            "View": 0,
+            "Channel": 0,
+            "Begin Time (s)": convert_spectrogram_index_to_seconds(
+                start, hop_length=hop_length, sample_rate=sample_rate
+            ),
+            "End Time (s)": convert_spectrogram_index_to_seconds(
+                end, hop_length=hop_length, sample_rate=sample_rate
+            ),
+            "Low Freq (Hz)": 0,
+            "High Freq (Hz)": 0,
+            "Sound_Type": CLASS_CODE_TO_NAME[class_to_start_and_end['class']]
+        }
+
+        list_of_dicts_for_dataframe.append(dataframe_dict)
         i += 1
 
     df = pd.DataFrame.from_dict(list_of_dicts_for_dataframe)
@@ -157,7 +166,7 @@ def smooth_predictions_with_hmm(unsmoothed_predictions):
     hmm = load_in_hmm(HMM_WEIGHTS)
     # forget about the first element b/c it's the start state
     smoothed_predictions = np.asarray(
-        hmm.predict(sequence=unsmoothed_predictions, algorithm="viterbi")[1:]
+        hmm.predict(sequence=unsmoothed_predictions.copy(), algorithm="viterbi")[1:]
     )
     return smoothed_predictions
 
@@ -322,9 +331,9 @@ def calculate_median_and_iqr(ensemble_preds):
         (ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3])
     )
     for class_idx in range(ensemble_preds.shape[2]):
-        q75, q25 = np.percentile(ensemble_preds[:, :, class_idx, :], [75, 25], axis=0)
+        q75 = np.percentile(ensemble_preds[:, :, class_idx, :], [60], axis=0)
         median = np.median(ensemble_preds[:, :, class_idx, :], axis=0)
-        iqrs[:, class_idx] = q75 - q25
+        iqrs[:, class_idx] = q75
         medians[:, class_idx] = median
 
     return iqrs, medians
