@@ -73,8 +73,6 @@ class SimpleLabeler:
             hop_length=self.hop_length,
         )(self.waveform)
         self.spectrogram[self.spectrogram == 0] = 1
-        self.spectrogram = self.spectrogram[0, 20:]
-        self.spectrogram = self.spectrogram.log2().numpy().squeeze()
         self.vertical_cut = 0
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, figsize=(8, 6))
