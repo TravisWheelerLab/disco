@@ -15,45 +15,31 @@ from collections import defaultdict
 from beetles.models import SimpleCNN, UNet1D
 import beetles.heuristics as heuristics
 
-# Should this be a configurable argument?
-# TODO: make an "ensemble" class.
-np.random.seed(0)
-
-from beetles import (
-    CLASS_CODE_TO_NAME,
-    NAME_TO_CLASS_CODE,
-    SOUND_TYPE_TO_COLOR,
-    AWS_DOWNLOAD_LINK,
-    DEFAULT_MODEL_DIRECTORY,
-    HMM_WEIGHTS,
-)
-
-
-def load_in_hmm(weights_list):
-    distributions = weights_list[0]
-    transition_matrix = weights_list[1]
-    starts = weights_list[2]
+def create_hmm(transition_matrix,
+               emission_probs,
+               start_probs):
 
     dists = []
-    for dist in distributions:
+    
+    for dist in emission_probs:
         dists.append(pom.DiscreteDistribution(dist))
 
-    matrix = np.array(transition_matrix)
-    starts = np.array(starts)
+    transition_matrix = np.asarray(transition_matrix)
+    start_probs = np.asarray(start_probs)
 
-    hmm_model = pom.HiddenMarkovModel.from_matrix(matrix, dists, starts)
+    hmm_model = pom.HiddenMarkovModel.from_matrix(transition_matrix, dists, start_probs)
     hmm_model.bake()
 
     return hmm_model
 
 
-def download_models(directory):
+def download_models(directory, aws_download_link):
 
     if not os.path.isdir(directory):
         os.makedirs(directory)
 
     for model_id in tqdm.tqdm(range(0, 10), desc="download status"):
-        download_url = AWS_DOWNLOAD_LINK.format(model_id)
+        download_url = aws_download_link.format(model_id)
         download_destination = os.path.join(directory, "model_{}.pt".format(model_id))
         if not os.path.isfile(download_destination):
             f = requests.get(download_url)
@@ -111,12 +97,17 @@ def load_pickle(path):
     return data
 
 
-def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_length):
+def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_length,
+                              name_to_class_code):
     # We just need to get the beginning and end of each chirp and convert those
     # to seconds.
     class_idx_to_prediction_start_end = aggregate_predictions(predictions)
-    class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(predictions, predictions,
+    
+    class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(predictions,
+                                                                                       None,
+                                                                                       name_to_class_code,
                                                                                        return_preds=False)
+    class_code_to_name = {v: k for k, v in name_to_class_code.items()}
     # window size by default is n_fft. hop_length is interval b/t consecutive spectrograms
     # i don't think padding is performed when the spectrogram is calculated
     list_of_dicts_for_dataframe = []
@@ -138,7 +129,7 @@ def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_len
             ),
             "Low Freq (Hz)": 0,
             "High Freq (Hz)": 0,
-            "Sound_Type": CLASS_CODE_TO_NAME[class_to_start_and_end['class']]
+            "Sound_Type": class_code_to_name[class_to_start_and_end['class']]
         }
 
         list_of_dicts_for_dataframe.append(dataframe_dict)
@@ -146,14 +137,16 @@ def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_len
 
     df = pd.DataFrame.from_dict(list_of_dicts_for_dataframe)
     dirname = os.path.dirname(output_csv_path)
+    
     if not os.path.isdir(dirname):
         os.makedirs(dirname, exist_ok=True)
+        
     df.to_csv(output_csv_path, index=False)
 
     return df
 
 
-def smooth_predictions_with_hmm(unsmoothed_predictions):
+def smooth_predictions_with_hmm(unsmoothed_predictions, config):
     """
     :param unsmoothed_predictions: np array of point-wise argmaxed predictions (size N).
     :return: smoothed predictions
@@ -163,7 +156,9 @@ def smooth_predictions_with_hmm(unsmoothed_predictions):
             "expected array of size N, got {}".format(unsmoothed_predictions.shape)
         )
 
-    hmm = load_in_hmm(HMM_WEIGHTS)
+    hmm = create_hmm(config.hmm_transition_probabilities,
+                     config.hmm_emission_probabilities,
+                     config.hmm_start_probabilities)
     # forget about the first element b/c it's the start state
     smoothed_predictions = np.asarray(
         hmm.predict(sequence=unsmoothed_predictions.copy(), algorithm="viterbi")[1:]
@@ -268,20 +263,21 @@ def plot_predictions_and_confidences(
         plt.close()
 
 
-def assemble_ensemble(model_directory, model_extension, device, in_channels):
+def assemble_ensemble(model_directory, model_extension, device, in_channels, 
+                      config):
     if model_directory is None:
-        model_directory = DEFAULT_MODEL_DIRECTORY
+        model_directory = config.default_model_directory
 
     model_paths = glob(os.path.join(model_directory, "*" + model_extension))
     if not len(model_paths):
         print(
             "no models found, downloading to {}".format(
-                model_directory, DEFAULT_MODEL_DIRECTORY
+                model_directory
             )
         )
 
-        download_models(DEFAULT_MODEL_DIRECTORY)
-        model_paths = glob(os.path.join(DEFAULT_MODEL_DIRECTORY, "*" + model_extension))
+        download_models(config.default_model_directory)
+        model_paths = glob(os.path.join(config.default_model_directory, "*" + model_extension))
 
     models = []
     for model_path in model_paths:
@@ -297,6 +293,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels):
             end_mask=None,
             train_files=[1],
             val_files=[1],
+            mask_character=config.mask_flag
         ).to(device)
         skeleton.load_state_dict(
             torch.load(model_path, map_location=torch.device(device))

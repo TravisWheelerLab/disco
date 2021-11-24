@@ -8,11 +8,13 @@ from argparse import ArgumentParser
 
 import beetles.heuristics as heuristics
 import beetles.inference_utils as infer
+from beetles.config import Config
 
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
 
 def run_inference(
+    config_file=None,
     wav_file=None,
     output_csv_path=None,
     saved_model_directory=None,
@@ -27,6 +29,7 @@ def run_inference(
     debug=None,
     num_threads=4,
 ):
+    config = Config(config_file=config_file)
 
     if tile_size % 2 != 0:
         raise ValueError("tile_size must be even, got {}".format(tile_size))
@@ -35,7 +38,7 @@ def run_inference(
     if device == "cpu":
         torch.set_num_threads(num_threads)
     models = infer.assemble_ensemble(
-        saved_model_directory, model_extension, device, input_channels
+        saved_model_directory, model_extension, device, input_channels, config
     )
 
     if len(models) < 2:
@@ -72,9 +75,9 @@ def run_inference(
 
     for heuristic in heuristics.HEURISTIC_FNS:
         print("applying heuristic function", heuristic.__name__)
-        predictions = heuristic(predictions, iqr)
+        predictions = heuristic(predictions, iqr, config.name_to_class_code)
 
-    hmm_predictions = infer.smooth_predictions_with_hmm(predictions)
+    hmm_predictions = infer.smooth_predictions_with_hmm(predictions, config)
 
     if output_csv_path is not None:
         _, ext = os.path.splitext(output_csv_path)
@@ -87,6 +90,7 @@ def run_inference(
             hmm_predictions,
             sample_rate=spectrogram_iterator.sample_rate,
             hop_length=hop_length,
+            name_to_class_code=config.name_to_class_code
         )
 
     if debug is not None:
@@ -105,6 +109,7 @@ def run_inference(
             hmm_predictions,
             sample_rate=spectrogram_iterator.sample_rate,
             hop_length=hop_length,
+            name_to_class_code=config.name_to_class_code
         )
 
         infer.pickle_tensor(spectrogram_iterator.original_spectrogram, spectrogram_path)

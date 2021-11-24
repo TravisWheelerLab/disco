@@ -62,10 +62,6 @@ def main(args):
     prediction_df = prediction_df.loc[prediction_df["Sound_Type"] != "BACKGROUND", :]
 
     fig, ax = plt.subplots(sharex=True, nrows=2, figsize=(10, 7))
-    # median argmax
-    # iqr
-    # post-thresholding
-    # post-hmm
 
     medians, spectrogram, post_hmm, iqr = load_arrays(data_root)
     iqr_no_mods = iqr.copy()

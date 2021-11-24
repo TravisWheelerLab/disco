@@ -10,7 +10,7 @@ import os
 from glob import glob
 from sklearn.model_selection import train_test_split
 
-from beetles import INDEX_TO_LABEL, LABEL_TO_INDEX, EXCLUDED_CLASSES
+from beetles.config import Config
 
 
 def w2s_idx(idx, hop_length):
@@ -18,7 +18,12 @@ def w2s_idx(idx, hop_length):
     return idx // hop_length
 
 
-def create_label_to_spectrogram(spect, labels, hop_length, neighbor_tolerance=100):
+def create_label_to_spectrogram(spect,
+                                labels,
+                                hop_length,
+                                label_to_index,
+                                excluded_classes,
+                                neighbor_tolerance=100):
     """
     Accepts a spectrogram (torch.Tensor) and labels (pd.DataFrame) and returns
     a song type and a list of tensors of those spectrograms as a value. e.g.:
@@ -63,7 +68,7 @@ def create_label_to_spectrogram(spect, labels, hop_length, neighbor_tolerance=10
         first = True
 
         for _, row in contiguous_labels.iterrows():
-            if row["Sound_Type"] in EXCLUDED_CLASSES:
+            if row["Sound_Type"] in excluded_classes:
                 continue
             if first:
                 overall_begin = row["begin spect idx"]
@@ -71,7 +76,7 @@ def create_label_to_spectrogram(spect, labels, hop_length, neighbor_tolerance=10
             # have to do the shifty shift
             sound_begin = row["begin spect idx"] - overall_begin
             sound_end = row["end spect idx"] - overall_begin
-            label_vector[sound_begin:sound_end] = LABEL_TO_INDEX[row["Sound_Type"]]
+            label_vector[sound_begin:sound_end] = label_to_index[row["Sound_Type"]]
         features_and_labels.append([spect_slice, label_vector])
 
     return features_and_labels
@@ -83,7 +88,7 @@ def convert_time_to_index(time, sample_rate):
     return np.round(time * sample_rate).astype(np.int)
 
 
-def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, hop_length=200):
+def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, config, hop_length=200):
     # reads the csv into a pandas df called labels, extracts waveform and sample_rate.
     labels = pd.read_csv(csv_filename)
     waveform, sample_rate = torchaudio.load(wav_filename)
@@ -104,7 +109,9 @@ def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, hop_length=20
     # dictionary containing all pre-labeled chirps and their associated spectrograms
     spect = spect.squeeze()
     features_and_labels = create_label_to_spectrogram(
-        spect, labels, hop_length=hop_length
+        spect, labels, hop_length=hop_length,
+        label_to_index=config.label_to_index,
+        excluded_classes=config.excluded_classes
     )
 
     return features_and_labels
@@ -148,7 +155,7 @@ def form_spectrogram_type(mel, n_fft):
     return directory_location
 
 
-def save_data(out_path, data_list):
+def save_data(out_path, data_list, index_to_label):
     os.makedirs(out_path, exist_ok=True)
 
     for i, (features, label_vector) in enumerate(data_list):
@@ -159,13 +166,13 @@ def save_data(out_path, data_list):
             continue
         uniq = np.unique(label_vector, return_counts=True)
         label = np.argmax(uniq[1])
-        if INDEX_TO_LABEL[label] == "X" and len(uniq[0]) != 1:
-            lvec = label_vector[label_vector != LABEL_TO_INDEX["BACKGROUND"]]
+        if index_to_label[label] == "X" and len(uniq[0]) != 1:
+            lvec = label_vector[label_vector != index_to_label["BACKGROUND"]]
             uniq = np.unique(lvec, return_counts=True)
             label = np.argmax(uniq[1])
 
         out_fpath = os.path.join(
-            out_path, INDEX_TO_LABEL[label] + "_" + str(i) + ".pkl"
+            out_path, index_to_label[label] + "_" + str(i) + ".pkl"
         )
 
         with open(out_fpath, "wb") as dst:
@@ -178,6 +185,7 @@ def main(args):
 
     mel = True if not args.no_mel_scale else False  # i want default True
     n_fft = args.n_fft
+    beetles_config = Config(config_file=args.config_file)
 
     data_dir = args.data_dir
 
@@ -186,7 +194,7 @@ def main(args):
     out = []
 
     for filename, (wav, csv) in csv_and_wav.items():
-        features_and_labels = process_wav_file(wav, csv, n_fft, mel)
+        features_and_labels = process_wav_file(wav, csv, n_fft, mel, beetles_config)
         out.extend(features_and_labels)
 
     random.shuffle(out)
@@ -206,6 +214,6 @@ def main(args):
     validation_path = os.path.join(args.output_data_path, "validation")
     test_path = os.path.join(args.output_data_path, "test")
 
-    save_data(train_path, train_split)
-    save_data(validation_path, val_split)
-    save_data(test_path, test_split)
+    save_data(train_path, train_split, config.index_to_label)
+    save_data(validation_path, val_split, config.index_to_label)
+    save_data(test_path, test_split, config.index_to_label)

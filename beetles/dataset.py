@@ -8,17 +8,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from beetles import INDEX_TO_LABEL, LABEL_TO_INDEX, MASK_FLAG
 
-
-def pad_batch(batch):
+def pad_batch(batch, mask_flag):
     features = [b[0] for b in batch]
     labels = [b[1] for b in batch]
 
     mxlen = np.max([f.shape[-1] for f in features])
     padded_batch = torch.zeros((len(batch), features[0].shape[0], mxlen))
     masks = torch.zeros((len(batch), 1, mxlen))
-    padded_labels = torch.zeros((len(batch), mxlen), dtype=torch.int64) + MASK_FLAG
+    padded_labels = torch.zeros((len(batch), mxlen), dtype=torch.int64) + mask_flag
 
     for i, (f, l) in enumerate(zip(features, labels)):
         padded_batch[i, :, : f.shape[-1]] = f
@@ -41,6 +39,7 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
     def __init__(
         self,
         files,
+        config,
         apply_log=True,
         vertical_trim=0,
         bootstrap_sample=False,
@@ -57,6 +56,7 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
             )
 
         self.apply_log = apply_log
+        self.config = config
         self.vertical_trim = vertical_trim
         self.bootstrap_sample = bootstrap_sample
         self.begin_mask = begin_mask
@@ -84,12 +84,12 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
                 # if there's only one class
                 if labels.shape[0] > (self.begin_mask + self.end_mask):
                     # and if the label vector is longer than where we're supposed to mask
-                    labels[self.begin_mask] = MASK_FLAG
-                    labels[-self.end_mask :] = MASK_FLAG
+                    labels[self.begin_mask] = self.config.mask_flag
+                    labels[-self.end_mask :] = self.config.mask_flag
                 else:
                     # if it's not, throw it out. We don't want any possibility of bad data
                     # when training the model so we'll waste some compute.
-                    labels[:] = MASK_FLAG
+                    labels[:] = self.config.mask_flag
 
         return torch.tensor(spect_slice), torch.tensor(labels)
 
@@ -106,6 +106,7 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
         dataset_type,
         data_path,
         spect_type,
+        config,
         max_spec_length=40,
         filtered_sounds=["C", "Y"],
         apply_log=True,
@@ -117,6 +118,7 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
 
         self.spect_lengths = defaultdict(list)
         self.dataset_type = dataset_type
+        self.config = config
         self.data_path = data_path
         self.spect_type = spect_type
         self.max_spec_length = max_spec_length
@@ -192,12 +194,12 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
                 spect[:, random_index : random_index + spect_size]
             )
             label_tensor = torch.tensor(
-                np.repeat(a=LABEL_TO_INDEX[label], repeats=spect_size)
+                np.repeat(a=self.config.label_to_index[label], repeats=spect_size)
             )
         else:
             spect_slice = torch.tensor(spect)
             label_tensor = torch.tensor(
-                np.repeat(a=LABEL_TO_INDEX[label], repeats=len(spect[1]))
+                np.repeat(a=self.config.label_to_index[label], repeats=len(spect[1]))
             )
         return spect_slice, label_tensor
 

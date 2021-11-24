@@ -48,6 +48,7 @@ class UNet1D(pl.LightningModule):
         end_mask,
         train_files,
         val_files,
+        mask_character,
         divisible_by=16,
     ):
 
@@ -68,6 +69,7 @@ class UNet1D(pl.LightningModule):
         self.train_files = list(train_files)
         self.val_files = list(val_files)
         self.initial_power = 5
+        self.mask_character = mask_character
 
         self.save_hyperparameters()
 
@@ -191,10 +193,10 @@ class UNet1D(pl.LightningModule):
             x, y = batch
             logits = self.forward(x)
 
-        loss = torch.nn.functional.nll_loss(logits, y, ignore_index=MASK_CHARACTER)
+        loss = torch.nn.functional.nll_loss(logits, y, ignore_index=self.mask_character)
         preds = logits.argmax(dim=1)
-        preds = preds[y != MASK_CHARACTER]
-        labels = y[y != MASK_CHARACTER]
+        preds = preds[y != self.mask_character]
+        labels = y[y != self.mask_character]
         acc = self.accuracy(preds, labels)
         return loss, acc
 

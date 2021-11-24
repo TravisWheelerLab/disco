@@ -1,66 +1,11 @@
 from argparse import ArgumentParser
 import os
 import json
-
-DEFAULT_MODEL_DIRECTORY = os.path.join(os.path.expanduser("~"), ".cache", "beetles")
-
-if os.path.isfile(
-    os.path.join(os.path.expanduser("~"), ".cache", "beetles", "annotations_key.json")
-):
-    with open(
-        os.path.join(
-            os.path.expanduser("~"), ".cache", "beetles", "annotations_key.json"
-        ),
-        "r",
-    ) as src:
-        objects = json.load(src)
-else:
-    with open(
-        os.path.join(os.path.dirname(__file__), "resources", "annotations_key.json"),
-        "r",
-    ) as src:
-        objects = json.load(src)
-# TODO: Replace capitalized objects with a dedicated config object
-
-INDEX_TO_LABEL = {}
-LABEL_TO_INDEX = {}
-for o in objects:
-    index = int(o["index"])
-    label = o["label"]
-    LABEL_TO_INDEX[label] = index
-    INDEX_TO_LABEL[index] = label
-
-if os.path.isfile(
-    os.path.join(os.path.expanduser("~"), ".cache", "beetles", "hmm_weights.json")
-):
-    with open(
-        os.path.join(os.path.expanduser("~"), ".cache", "beetles", "hmm_weights.json"),
-        "r",
-    ) as src:
-        hmm_objects = json.load(src)
-else:
-    with open(
-        os.path.join(os.path.dirname(__file__), "resources", "hmm_weights.json"), "r"
-    ) as src:
-        hmm_objects = json.load(src)
-
-DISTRIBUTIONS = hmm_objects["distributions"]
-for i in range(len(DISTRIBUTIONS)):
-    DISTRIBUTIONS[i] = {int(k): v for k, v in DISTRIBUTIONS[i].items()}
-TRANSITION_MATRIX = hmm_objects["transition_matrix"]
-STARTS = hmm_objects["starts"]
-HMM_WEIGHTS = [DISTRIBUTIONS, TRANSITION_MATRIX, STARTS]
-
-MASK_FLAG = -1
-EXCLUDED_CLASSES = ("Y", "C")
-CLASS_CODE_TO_NAME = {0: "A", 1: "B", 2: "BACKGROUND"}
-NAME_TO_CLASS_CODE = {v: k for k, v in CLASS_CODE_TO_NAME.items()}
-SOUND_TYPE_TO_COLOR = {"A": "r", "B": "y", "BACKGROUND": "k"}
-AWS_DOWNLOAD_LINK = "https://beetles-cnn-models.s3.amazonaws.com/model_{}.pt"
-DEFAULT_SPECTROGRAM_NUM_ROWS = 128
+from beetles.config import Config
 
 
 def parser():
+    config = Config()
     ap = ArgumentParser()
     ap.add_argument("--version", action="version", version="0.0.1-alpha")
     # infer
@@ -68,9 +13,15 @@ def parser():
 
     infer_parser = subparsers.add_parser("infer", add_help=True)
     infer_parser.add_argument(
+        "--config_file",
+        type=str,
+        default=None,
+        help="optional yaml config file",
+    )
+    infer_parser.add_argument(
         "--saved_model_directory",
         required=False,
-        default=DEFAULT_MODEL_DIRECTORY,
+        default=config.default_model_directory,
         type=str,
         help="where the ensemble of models is stored",
     )
@@ -251,6 +202,12 @@ def parser():
     # extract
     extract_parser = subparsers.add_parser("extract", add_help=True)
     extract_parser.add_argument(
+        "--config_file",
+        type=str,
+        default=None,
+        help="optional yaml config file",
+    )
+    extract_parser.add_argument(
         "--no_mel_scale",
         action="store_false",
         help="whether or not to calculate a mel spectrogram. Default: calculate it.",
@@ -278,6 +235,12 @@ def parser():
     )
     # label
     label_parser = subparsers.add_parser("label", add_help=True)
+    label_parser.add_argument(
+        "--config_file",
+        type=str,
+        default=None,
+        help="optional yaml config file defining keypress actions",
+    )
     label_parser.add_argument(
         "--wav_file", required=True, type=str, help="which .wav file to analyze"
     )
