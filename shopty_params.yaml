@@ -12,7 +12,7 @@ hparams:
     type: 'int'
   learning_rate:
     begin: -5
-    end: 1
+    end: -1
     random: true
     log: true
     type: float
