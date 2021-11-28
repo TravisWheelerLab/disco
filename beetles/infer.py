@@ -13,6 +13,7 @@ from beetles.config import Config
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
 
+
 def run_inference(
     config,
     wav_file=None,
@@ -89,7 +90,7 @@ def run_inference(
             hmm_predictions,
             sample_rate=spectrogram_iterator.sample_rate,
             hop_length=hop_length,
-            name_to_class_code=config.name_to_class_code
+            name_to_class_code=config.name_to_class_code,
         )
 
     if debug is not None:
@@ -108,7 +109,7 @@ def run_inference(
             hmm_predictions,
             sample_rate=spectrogram_iterator.sample_rate,
             hop_length=hop_length,
-            name_to_class_code=config.name_to_class_code
+            name_to_class_code=config.name_to_class_code,
         )
 
         infer.pickle_tensor(spectrogram_iterator.original_spectrogram, spectrogram_path)

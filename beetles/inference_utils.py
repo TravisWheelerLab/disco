@@ -15,12 +15,11 @@ from collections import defaultdict
 from beetles.models import SimpleCNN, UNet1D
 import beetles.heuristics as heuristics
 
-def create_hmm(transition_matrix,
-               emission_probs,
-               start_probs):
+
+def create_hmm(transition_matrix, emission_probs, start_probs):
 
     dists = []
-    
+
     for dist in emission_probs:
         dists.append(pom.DiscreteDistribution(dist))
 
@@ -64,12 +63,16 @@ def aggregate_predictions(predictions):
 
     if len(idx) == 0:
         print("Only one class found after heuristics, csv will only contain one row")
-        dct = {'class': current_class, 'start': current_idx, 'end': predictions.shape[-1]}
+        dct = {
+            "class": current_class,
+            "start": current_idx,
+            "end": predictions.shape[-1],
+        }
         class_idx_to_prediction_start_and_end.append(dct)
 
     else:
         for i in range(len(idx)):
-            dct = {'class': current_class, 'start': current_idx, 'end': idx[i]}
+            dct = {"class": current_class, "start": current_idx, "end": idx[i]}
             class_idx_to_prediction_start_and_end.append(dct)
             current_class = predictions[idx[i] + 1]
             current_idx = idx[i] + 1
@@ -97,16 +100,16 @@ def load_pickle(path):
     return data
 
 
-def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_length,
-                              name_to_class_code):
+def save_csv_from_predictions(
+    output_csv_path, predictions, sample_rate, hop_length, name_to_class_code
+):
     # We just need to get the beginning and end of each chirp and convert those
     # to seconds.
     class_idx_to_prediction_start_end = aggregate_predictions(predictions)
-    
-    class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(predictions,
-                                                                                       None,
-                                                                                       name_to_class_code,
-                                                                                       return_preds=False)
+
+    class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(
+        predictions, None, name_to_class_code, return_preds=False
+    )
     class_code_to_name = {v: k for k, v in name_to_class_code.items()}
     # window size by default is n_fft. hop_length is interval b/t consecutive spectrograms
     # i don't think padding is performed when the spectrogram is calculated
@@ -114,8 +117,8 @@ def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_len
     i = 1
     for class_to_start_and_end in class_idx_to_prediction_start_end:
         # TODO: handle the case where there's only one prediction per class
-        end = class_to_start_and_end['end']
-        start = class_to_start_and_end['start']
+        end = class_to_start_and_end["end"]
+        start = class_to_start_and_end["start"]
 
         dataframe_dict = {
             "Selection": i,
@@ -129,7 +132,7 @@ def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_len
             ),
             "Low Freq (Hz)": 0,
             "High Freq (Hz)": 0,
-            "Sound_Type": class_code_to_name[class_to_start_and_end['class']]
+            "Sound_Type": class_code_to_name[class_to_start_and_end["class"]],
         }
 
         list_of_dicts_for_dataframe.append(dataframe_dict)
@@ -137,10 +140,10 @@ def save_csv_from_predictions(output_csv_path, predictions, sample_rate, hop_len
 
     df = pd.DataFrame.from_dict(list_of_dicts_for_dataframe)
     dirname = os.path.dirname(output_csv_path)
-    
+
     if not os.path.isdir(dirname):
         os.makedirs(dirname, exist_ok=True)
-        
+
     df.to_csv(output_csv_path, index=False)
 
     return df
@@ -156,9 +159,11 @@ def smooth_predictions_with_hmm(unsmoothed_predictions, config):
             "expected array of size N, got {}".format(unsmoothed_predictions.shape)
         )
 
-    hmm = create_hmm(config.hmm_transition_probabilities,
-                     config.hmm_emission_probabilities,
-                     config.hmm_start_probabilities)
+    hmm = create_hmm(
+        config.hmm_transition_probabilities,
+        config.hmm_emission_probabilities,
+        config.hmm_start_probabilities,
+    )
     # forget about the first element b/c it's the start state
     smoothed_predictions = np.asarray(
         hmm.predict(sequence=unsmoothed_predictions.copy(), algorithm="viterbi")[1:]
@@ -263,22 +268,19 @@ def plot_predictions_and_confidences(
         plt.close()
 
 
-def assemble_ensemble(model_directory, model_extension, device, in_channels, 
-                      config):
-    
+def assemble_ensemble(model_directory, model_extension, device, in_channels, config):
+
     if model_directory is None:
         model_directory = config.default_model_directory
 
     model_paths = glob(os.path.join(model_directory, "*" + model_extension))
     if not len(model_paths):
-        print(
-            "no models found, downloading to {}".format(
-                model_directory
-            )
-        )
+        print("no models found, downloading to {}".format(model_directory))
 
         download_models(config.default_model_directory)
-        model_paths = glob(os.path.join(config.default_model_directory, "*" + model_extension))
+        model_paths = glob(
+            os.path.join(config.default_model_directory, "*" + model_extension)
+        )
 
     models = []
     for model_path in model_paths:
@@ -294,7 +296,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels,
             end_mask=None,
             train_files=[1],
             val_files=[1],
-            mask_character=config.mask_flag
+            mask_character=config.mask_flag,
         ).to(device)
         skeleton.load_state_dict(
             torch.load(model_path, map_location=torch.device(device))

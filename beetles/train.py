@@ -18,11 +18,11 @@ from shopty import ShoptyConfig
 __all__ = ["train"]
 
 
-def train(hparams, config):
+def train(config, hparams):
 
     train_path = os.path.join(hparams.data_path, "train", "*")
     val_path = os.path.join(hparams.data_path, "validation", "*")
-    
+
     shopty_config = ShoptyConfig()
 
     result_file = shopty_config.results_path
@@ -32,7 +32,7 @@ def train(hparams, config):
     max_iter = shopty_config.max_iter
     min_training_unit = 1
     last_epoch = 0
-    
+
     checkpoint_callback = pl.callbacks.model_checkpoint.ModelCheckpoint(
         dirpath=checkpoint_dir, save_last=True, save_top_k=0, verbose=True
     )
@@ -71,7 +71,7 @@ def train(hparams, config):
     # set.
     def wrap_pad_batch(batch):
         return pad_batch(batch, config.mask_flag)
-    
+
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=hparams.batch_size,
@@ -79,7 +79,6 @@ def train(hparams, config):
         num_workers=hparams.num_workers,
         collate_fn=None if hparams.batch_size == 1 else wrap_pad_batch,
     )
-        
 
     val_loader = torch.utils.data.DataLoader(
         val_dataset,
@@ -103,7 +102,7 @@ def train(hparams, config):
         "end_mask": hparams.end_mask,
         "train_files": train_dataset.files,
         "val_files": val_dataset.files,
-        "mask_character": Config().mask_flag
+        "mask_character": Config().mask_flag,
     }
 
     if hparams.apply_attn:
@@ -133,7 +132,7 @@ def train(hparams, config):
         "default_root_dir": hparams.log_dir,
         "log_every_n_steps": 1,
         "terminate_on_nan": True,
-        "logger": logger
+        "logger": logger,
     }
 
     if hparams.tune_initial_lr:
@@ -146,12 +145,16 @@ def train(hparams, config):
     else:
         trainer = pl.Trainer(**trainer_kwargs)
 
-    trainer.fit(model, train_loader, val_loader, ckpt_path=checkpoint_file if os.path.isfile(checkpoint_file) else None)
+    trainer.fit(
+        model,
+        train_loader,
+        val_loader,
+        ckpt_path=checkpoint_file if os.path.isfile(checkpoint_file) else None,
+    )
     results = trainer.validate(model, val_loader)[0]
     print(results)
     with open(result_file, "w") as dst:
         dst.write(f"val_loss:{results['val_loss']}")
-    
 
 
 def main(args):

@@ -5,7 +5,7 @@ from beetles.config import Config
 
 
 def parser():
-    
+
     ap = ArgumentParser()
     ap.add_argument("--version", action="version", version="0.0.1-alpha")
     # infer
@@ -25,9 +25,7 @@ def parser():
         type=str,
         help="filename extension of saved model files",
     )
-    infer_parser.add_argument(
-        "wav_file", type=str, help=".wav file to predict"
-    )
+    infer_parser.add_argument("wav_file", type=str, help=".wav file to predict")
     infer_parser.add_argument(
         "-o",
         "--output_csv_path",
@@ -84,7 +82,7 @@ def parser():
 
     # train
     train_parser = subparsers.add_parser("train", add_help=True)
-    
+
     tunable = train_parser.add_argument_group(
         title="tunable args", description="arguments in this group are" " tunable"
     )
@@ -223,16 +221,16 @@ def parser():
     )
     # label
     label_parser = subparsers.add_parser("label", add_help=True)
-    label_parser.add_argument(
-        "wav_file", type=str, help="which .wav file to analyze"
-    )
+    label_parser.add_argument("wav_file", type=str, help="which .wav file to analyze")
     label_parser.add_argument(
         "output_csv_path", type=str, help="where to save the labels"
     )
     # viz
     viz_parser = subparsers.add_parser("viz", add_help=True)
     viz_parser.add_argument(
-        "data_path", type=str, help="location of debugging data (directory, output of beetles infer --debug"
+        "data_path",
+        type=str,
+        help="location of debugging data (directory, output of beetles infer --debug",
     )
     viz_parser.add_argument(
         "--sample_rate", type=int, default=48000, help="sample rate of audio recording"
@@ -247,38 +245,71 @@ def parser():
 
 
 def main():
-    config_path = os.path.join(os.path.expanduser("~"), ".cache", "beetles", "params.yaml")
+    config_path = os.path.join(
+        os.path.expanduser("~"), ".cache", "beetles", "params.yaml"
+    )
     if os.path.isfile(config_path):
-        print(f'loading configuration from {config_path}')
+        print(f"loading configuration from {config_path}")
         config = Config(config_file=config_path)
     else:
         config = Config()
-        
+
     ap = parser()
     args = ap.parse_args()
-    
-    if args.command == "label":
-        from beetles.label import main
 
-        main(config, args)
+    if args.command == "label":
+        from beetles.label import label
+
+        label(config, wav_file=args.wav_file, output_csv_path=args.output_csv_path)
     elif args.command == "train":
         from beetles.train import train
 
-        train(args, config)
+        # too many hparams to pass in
+        # arguments in the function
+        train(config, args)
     elif args.command == "extract":
-        from beetles.extract_data import main
+        from beetles.extract_data import extract
 
-        main(args, config)
+        extract(
+            config,
+            random_seed=args.random_seed,
+            no_mel_scale=args.no_mel_scale,
+            n_fft=args.n_fft,
+            data_dir=args.data_dir,
+            output_data_path=args.output_data_path,
+        )
     elif args.command == "viz":
         from beetles.visualize import main
 
-        main(args, config)
+        main(
+            config,
+            data_path=args.data_path,
+            hop_length=args.hop_length,
+            sample_rate=args.sample_rate,
+        )
+
     elif args.command == "infer":
         from beetles.infer import run_inference
+
         if args.debug is None and args.output_csv_path is None:
             raise ValueError("Must specify either --output_csv_path or --debug.")
 
-        delattr(args, "command")
-        run_inference(config, **dict(vars(args)))
+        run_inference(
+            config,
+            wav_file=args.wav_file,
+            output_csv_path=args.output_csv_path,
+            saved_model_directory=args.saved_model_directory,
+            model_extension=args.model_extension,
+            tile_overlap=args.tile_overlap,
+            tile_size=args.tile_size,
+            batch_size=args.batch_size,
+            input_channels=args.input_channels,
+            hop_length=args.hop_length,
+            vertical_trim=args.vertical_trim,
+            n_fft=args.n_fft,
+            debug=args.debug,
+            num_threads=args.num_threads,
+        )
+
     else:
         ap.print_usage()

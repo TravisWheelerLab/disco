@@ -39,7 +39,6 @@ def add_example(
 
 
 class SimpleLabeler:
-    
     def __init__(self, wav_file, output_csv_path, config):
 
         self.wav_file = wav_file
@@ -48,9 +47,11 @@ class SimpleLabeler:
         self.forbidden_keys = ("a", "t", "g", "j", "d", "c", "v", "q")
         for key in self.config.label_keys:
             if key in self.forbidden_keys:
-                raise ValueError(f"Cannot override default keypress {key}, change"
-                                 " value in config file")
-        
+                raise ValueError(
+                    f"Cannot override default keypress {key}, change"
+                    " value in config file"
+                )
+
         if not os.path.isdir(os.path.dirname(os.path.abspath(self.output_csv_path))):
             os.makedirs(os.path.dirname(os.path.abspath(self.output_csv_path)))
 
@@ -94,11 +95,11 @@ class SimpleLabeler:
         self.label_list = []
 
         self.ax1.imshow(
-            self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval], origin='upper'
+            self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval],
+            origin="upper",
         )
-        self.ax1.axis('off')
-        self.ax2.axis('off')
-
+        self.ax1.axis("off")
+        self.ax2.axis("off")
 
         self.ax1.set_title(
             "Press left mouse button and drag "
@@ -162,7 +163,7 @@ class SimpleLabeler:
             self.spectrogram[
                 self.vertical_cut :, self.n + self.xmin : self.n + self.xmax
             ],
-            origin='upper'
+            origin="upper",
         )
         self.ax2.set_title("selected region")
         self.fig.canvas.draw()
@@ -173,7 +174,7 @@ class SimpleLabeler:
         self.ax1.imshow(
             self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval],
             aspect="auto",
-            origin='upper'
+            origin="upper",
         )
         self.ax1.set_title(
             "Press left mouse button and drag "
@@ -189,7 +190,7 @@ class SimpleLabeler:
         self.xmax = int(x_max)
         if (self.xmax - self.xmin) >= 2:
             self._redraw_ax2()
-            
+
     def process_keystroke(self, key):
 
         if key.key in self.config.label_keys:
@@ -203,7 +204,7 @@ class SimpleLabeler:
                 hop_length=self.hop_length,
                 sample_rate=self.sample_rate,
             )
-        elif key.key == 'r':
+        elif key.key == "r":
             if len(self.label_list):
                 self.label_list.pop()
                 print("deleting last selection")
@@ -244,8 +245,9 @@ class SimpleLabeler:
             print("unknown key pressed")
 
 
-def main(config, args):
-    labeler = SimpleLabeler(args.wav_file, args.output_csv_path, config=config)
+def label(config, wav_file, output_csv_path):
+
+    labeler = SimpleLabeler(wav_file, output_csv_path, config=config)
     plt.show()
     labeler.show()
     labeler.save_labels()

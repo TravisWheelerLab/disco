@@ -199,7 +199,9 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
         else:
             spect_slice = torch.tensor(spect)
             label_tensor = torch.tensor(
-                np.repeat(a=self.config.name_to_class_code[label], repeats=len(spect[1]))
+                np.repeat(
+                    a=self.config.name_to_class_code[label], repeats=len(spect[1])
+                )
             )
         return spect_slice, label_tensor
 

@@ -16,12 +16,14 @@ def w2s_idx(idx, hop_length):
     return idx // hop_length
 
 
-def create_label_to_spectrogram(spect,
-                                labels,
-                                hop_length,
-                                name_to_class_code,
-                                excluded_classes,
-                                neighbor_tolerance=100):
+def create_label_to_spectrogram(
+    spect,
+    labels,
+    hop_length,
+    name_to_class_code,
+    excluded_classes,
+    neighbor_tolerance=100,
+):
     """
     Accepts a spectrogram (torch.Tensor) and labels (pd.DataFrame) and returns
     a song type and a list of tensors of those spectrograms as a value. e.g.:
@@ -71,11 +73,11 @@ def create_label_to_spectrogram(spect,
             if first:
                 overall_begin = row["begin spect idx"]
                 first = False
-                
+
             sound_begin = row["begin spect idx"] - overall_begin
             sound_end = row["end spect idx"] - overall_begin
             label_vector[sound_begin:sound_end] = name_to_class_code[row["Sound_Type"]]
-            
+
         features_and_labels.append([spect_slice, label_vector])
 
     return features_and_labels
@@ -87,7 +89,9 @@ def convert_time_to_index(time, sample_rate):
     return np.round(time * sample_rate).astype(np.int)
 
 
-def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, config, hop_length=200):
+def process_wav_file(
+    wav_filename, csv_filename, n_fft, mel_scale, config, hop_length=200
+):
     # reads the csv into a pandas df called labels, extracts waveform and sample_rate.
     labels = pd.read_csv(csv_filename)
     waveform, sample_rate = torchaudio.load(wav_filename)
@@ -108,9 +112,11 @@ def process_wav_file(wav_filename, csv_filename, n_fft, mel_scale, config, hop_l
     # dictionary containing all pre-labeled chirps and their associated spectrograms
     spect = spect.squeeze()
     features_and_labels = create_label_to_spectrogram(
-        spect, labels, hop_length=hop_length,
+        spect,
+        labels,
+        hop_length=hop_length,
         name_to_class_code=config.name_to_class_code,
-        excluded_classes=config.excluded_classes
+        excluded_classes=config.excluded_classes,
     )
 
     return features_and_labels
@@ -178,14 +184,11 @@ def save_data(out_path, data_list, index_to_label):
             pickle.dump([features.numpy(), label_vector], dst)
 
 
-def main(args, config):
-    random.seed(args.random_seed)
-    np.random.seed(args.random_seed)
+def extract(config, random_seed, no_mel_scale, n_fft, data_dir, output_data_path):
+    random.seed(random_seed)
+    np.random.seed(random_seed)
 
-    mel = True if not args.no_mel_scale else False  # i want default True
-    n_fft = args.n_fft
-
-    data_dir = args.data_dir
+    mel = not no_mel_scale
 
     csv_and_wav = load_csv_and_wav_files_from_directory(data_dir)
 
@@ -198,19 +201,19 @@ def main(args, config):
     random.shuffle(out)
     indices = np.arange(len(out))
     train_idx, test_idx, _, _ = train_test_split(
-        indices, indices, test_size=0.15, random_state=args.random_seed
+        indices, indices, test_size=0.15, random_state=random_seed
     )
     test_idx, val_idx, _, _ = train_test_split(
-        test_idx, test_idx, test_size=0.5, random_state=args.random_seed
+        test_idx, test_idx, test_size=0.5, random_state=random_seed
     )
 
     train_split = np.asarray(out)[train_idx]
     val_split = np.asarray(out)[val_idx]
     test_split = np.asarray(out)[test_idx]
 
-    train_path = os.path.join(args.output_data_path, "train")
-    validation_path = os.path.join(args.output_data_path, "validation")
-    test_path = os.path.join(args.output_data_path, "test")
+    train_path = os.path.join(output_data_path, "train")
+    validation_path = os.path.join(output_data_path, "validation")
+    test_path = os.path.join(output_data_path, "test")
 
     save_data(train_path, train_split, config.index_to_label)
     save_data(validation_path, val_split, config.index_to_label)

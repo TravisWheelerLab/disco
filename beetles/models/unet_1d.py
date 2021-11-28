@@ -236,4 +236,3 @@ class UNet1D(pl.LightningModule):
         val_acc = torch.mean(torch.stack(val_acc))
         self.log("val_loss", val_loss)
         self.log("val_acc", val_acc)
-
