@@ -1,0 +1,36 @@
+# name of each class to it's numeric id.
+name_to_index: {"A": 0, "B": 1, "BACKGROUND": 2}
+# transition matrix. 0th axis indices should be the same as the ones
+# in name_to_index.
+hmm_transition_probabilities: [
+  [0.995, 0.00000, 0.005],
+  [0.0000, 0.995, 0.005],
+  [0.00001, 0.00049, 0.9995],
+]
+# Where to start the hmm.
+hmm_start_probabilities: [0, 0, 1]
+# Emission probs. for the hmm.
+hmm_emission_probabilities: [
+  {0: 0.995, 1: 0.00005, 2: 0.00495},
+  {0: 0.1, 1: 0.88, 2: 0.020},
+  {0: 0.05, 1: 0.05, 2: 0.9},
+]
+# What number to use as the mask flag.
+mask_flag: -1
+# Classes to exclude from data extraction.
+excluded_classes: ["Y", "C"]
+# Mapping from class code to class name.
+class_code_to_name: {0: "A", 1: "B", 2: "BACKGROUND"}
+# Colors used for each class for visualization.
+name_to_rgb_code: {"A": "#b65b47", "B": "#A36DE9", "BACKGROUND": "#AAAAAA"}
+# torchaudio.Spectrogram default number of bins.
+default_spectrogram_num_rows: 128
+# number of ffts for visualization.
+visualization_n_fft: 1150
+# How many rows to remove from the beginning of the spectrogram.
+# In effect, this is a high pass square-wave filter.
+vertical_cut: 20
+# Mapping from keyboard key to label. Ingested in label.py.
+# This is how you define a custom key to label sounds with.
+# Capital letters are accepted.
+key_to_label: {"y": "A", "w": "B", "e": "BACKGROUND"}
