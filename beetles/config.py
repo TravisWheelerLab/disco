@@ -26,6 +26,7 @@ class Config:
     class_code_to_name = {0: "A", 1: "B", 2: "BACKGROUND"}
 
     sound_type_to_color = {"A": "r", "B": "y", "BACKGROUND": "k"}
+    name_to_rgb_code = {"A": "#b65b47", "B": "#A36DE9", "BACKGROUND": "#AAAAAA"}
     aws_download_link = "https://beetles-cnn-models.s3.amazonaws.com/model_{}.pt"
     default_spectrogram_num_rows = 128
 

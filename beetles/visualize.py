@@ -60,15 +60,12 @@ def main(config, data_path, hop_length, sample_rate):
     iqr_no_mods = iqr.copy()
     median_argmax = np.argmax(medians, axis=0)
 
-    name_to_rgb_code = {"A": "#b65b47", "B": "#A36DE9", "BACKGROUND": "#AAAAAA"}
-
-    plot_background = True
-
     for class_index, name in config.class_code_to_name.items():
-        if name != "BACKGROUND" or plot_background:
-            all_class = median_argmax == class_index
-            x = range(0, all_class.shape[-1])
-            ax[1].fill_between(x, 15, 19, where=all_class, color=name_to_rgb_code[name])
+        all_class = median_argmax == class_index
+        x = range(0, all_class.shape[-1])
+        ax[1].fill_between(
+            x, 15, 19, where=all_class, color=config.name_to_rgb_code[name]
+        )
 
     post_hmm = infer.smooth_predictions_with_hmm(median_argmax, config=config)
     post_hmm = heuristics.remove_a_chirps_in_between_b_chirps(
@@ -76,10 +73,11 @@ def main(config, data_path, hop_length, sample_rate):
     )
 
     for class_index, name in config.class_code_to_name.items():
-        if name != "BACKGROUND" or plot_background:
-            all_class = post_hmm == class_index
-            x = range(0, all_class.shape[-1])
-            ax[1].fill_between(x, 10, 14, where=all_class, color=name_to_rgb_code[name])
+        all_class = post_hmm == class_index
+        x = range(0, all_class.shape[-1])
+        ax[1].fill_between(
+            x, 10, 14, where=all_class, color=config.name_to_rgb_code[name]
+        )
 
     ax[1].axis("off")
     spectrogram = np.flip(spectrogram, axis=0)
