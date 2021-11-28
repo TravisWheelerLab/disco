@@ -22,6 +22,17 @@ def add_example(
     hop_length=None,
     sample_rate=None,
 ):
+    """
+    Adds an example to the label list.
+    :param label_list:
+    :param wav_file:
+    :param begin_idx:
+    :param end_idx:
+    :param sound_type:
+    :param hop_length:
+    :param sample_rate:
+    :return:
+    """
     begin_time = infer.convert_spectrogram_index_to_seconds(
         begin_idx, hop_length=hop_length, sample_rate=sample_rate
     )
@@ -39,6 +50,12 @@ def add_example(
 
 
 class SimpleLabeler:
+    """
+    This class uses matplotlib widgets to label a spectrogram.
+    Can be customized by a beetles.Config() object.
+
+    """
+
     def __init__(self, wav_file, output_csv_path, config):
 
         self.wav_file = wav_file
@@ -248,6 +265,13 @@ class SimpleLabeler:
 
 
 def label(config, wav_file, output_csv_path):
+    """
+    Runner file to apply the SimpleLabeler to a .wav file.
+    :param config: beetles.Config() object.
+    :param wav_file: .wav file to label.
+    :param output_csv_path:  Where to save the labels.
+    :return: None.
+    """
 
     labeler = SimpleLabeler(wav_file, output_csv_path, config=config)
     plt.show()

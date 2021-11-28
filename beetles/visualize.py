@@ -20,7 +20,15 @@ def load_arrays(data_root):
     return medians, spectrogram, post_hmm, iqr
 
 
-def main(config, data_path, hop_length, sample_rate):
+def visualize(config, data_path, hop_length, sample_rate):
+    """
+    Visualize predictions interactively.
+    :param config:
+    :param data_path:
+    :param hop_length:
+    :param sample_rate:
+    :return:
+    """
     # TODO: refactor so this function isn't so massive
     medians, spectrogram, post_hmm, iqr = load_arrays(data_path)
     median_argmax = np.argmax(medians, axis=0)

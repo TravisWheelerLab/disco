@@ -3,6 +3,11 @@ import os
 
 
 class Config:
+    """
+    Class that contains all of the configuration variables for this project.
+    If a .yaml file is passed in upon creation, it'll parse the yaml file
+    and overwrite default config values with those in the yaml file.
+    """
 
     default_model_directory = os.path.join(os.path.expanduser("~"), ".cache", "beetles")
 

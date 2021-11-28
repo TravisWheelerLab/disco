@@ -279,9 +279,9 @@ def main():
             output_data_path=args.output_data_path,
         )
     elif args.command == "viz":
-        from beetles.visualize import main
+        from beetles.visualize import visualize
 
-        main(
+        visualize(
             config,
             data_path=args.data_path,
             hop_length=args.hop_length,

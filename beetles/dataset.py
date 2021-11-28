@@ -10,6 +10,11 @@ import torch
 
 
 def pad_batch(batch, mask_flag):
+    """
+    :param batch: The batch to pad.
+    :param mask_flag: int. What character to interpret as the mask.
+    :return: The padded batch.
+    """
     features = [b[0] for b in batch]
     labels = [b[1] for b in batch]
 
@@ -27,6 +32,10 @@ def pad_batch(batch, mask_flag):
 
 
 def _load_pickle(f):
+    """
+    :param f: file containing the pickled object
+    :return: the unpickled object
+    """
     with open(f, "rb") as src:
         return pickle.load(src)
 
@@ -97,6 +106,9 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
         return len(self.examples)
 
     def get_unique_labels(self):
+        """
+        :return: The number of unique labels in the dataset.
+        """
         return self.unique_labels.keys()
 
 

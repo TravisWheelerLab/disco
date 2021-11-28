@@ -1,12 +1,19 @@
 import numpy as np
 import beetles.inference_utils as infer
 
-__all__ = ["remove_short_chirps_and_a_chirps_before_b_chirps"]
-
 
 def remove_a_chirps_in_between_b_chirps(
     predictions, iqr, name_to_class_code, return_preds=True
 ):
+    """
+
+    :param predictions: np.array (size 1xN) containing point-wise class predictions.
+    :param iqr: inter-quartile range of model ensemble.
+    :param name_to_class_code: Mapping from name of class to the class code (ex: {"A":2}).
+    :param return_preds: bool, default True. Whether or not to return prediction array or a pd.DataFrame containing
+    records of begin, end, and sound type.
+    :return: prediction array or pd.DataFrame.
+    """
 
     transitions = infer.aggregate_predictions(predictions)
     new_list = []

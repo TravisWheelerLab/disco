@@ -30,6 +30,29 @@ def run_inference(
     debug=None,
     num_threads=4,
 ):
+    """
+    Script to run the inference routine. Briefly: Model ensemble is loaded in, used to evaluate the spectrogram, and
+    heuristics and the hmm are applied to the ensemble's predictions. The .csv containing model labels is saved and
+    debugging information is saved depending on whether or not debug is a string or None.
+
+    The ensemble predicts a .wav file quickly and seamlessly by using an overlap-tile strategy.
+
+    :param config: beetles.Config() object.
+    :param wav_file: str. .wav file to analyze.
+    :param output_csv_path: str. Where to save predictions.
+    :param saved_model_directory: str. Where models are saved.
+    :param model_extension: str. Model file suffix. Default ".pt".
+    :param tile_overlap: How much to overlap subsequent evaluation windows.
+    :param tile_size: Size of tiles ingested into ensemble.
+    :param batch_size: How many tiles to evaluate in parallel.
+    :param input_channels: Number of input channels for the model ensemble.
+    :param hop_length: Used in spectrogram calculation.
+    :param vertical_trim: How many rows to chop off from the beginning of the spectrogram (in effect, a high-pass filter).
+    :param n_fft: N ffts to use when calulating the spectrogram.
+    :param debug: str. Whether or not to save debugging data. None: Don't save, str: save in "str".
+    :param num_threads: How many threads to use when loading data.
+    :return: None. Everything relevant is saved to disk.
+    """
 
     if tile_size % 2 != 0:
         raise ValueError("tile_size must be even, got {}".format(tile_size))

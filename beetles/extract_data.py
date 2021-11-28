@@ -12,7 +12,12 @@ from sklearn.model_selection import train_test_split
 
 
 def w2s_idx(idx, hop_length):
-    # waveform to spectrogram index
+    """
+    Converts .wav file index to spectrogram index.
+    :param idx: Index to convert.
+    :param hop_length: Length between subsequent spectrogram windows.
+    :return:
+    """
     return idx // hop_length
 
 
@@ -27,9 +32,15 @@ def create_label_to_spectrogram(
     """
     Accepts a spectrogram (torch.Tensor) and labels (pd.DataFrame) and returns
     a song type and a list of tensors of those spectrograms as a value. e.g.:
+
     len(label_to_spectrogram['A']) = 49 (number of sounds of this subtype)
     type(label_to_spectrogram['A']) = class 'list'
     type(label_to_spectrogram['A'][0]) = class 'torch.Tensor'
+
+    If two labeled regions are within :param: neighbor_tolerance of one another they'll be considered
+    one example and saved as one array.
+
+    :return: list: List of lists. Each sublist contains a feature tensor and the associated vector of labels.
     """
 
     labels["begin spect idx"] = [w2s_idx(x, hop_length) for x in labels["begin idx"]]
@@ -84,14 +95,30 @@ def create_label_to_spectrogram(
 
 
 def convert_time_to_index(time, sample_rate):
-    # np.round is good enough for our purposes
-    # since we have a really high sample rate, and the chirps exist for a second or two
+    """
+    Converts time (seconds) to .wav file index.
+    :param time: int. The time to convert.
+    :param sample_rate: int. The sample rate of the .wav file
+    :return: int. converted index.
+    """
     return np.round(time * sample_rate).astype(np.int)
 
 
 def process_wav_file(
     wav_filename, csv_filename, n_fft, mel_scale, config, hop_length=200
 ):
+    """
+    Applies the labels contained in csv_filename to the .wav file and extracts the labeled regions.
+    n_fft controls to number of fast fourier transform components to
+    :param wav_filename: .wav file containing the recording.
+    :param csv_filename: Csv file containing the labels.
+    :param n_fft: Number of ffts to use when calculating the spectrogram.
+    :param mel_scale: bool. Whether or not to calculate a MelSpectrogram.
+    :param config: beetles.Config object. Controls the mapping from class name to class code and the classes to exclude
+    from the labeled sounds.
+    :param hop_length: int. Hop length between subsequent fft calculations when forming the spectrogram.
+    :return: list: List of lists. Each sublist contains a feature tensor and the associated vector of labels.
+    """
     # reads the csv into a pandas df called labels, extracts waveform and sample_rate.
     labels = pd.read_csv(csv_filename)
     waveform, sample_rate = torchaudio.load(wav_filename)
@@ -123,8 +150,21 @@ def process_wav_file(
 
 
 def load_csv_and_wav_files_from_directory(data_dir):
-    # takes in a directory String and returns a dictionary with a key as the file label and a value
-    # as a list with index 0 as the wav file and index 1 as the csv file
+    """
+    Loads .csv and .wav files from the data directory. Assumes a hierarchical structure:
+    data_dir
+      label_set_1
+         label_1.wav
+         label_1.csv
+      label_set_2
+         label_2.wav
+         label_2.csv
+    It gets these .wav and .csv pairs. If there are multiple .csv or .wav files in the same subdirectory, this function
+    passes over them.
+    :param data_dir: string. Parent directory of subdirectories containing the .wav and .csv pairs.
+    :return: Dict. Keys are the basename of the .wav file and values are two-element lists, containing the .wav filenane as the first
+    element and the .csv filename as the second.
+    """
     dirs = os.listdir(data_dir)
     csvs_and_wav = {}
     for d in dirs:
@@ -133,34 +173,37 @@ def load_csv_and_wav_files_from_directory(data_dir):
             wav = glob(os.path.join(data_dir, d, "*WAV")) + glob(
                 os.path.join(data_dir, d, "*wav")
             )
-            if len(wav) and len(labels):
+            if len(wav) == 1 and len(labels) == 1:
                 csvs_and_wav[os.path.splitext(os.path.basename(wav[0]))[0]] = [
                     wav[0],
                     labels[0],
                 ]
+            elif len(wav) == 0 or len(labels) == 0:
+                print(
+                    "found {} wav files and {} csvs in directory {}".format(
+                        len(wav), len(labels), d
+                    )
+                )
             else:
-                # print('found {} wav files and {} csvs in directory {}'.format(len(wav), len(labels), d))
-                pass
+                print(
+                    "found {} wav files and {} csvs in directory {}.\n"
+                    "Passing.".format(len(wav), len(labels), d)
+                )
+
     return csvs_and_wav
 
 
-def form_spectrogram_type(mel, n_fft):
-    # creates a string to attach to the BeetleFile object that will allow for offloading the files in data_loader
-    # to go in the correct directory that matches the type of spectrogram we created.
-    directory_location = ""
-
-    # add mel information
-    if mel:
-        directory_location = directory_location + "mel_"
-    else:
-        directory_location = directory_location + "no_mel_"
-
-    directory_location = directory_location + str(n_fft)
-
-    return directory_location
-
-
 def save_data(out_path, data_list, index_to_label):
+    """
+    Saves features and labels as pickled numpy arrays.
+    Throws away labels > 10000 records. Each pickled array is assigned a filename based on the maximum number of
+    class labels in the label vector.
+    :param out_path: str. Where to save the pickled data.
+    :param data_list: List of 2-element lists, where the first element are the features and the second the point-wise
+    label vector.
+    :param index_to_label: Mapping from class index to class name.
+    :return: None.
+    """
     os.makedirs(out_path, exist_ok=True)
 
     for i, (features, label_vector) in enumerate(data_list):
@@ -185,6 +228,18 @@ def save_data(out_path, data_list, index_to_label):
 
 
 def extract(config, random_seed, no_mel_scale, n_fft, data_dir, output_data_path):
+    """
+    Function to wrap the data loading, extraction, and saving routine.
+    Loads data from data_dir, calculates spectrogram, extracts labeled regions based on the .csv
+    file, and saves the regions to disk after shuffling and splitting into train/test/validation splits randomly.
+    :param config: beetles.Config() object.
+    :param random_seed: int. What to seed RNGs with for reproducibility.
+    :param no_mel_scale: Whether or not to use the mel scale.
+    :param n_fft: How many ffts to use when calculating the spectrogram.
+    :param data_dir: Where the .wav and .csv files are stored.
+    :param output_data_path: Where to save the extracted data.
+    :return: None.
+    """
     random.seed(random_seed)
     np.random.seed(random_seed)
 

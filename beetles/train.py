@@ -15,10 +15,14 @@ from beetles.dataset import SpectrogramDatasetMultiLabel, pad_batch
 from beetles.config import Config
 from shopty import ShoptyConfig
 
-__all__ = ["train"]
-
 
 def train(config, hparams):
+    """
+    Training script.
+    :param config: beetles.Config() object.
+    :param hparams: NameSpace containing all parameters used to train the model.
+    :return: None.
+    """
 
     train_path = os.path.join(hparams.data_path, "train", "*")
     val_path = os.path.join(hparams.data_path, "validation", "*")
@@ -158,4 +162,5 @@ def train(config, hparams):
 
 
 def main(args):
+    """Run as a module."""
     train(args)

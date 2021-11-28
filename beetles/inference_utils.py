@@ -17,6 +17,13 @@ import beetles.heuristics as heuristics
 
 
 def create_hmm(transition_matrix, emission_probs, start_probs):
+    """
+    Defines the hmm to smooth post-ensemble predictions.
+    :param transition_matrix: List of lists describing the hmm transition matrix.
+    :param emission_probs: List of dicts.
+    :param start_probs: List.
+    :return: the pomegranate.HiddenMarkovModel specified by the inputs.
+    """
 
     dists = []
 
@@ -33,6 +40,12 @@ def create_hmm(transition_matrix, emission_probs, start_probs):
 
 
 def download_models(directory, aws_download_link):
+    """
+    Download models from an AWS bucket.
+    :param directory: Where to save the models.
+    :param aws_download_link: The AWS link to download from.
+    :return: None. Models are saved locally.
+    """
 
     if not os.path.isdir(directory):
         os.makedirs(directory)
@@ -52,6 +65,13 @@ def download_models(directory, aws_download_link):
 
 
 def aggregate_predictions(predictions):
+    """
+    Converts an array of predictions into a dictionary containing as keys the class index
+    and as values 2-element lists containing the start of a predicted class and the end of the predicted class.
+
+    :param predictions: np.array, Nx1, containing pointwise predictions.
+    :return: Dict mapping class index to prediction start and end.
+    """
     if predictions.ndim != 1:
         raise ValueError("expected array of size N, got {}".format(predictions.shape))
 
@@ -81,11 +101,25 @@ def aggregate_predictions(predictions):
 
 
 def convert_spectrogram_index_to_seconds(spect_idx, hop_length, sample_rate):
+    """
+    Converts spectrogram index back to seconds.
+    :param spect_idx: Int.
+    :param hop_length: Int.
+    :param sample_rate: Int.
+    :return:
+    """
     seconds_per_hop = hop_length / sample_rate
     return spect_idx * seconds_per_hop
 
 
 def pickle_tensor(data, path):
+    """
+    Pickles a pytorch tensor. If .numpy() isn't called, the entire computational graph is saved resulting in 100s of
+    GBs of data.
+    :param data: the np.array or torch.Tensor to pickle.
+    :param path: Where to save the pickled input.
+    :return: None.
+    """
 
     if not isinstance(data, np.ndarray):
         data = data.numpy()
@@ -95,6 +129,11 @@ def pickle_tensor(data, path):
 
 
 def load_pickle(path):
+    """
+    Load a pickled object.
+    :param path: Filename of object.
+    :return: Unpickled object.
+    """
     with open(path, "rb") as src:
         data = pickle.load(src)
     return data
@@ -103,6 +142,17 @@ def load_pickle(path):
 def save_csv_from_predictions(
     output_csv_path, predictions, sample_rate, hop_length, name_to_class_code
 ):
+    """
+    Ingest a Nx1 np.array of point-wise predictions and save a .csv with
+    Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz),Sound_Type
+    columns.
+    :param output_csv_path: str. where to save the .csv of predictions.
+    :param predictions: Nx1 numpy array of predictions.
+    :param sample_rate: Sample rate of predicted .wav file.
+    :param hop_length: Spectrogram hop length.
+    :param name_to_class_code: mapping from class name to class code (ex {"A":1}).
+    :return: pandas.DataFrame describing the saved csv.
+    """
     # We just need to get the beginning and end of each chirp and convert those
     # to seconds.
     class_idx_to_prediction_start_end = aggregate_predictions(predictions)
@@ -151,7 +201,9 @@ def save_csv_from_predictions(
 
 def smooth_predictions_with_hmm(unsmoothed_predictions, config):
     """
-    :param unsmoothed_predictions: np array of point-wise argmaxed predictions (size N).
+    Run the hmm defined by the config on the point-wise predictions.
+    :param unsmoothed_predictions: np array of point-wise argmaxed predictions (size Nx1).
+    :param config: beetles.Config() object.
     :return: smoothed predictions
     """
     if unsmoothed_predictions.ndim != 1:
@@ -172,7 +224,12 @@ def smooth_predictions_with_hmm(unsmoothed_predictions, config):
 
 
 def convert_argmaxed_array_to_rgb(predictions):
-    # data: array of shape 1xN
+    """
+    Utility function for visualization. Converts categorical labels (0, 1, 2) to RGB vectors ([1, 0, 0], [0, 1, 0],
+    [0, 0, 1])
+    :param predictions: Nx1 np.array.
+    :return: Nx3 np.array.
+    """
     rgb = np.zeros((1, predictions.shape[-1], 3))
     for class_idx in CLASS_CODE_TO_NAME.keys():
         rgb[:, np.where(predictions == class_idx), class_idx] = 1
@@ -180,11 +237,25 @@ def convert_argmaxed_array_to_rgb(predictions):
 
 
 def convert_time_to_spect_index(time, hop_length, sample_rate):
+    """
+    Converts time (seconds) to spectrogram index.
+    :param time: int. Time in whatever unit your .wav file was sampled with.
+    :param hop_length: Spectrogram calculation parameter.
+    :param sample_rate: Sample rate of recording.
+    :return: int. Spectrogram index of the time passed in.
+    """
+
     return np.round(time * sample_rate).astype(np.int) // hop_length
 
 
-# TODO: move
 def load_prediction_csv(csv_path, hop_length, sample_rate):
+    """
+    Utility function to load a prediction csv for visualization.
+    :param csv_path: Path to the .csv containing predictions.
+    :param hop_length:
+    :param sample_rate:
+    :return:
+    """
     df = pd.read_csv(csv_path)
     df["Begin Spect Index"] = [
         convert_time_to_spect_index(x, hop_length, sample_rate)
@@ -197,78 +268,16 @@ def load_prediction_csv(csv_path, hop_length, sample_rate):
     return df
 
 
-def plot_predictions_and_confidences(
-    original_spectrogram,
-    median_predictions,
-    prediction_iqrs,
-    hmm_predictions,
-    processed_predictions,
-    save_prefix,
-    n_images=10,
-    len_sample=1000,
-):
-    len_spect = len_sample // 2
-    inits = np.round(
-        np.random.rand(n_images) * median_predictions.shape[-1] - len_spect
-    ).astype(int)
-    # oof lots of plotting code
-    for i, center in enumerate(inits):
-        fig, ax = plt.subplots(nrows=2, figsize=(13, 10), sharex=True)
-        ax[0].imshow(
-            original_spectrogram[:, center - len_spect : center + len_spect],
-            aspect="auto",
-        )
-        med_slice = median_predictions[:, center - len_spect : center + len_spect]
-        iqr_slice = prediction_iqrs[:, center - len_spect : center + len_spect]
-        hmm_slice = hmm_predictions[center - len_spect : center + len_spect]
-        med_slice = np.transpose(med_slice)
-        iqr_slice = np.transpose(iqr_slice)
-
-        med_slice = np.expand_dims(med_slice, 0)
-        iqr_slice = np.expand_dims(iqr_slice, 0)
-
-        hmm_rgb = convert_argmaxed_array_to_rgb(hmm_slice)
-        processed_slice = processed_predictions[center - len_spect : center + len_spect]
-        processed_rgb = convert_argmaxed_array_to_rgb(processed_slice)
-
-        median_argmax = convert_argmaxed_array_to_rgb(np.argmax(med_slice, axis=-1))
-
-        ax[1].imshow(
-            np.concatenate(
-                (med_slice, iqr_slice, median_argmax, processed_rgb, hmm_rgb), axis=0
-            ),
-            aspect="auto",
-            interpolation="nearest",
-        )
-
-        ax[1].set_yticks([0, 1, 2, 3, 4])
-        ax[1].set_yticklabels(
-            [
-                "median prediction",
-                "iqr",
-                "median argmax",
-                "preds. post heuristics",
-                "smoothed w/ hmm",
-            ],
-            rotation=45,
-        )
-
-        ax[1].set_title(
-            "Predictions mapped to RGB values. red: A chirp, green: B chirp, blue: background"
-        )
-        ax[0].set_title(
-            "Random sample from spectrogram created from {}".format(
-                os.path.splitext(os.path.basename(save_prefix))[0]
-            )
-        )
-        ax[0].set_ylabel("frequency bin")
-        ax[1].set_xlabel("spectrogram record")
-        print("saving {}_{}.png".format(save_prefix, i))
-        plt.savefig("{}_{}.png".format(save_prefix, i), bbox_inches="tight")
-        plt.close()
-
-
 def assemble_ensemble(model_directory, model_extension, device, in_channels, config):
+    """
+    Load models in from disk or download them from an AWS bucket.
+    :param model_directory: Location of saved models.
+    :param model_extension: Glob extension to load the models.
+    :param device: 'cuda' or 'cpu'. What device to place the models on.
+    :param in_channels: How many channels the models accepts
+    :param config: beetles.Config() object.
+    :return: list of torch.Models().
+    """
 
     if model_directory is None:
         model_directory = config.default_model_directory
@@ -307,11 +316,23 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
 
 
 def load_wav_file(wav_filename):
+    """
+    Load a .wav file from disk.
+    :param wav_filename: str. .wav file.
+    :return: tuple (torch.Tensor(), int). The .wav file's data and sample rate, respectively.
+    """
     waveform, sample_rate = torchaudio.load(wav_filename)
     return waveform, sample_rate
 
 
 def predict_with_ensemble(ensemble, features):
+    """
+    Predict an array of features with a model ensemble.
+    :param ensemble: List of models.
+    :param features: torch.Tensor.
+    :return: List of np.arrays. One for each model in the ensemble.
+    """
+
     ensemble_preds = []
 
     for model in ensemble:
@@ -322,7 +343,11 @@ def predict_with_ensemble(ensemble, features):
 
 
 def calculate_median_and_iqr(ensemble_preds):
-    # TODO: add docstring
+    """
+    Get the median prediction and iqr of softmax values of the predictions from each model in the ensemble.
+    :param ensemble_preds: List of np.arrays, one for each model.
+    :return: tuple (np.array, np.array) of iqrs and medians.
+    """
 
     iqrs = np.zeros(
         (ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3])
@@ -342,6 +367,15 @@ def calculate_median_and_iqr(ensemble_preds):
 def evaluate_spectrogram(
     spectrogram_dataset, models, tile_overlap, original_spectrogram_shape, device="cpu"
 ):
+    """
+    Use the overlap-tile strategy to seamlessly evaluate a spectrogram.
+    :param spectrogram_dataset: torch.data.DataLoader()
+    :param models: list of model ensemble.
+    :param tile_overlap: How much to overlap the tiles.
+    :param original_spectrogram_shape: Shape of original spectrogram.
+    :param device: 'cuda' or 'cpu'
+    :return: medians and iqrs.
+    """
     assert_accuracy = False
 
     with torch.no_grad():
