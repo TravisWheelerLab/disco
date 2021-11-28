@@ -29,6 +29,8 @@ class Config:
     name_to_rgb_code = {"A": "#b65b47", "B": "#A36DE9", "BACKGROUND": "#AAAAAA"}
     aws_download_link = "https://beetles-cnn-models.s3.amazonaws.com/model_{}.pt"
     default_spectrogram_num_rows = 128
+    visualization_n_fft = 1150
+    vertical_cut = 20
 
     key_to_label = {"y": "A", "w": "B", "e": "BACKGROUND"}
     label_keys = set(key_to_label.keys())

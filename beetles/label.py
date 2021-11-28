@@ -45,6 +45,7 @@ class SimpleLabeler:
         self.output_csv_path = output_csv_path
         self.config = config
         self.forbidden_keys = ("a", "t", "g", "j", "d", "c", "v", "q")
+
         for key in self.config.label_keys:
             if key in self.forbidden_keys:
                 raise ValueError(
@@ -79,12 +80,13 @@ class SimpleLabeler:
 
         self.spectrogram = torchaudio.transforms.MelSpectrogram(
             sample_rate=self.sample_rate,
-            n_fft=1150,
+            n_fft=config.visualization_n_fft,
             hop_length=self.hop_length,
         )(self.waveform).squeeze()
+
         self.spectrogram[self.spectrogram == 0] = 1
-        self.spectrogram = self.spectrogram[20:].log2()
-        self.vertical_cut = 0
+        self.vertical_cut = config.vertical_cut
+        self.spectrogram = self.spectrogram[self.vertical_cut :].log2()
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, figsize=(8, 6))
 
@@ -151,12 +153,12 @@ class SimpleLabeler:
     def save_labels(self):
         if len(self.label_list):
             label_df = pd.DataFrame.from_dict(self.label_list)
-            if os.path.isfile(self.output_csv_path):
-                label_df.to_csv(
-                    self.output_csv_path, index=False, mode="a", header=False
-                )
-            else:
-                label_df.to_csv(self.output_csv_path, index=False, mode="w")
+            label_df.to_csv(
+                self.output_csv_path,
+                index=False,
+                mode="a" if os.path.isfile(self.output_csv_path) else "w",
+                header=False,
+            )
 
     def _redraw_ax2(self):
         self.ax2.imshow(
