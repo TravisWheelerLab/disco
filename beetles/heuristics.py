@@ -36,7 +36,7 @@ def remove_a_chirps_in_between_b_chirps(
             and transitions[i + 1]["class"] == name_to_class_code["B"]
         ):
             print(
-                f"found an A directly in between two Bs f{current_dct['start']}. Changing to background."
+                f"found an A directly in between two Bs at position {current_dct['start']}. Changing to background."
             )
             current_dct["class"] == name_to_class_code["BACKGROUND"]
             predictions[current_dct["start"] : current_dct["end"]] = name_to_class_code[
