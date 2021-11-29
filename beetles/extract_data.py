@@ -16,7 +16,7 @@ def w2s_idx(idx, hop_length):
     Converts .wav file index to spectrogram index.
     :param idx: Index to convert.
     :param hop_length: Length between subsequent spectrogram windows.
-    :return:
+    :return: Converted index.
     """
     return idx // hop_length
 
@@ -89,7 +89,7 @@ def create_label_to_spectrogram(
             sound_end = row["end spect idx"] - overall_begin
             label_vector[sound_begin:sound_end] = name_to_class_code[row["Sound_Type"]]
 
-        features_and_labels.append([spect_slice, label_vector])
+        features_and_labels.append([spect_slice.numpy(), label_vector])
 
     return features_and_labels
 
@@ -104,9 +104,7 @@ def convert_time_to_index(time, sample_rate):
     return np.round(time * sample_rate).astype(np.int)
 
 
-def process_wav_file(
-    wav_filename, csv_filename, n_fft, mel_scale, config, hop_length=200
-):
+def process_wav_file(csv_filename, n_fft, mel_scale, config, hop_length=200):
     """
     Applies the labels contained in csv_filename to the .wav file and extracts the labeled regions.
     n_fft controls to number of fast fourier transform components to
@@ -120,7 +118,22 @@ def process_wav_file(
     :return: list: List of lists. Each sublist contains a feature tensor and the associated vector of labels.
     """
     # reads the csv into a pandas df called labels, extracts waveform and sample_rate.
+
     labels = pd.read_csv(csv_filename)
+
+    if "Filename" in labels.keys():
+        wav_filename = labels.iloc[0]["Filename"]
+    else:
+        wav_filename = os.path.splitext(csv_filename)[0] + ".wav"
+
+    if not os.path.isfile(wav_filename):
+
+        raise ValueError(
+            f"couldn't find .wav file at {wav_filename}. "
+            f"Make sure the correct .wav file is in the filename column of {csv_filename},"
+            f" or that the .wav file has the name filename as the csv but with the .wav extension."
+        )
+
     waveform, sample_rate = torchaudio.load(wav_filename)
     # adds additional columns to give indices of these chirp locations
     labels["begin idx"] = convert_time_to_index(labels["Begin Time (s)"], sample_rate)
@@ -149,48 +162,21 @@ def process_wav_file(
     return features_and_labels
 
 
-def load_csv_and_wav_files_from_directory(data_dir):
+def load_csvs(data_dir):
     """
-    Loads .csv and .wav files from the data directory. Assumes a hierarchical structure:
-    data_dir
-      label_set_1
-         label_1.wav
-         label_1.csv
-      label_set_2
-         label_2.wav
-         label_2.csv
-    It gets these .wav and .csv pairs. If there are multiple .csv or .wav files in the same subdirectory, this function
-    passes over them.
-    :param data_dir: string. Parent directory of subdirectories containing the .wav and .csv pairs.
-    :return: Dict. Keys are the basename of the .wav file and values are two-element lists, containing the .wav filenane as the first
-    element and the .csv filename as the second.
-    """
-    dirs = os.listdir(data_dir)
-    csvs_and_wav = {}
-    for d in dirs:
-        if os.path.isdir(os.path.join(data_dir, d)):
-            labels = glob(os.path.join(data_dir, d, "*.csv"))
-            wav = glob(os.path.join(data_dir, d, "*WAV")) + glob(
-                os.path.join(data_dir, d, "*wav")
-            )
-            if len(wav) == 1 and len(labels) == 1:
-                csvs_and_wav[os.path.splitext(os.path.basename(wav[0]))[0]] = [
-                    wav[0],
-                    labels[0],
-                ]
-            elif len(wav) == 0 or len(labels) == 0:
-                print(
-                    "found {} wav files and {} csvs in directory {}".format(
-                        len(wav), len(labels), d
-                    )
-                )
-            else:
-                print(
-                    "found {} wav files and {} csvs in directory {}.\n"
-                    "Passing.".format(len(wav), len(labels), d)
-                )
+    Loads .csv files from data_dir. Assumes a flat structure.
+    Each .csv file should have the following header:
+    Begin Time (s),End Time (s),Sound_Type,Filename
 
-    return csvs_and_wav
+    :param data_dir: string. Parent directory of subdirectories containing the .wav and .csv pairs.
+    :return: list. Contains .csv files of labels.
+    """
+    if os.path.isdir(os.path.join(data_dir)):
+        labels = glob(os.path.join(data_dir, "*.csv"))
+    else:
+        raise ValueError(f"{data_dir} is not a directory.")
+
+    return labels
 
 
 def save_data(out_path, data_list, index_to_label):
@@ -224,20 +210,26 @@ def save_data(out_path, data_list, index_to_label):
         )
 
         with open(out_fpath, "wb") as dst:
-            pickle.dump([features.numpy(), label_vector], dst)
+            pickle.dump([features, label_vector], dst)
 
 
-def extract(config, random_seed, no_mel_scale, n_fft, data_dir, output_data_path):
+def extract(
+    config, random_seed, no_mel_scale, n_fft, data_dir, output_data_path, train_pct
+):
     """
     Function to wrap the data loading, extraction, and saving routine.
     Loads data from data_dir, calculates spectrogram, extracts labeled regions based on the .csv
     file, and saves the regions to disk after shuffling and splitting into train/test/validation splits randomly.
+
+
     :param config: beetles.Config() object.
     :param random_seed: int. What to seed RNGs with for reproducibility.
     :param no_mel_scale: Whether or not to use the mel scale.
     :param n_fft: How many ffts to use when calculating the spectrogram.
     :param data_dir: Where the .wav and .csv files are stored.
     :param output_data_path: Where to save the extracted data.
+    :param train_pct: float. Percentage of labels to use as the train set. Test/val are allocated
+    (1-train_pct)/2 percent of labels each.
     :return: None.
     """
     random.seed(random_seed)
@@ -245,31 +237,42 @@ def extract(config, random_seed, no_mel_scale, n_fft, data_dir, output_data_path
 
     mel = not no_mel_scale
 
-    csv_and_wav = load_csv_and_wav_files_from_directory(data_dir)
+    csv = load_csvs(data_dir)
 
     out = []
 
-    for filename, (wav, csv) in csv_and_wav.items():
-        features_and_labels = process_wav_file(wav, csv, n_fft, mel, config)
+    for filename in csv:
+        features_and_labels = process_wav_file(filename, n_fft, mel, config)
         out.extend(features_and_labels)
+
+    if len(out) == 0:
+        raise ValueError(f"couldn't find data at {data_dir}")
 
     random.shuffle(out)
     indices = np.arange(len(out))
-    train_idx, test_idx, _, _ = train_test_split(
-        indices, indices, test_size=0.15, random_state=random_seed
-    )
-    test_idx, val_idx, _, _ = train_test_split(
-        test_idx, test_idx, test_size=0.5, random_state=random_seed
-    )
 
-    train_split = np.asarray(out)[train_idx]
-    val_split = np.asarray(out)[val_idx]
-    test_split = np.asarray(out)[test_idx]
+    if (1 - train_pct) / 2 != 0:
 
-    train_path = os.path.join(output_data_path, "train")
-    validation_path = os.path.join(output_data_path, "validation")
-    test_path = os.path.join(output_data_path, "test")
+        train_idx, test_idx, _, _ = train_test_split(
+            indices, indices, test_size=1 - train_pct, random_state=random_seed
+        )
+        test_idx, val_idx, _, _ = train_test_split(
+            test_idx, test_idx, test_size=(1 - train_pct) / 2, random_state=random_seed
+        )
 
-    save_data(train_path, train_split, config.index_to_label)
-    save_data(validation_path, val_split, config.index_to_label)
-    save_data(test_path, test_split, config.index_to_label)
+        train_split = [out[idx] for idx in train_idx]
+        test_split = [out[idx] for idx in test_idx]
+        val_split = [out[idx] for idx in val_idx]
+
+        train_path = os.path.join(output_data_path, "train")
+        validation_path = os.path.join(output_data_path, "validation")
+        test_path = os.path.join(output_data_path, "test")
+
+        save_data(train_path, train_split, config.class_code_to_name)
+        save_data(validation_path, val_split, config.class_code_to_name)
+        save_data(test_path, test_split, config.class_code_to_name)
+
+    else:
+        print("Got train_pct == 1. Saving all labels to train.")
+        train_path = os.path.join(output_data_path, "train")
+        save_data(train_path, out, config.class_code_to_name)

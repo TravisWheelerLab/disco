@@ -76,20 +76,7 @@ class SimpleLabeler:
         n = 0
 
         if os.path.isfile(self.output_csv_path):
-            try:
-                previous_labels = pd.read_csv(output_csv_path, delimiter=",")
-                n = int(previous_labels["End Time (s)"].iloc[-1])
-                print(
-                    "Already labeled this wav file, with {} labels!".format(
-                        previous_labels.shape[0]
-                    )
-                )
-                print("setting initial window to last labeled chirp!")
-            except:
-                n = 0
-                print(
-                    "labels exist but couldn't parse columns, starting from beginning"
-                )
+            print("Already labeled this wav file.")
 
         self.waveform, self.sample_rate = infer.load_wav_file(self.wav_file)
 
@@ -174,7 +161,7 @@ class SimpleLabeler:
                 self.output_csv_path,
                 index=False,
                 mode="a" if os.path.isfile(self.output_csv_path) else "w",
-                header=False,
+                header=False if os.path.isfile(self.output_csv_path) else True,
             )
 
     def _redraw_ax2(self):

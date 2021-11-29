@@ -219,6 +219,12 @@ def parser():
         default=42,
         help="what number to use as the random seed. Default: Deep Thought's answer",
     )
+    extract_parser.add_argument(
+        "--train_pct",
+        type=float,
+        default=0.8,
+        help="Percentage of labels to use as train. Test/val are allocated (1-train_pct)/2 percent of labels each.",
+    )
     # label
     label_parser = subparsers.add_parser("label", add_help=True)
     label_parser.add_argument("wav_file", type=str, help="which .wav file to analyze")
@@ -277,6 +283,7 @@ def main():
             n_fft=args.n_fft,
             data_dir=args.data_dir,
             output_data_path=args.output_data_path,
+            train_pct=args.train_pct,
         )
     elif args.command == "viz":
         from beetles.visualize import visualize
