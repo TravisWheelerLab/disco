@@ -5,6 +5,7 @@ seed_everything(int(time() * 1000))
 
 import os
 import torch
+import logging
 import pytorch_lightning as pl
 from pytorch_lightning.plugins import DDPPlugin
 from glob import glob
@@ -14,6 +15,8 @@ from beetles.models import SimpleCNN, UNet1D, UNet1DAttn
 from beetles.dataset import SpectrogramDatasetMultiLabel, pad_batch
 from beetles.config import Config
 from shopty import ShoptyConfig
+
+log = logging.getLogger(__name__)
 
 
 def train(config, hparams):
@@ -156,7 +159,7 @@ def train(config, hparams):
         ckpt_path=checkpoint_file if os.path.isfile(checkpoint_file) else None,
     )
     results = trainer.validate(model, val_loader)[0]
-    print(results)
+    log.info(results)
     with open(result_file, "w") as dst:
         dst.write(f"val_loss:{results['val_loss']}")
 

@@ -9,11 +9,14 @@ import requests
 import tqdm
 import matplotlib.pyplot as plt
 import pomegranate as pom
+import logging
 from glob import glob
 from collections import defaultdict
 
 from beetles.models import SimpleCNN, UNet1D
 import beetles.heuristics as heuristics
+
+log = logging.getLogger(__name__)
 
 
 def create_hmm(transition_matrix, emission_probs, start_probs):
@@ -82,7 +85,7 @@ def aggregate_predictions(predictions):
     class_idx_to_prediction_start_and_end = []
 
     if len(idx) == 0:
-        print("Only one class found after heuristics, csv will only contain one row")
+        log.info("Only one class found after heuristics, csv will only contain one row")
         dct = {
             "class": current_class,
             "start": current_idx,
@@ -284,7 +287,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
 
     model_paths = glob(os.path.join(model_directory, "*" + model_extension))
     if not len(model_paths):
-        print("no models found, downloading to {}".format(model_directory))
+        log.info("no models found, downloading to {}".format(model_directory))
 
         download_models(config.default_model_directory)
         model_paths = glob(

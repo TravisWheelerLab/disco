@@ -1,5 +1,8 @@
 import numpy as np
+import logging
 import beetles.inference_utils as infer
+
+log = logging.getLogger(__name__)
 
 
 def remove_a_chirps_in_between_b_chirps(
@@ -35,7 +38,7 @@ def remove_a_chirps_in_between_b_chirps(
             and transitions[i - 1]["class"] == name_to_class_code["B"]
             and transitions[i + 1]["class"] == name_to_class_code["B"]
         ):
-            print(
+            log.info(
                 f"found an A directly in between two Bs at position {current_dct['start']}. Changing to background."
             )
             current_dct["class"] == name_to_class_code["BACKGROUND"]

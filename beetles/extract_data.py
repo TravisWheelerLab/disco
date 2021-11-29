@@ -6,9 +6,12 @@ import numpy as np
 import pandas as pd
 import pickle
 import os
+import logging
 
 from glob import glob
 from sklearn.model_selection import train_test_split
+
+log = logging.getLogger(__name__)
 
 
 def w2s_idx(idx, hop_length):
@@ -273,6 +276,6 @@ def extract(
         save_data(test_path, test_split, config.class_code_to_name)
 
     else:
-        print("Got train_pct == 1. Saving all labels to train.")
+        log.info("Got train_pct == 1. Saving all labels to train.")
         train_path = os.path.join(output_data_path, "train")
         save_data(train_path, out, config.class_code_to_name)

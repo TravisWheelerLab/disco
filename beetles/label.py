@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import torchaudio
 import numpy as np
 import pandas as pd
+import logging
 import os
 from argparse import ArgumentParser
 from matplotlib.widgets import SpanSelector
@@ -11,6 +12,8 @@ np.random.seed(19680801)
 
 import beetles.inference_utils as infer
 from beetles.config import Config
+
+log = logging.getLogger(__name__)
 
 
 def add_example(
@@ -76,7 +79,7 @@ class SimpleLabeler:
         n = 0
 
         if os.path.isfile(self.output_csv_path):
-            print("Already labeled this wav file.")
+            log.info("Already labeled this wav file.")
 
         self.waveform, self.sample_rate = infer.load_wav_file(self.wav_file)
 
@@ -200,7 +203,7 @@ class SimpleLabeler:
     def process_keystroke(self, key):
 
         if key.key in self.config.label_keys:
-            print(f"saving {self.config.key_to_label[key.key]} chirp (r to delete)")
+            log.info(f"saving {self.config.key_to_label[key.key]} chirp (r to delete)")
             add_example(
                 self.label_list,
                 self.wav_file,
@@ -213,18 +216,18 @@ class SimpleLabeler:
         elif key.key == "r":
             if len(self.label_list):
                 self.label_list.pop()
-                print("deleting last selection")
+                log.info("deleting last selection")
             else:
-                print(
+                log.info(
                     "empty label list! hit <A, B, X> after selecting a region"
                     " to add a labeled region to the list"
                 )
         elif key.key == "a":
-            print("widening window")
+            log.info("widening window")
             self.interval += 10
             self._redraw_ax1()
         elif key.key == "t":
-            print("tightening window")
+            log.info("tightening window")
             self.interval -= 10
             self._redraw_ax1()
         elif key.key == "g":
@@ -234,21 +237,21 @@ class SimpleLabeler:
             self.n = int(self.spectrogram.shape[-1] * np.random.rand())
             self._redraw_ax1()
         elif key.key == "d":
-            print("reversing window")
+            log.info("reversing window")
             self.n = self.n - self.interval // 2
             self._redraw_ax1()
         elif key.key == "c":
-            print("shifting top limit down")
+            log.info("shifting top limit down")
             self.vertical_cut = self.vertical_cut - 1
             self._redraw_ax1()
         elif key.key == "v":
-            print("shifting top limit up")
+            log.info("shifting top limit up")
             self.vertical_cut = self.vertical_cut + 1
             self._redraw_ax1()
         elif key.key == "q":
-            print("saving and quitting")
+            log.info("saving and quitting")
         else:
-            print("unknown key pressed")
+            log.info("unknown key pressed")
 
 
 def label(config, wav_file, output_csv_path):

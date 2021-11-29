@@ -1,7 +1,11 @@
 from argparse import ArgumentParser
 import os
 import json
+import logging
 from beetles.config import Config
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 
 def parser():
@@ -255,7 +259,7 @@ def main():
         os.path.expanduser("~"), ".cache", "beetles", "params.yaml"
     )
     if os.path.isfile(config_path):
-        print(f"loading configuration from {config_path}")
+        log.info(f"loading configuration from {config_path}")
         config = Config(config_file=config_path)
     else:
         config = Config()

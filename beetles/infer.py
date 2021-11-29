@@ -2,6 +2,7 @@ import pdb
 import warnings
 import numpy as np
 import os
+import logging
 import torch
 
 from argparse import ArgumentParser
@@ -12,6 +13,8 @@ from beetles.config import Config
 
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
+
+log = logging.getLogger(__name__)
 
 
 def run_inference(
@@ -97,7 +100,7 @@ def run_inference(
     predictions = np.argmax(medians, axis=0).squeeze()
 
     for heuristic in heuristics.HEURISTIC_FNS:
-        print("applying heuristic function", heuristic.__name__)
+        log.info("applying heuristic function", heuristic.__name__)
         predictions = heuristic(predictions, iqr, config.name_to_class_code)
 
     hmm_predictions = infer.smooth_predictions_with_hmm(predictions, config)
