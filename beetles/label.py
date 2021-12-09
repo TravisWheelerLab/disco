@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import torchaudio
 import numpy as np
 import pandas as pd
+import logging
 import os
 from argparse import ArgumentParser
 from matplotlib.widgets import SpanSelector
@@ -10,6 +11,9 @@ from matplotlib.widgets import SpanSelector
 np.random.seed(19680801)
 
 import beetles.inference_utils as infer
+from beetles.config import Config
+
+log = logging.getLogger(__name__)
 
 
 def add_example(
@@ -21,6 +25,17 @@ def add_example(
     hop_length=None,
     sample_rate=None,
 ):
+    """
+    Adds an example to the label list.
+    :param label_list:
+    :param wav_file:
+    :param begin_idx:
+    :param end_idx:
+    :param sound_type:
+    :param hop_length:
+    :param sample_rate:
+    :return:
+    """
     begin_time = infer.convert_spectrogram_index_to_seconds(
         begin_idx, hop_length=hop_length, sample_rate=sample_rate
     )
@@ -38,30 +53,33 @@ def add_example(
 
 
 class SimpleLabeler:
-    def __init__(self, wav_file, output_csv_path):
+    """
+    This class uses matplotlib widgets to label a spectrogram.
+    Can be customized by a beetles.Config() object.
+
+    """
+
+    def __init__(self, wav_file, output_csv_path, config):
 
         self.wav_file = wav_file
         self.output_csv_path = output_csv_path
+        self.config = config
+        self.forbidden_keys = ("a", "t", "g", "j", "d", "c", "v", "q")
+
+        for key in self.config.label_keys:
+            if key in self.forbidden_keys:
+                raise ValueError(
+                    f"Cannot override default keypress {key}, change"
+                    " value in config file"
+                )
+
         if not os.path.isdir(os.path.dirname(os.path.abspath(self.output_csv_path))):
             os.makedirs(os.path.dirname(os.path.abspath(self.output_csv_path)))
 
         n = 0
 
         if os.path.isfile(self.output_csv_path):
-            try:
-                previous_labels = pd.read_csv(output_csv_path, delimiter=",")
-                n = int(previous_labels["End Time (s)"].iloc[-1])
-                print(
-                    "Already labeled this wav file, with {} labels!".format(
-                        previous_labels.shape[0]
-                    )
-                )
-                print("setting initial window to last labeled chirp!")
-            except:
-                n = 0
-                print(
-                    "labels exist but couldn't parse columns, starting from beginning"
-                )
+            log.info("Already labeled this wav file.")
 
         self.waveform, self.sample_rate = infer.load_wav_file(self.wav_file)
 
@@ -69,13 +87,13 @@ class SimpleLabeler:
 
         self.spectrogram = torchaudio.transforms.MelSpectrogram(
             sample_rate=self.sample_rate,
-            n_fft=1250,
-            f_min=1000,
+            n_fft=config.visualization_n_fft,
             hop_length=self.hop_length,
-        )(self.waveform)
+        )(self.waveform).squeeze()
+
         self.spectrogram[self.spectrogram == 0] = 1
-        self.spectrogram = self.spectrogram.log2().numpy().squeeze()
-        self.vertical_cut = 0
+        self.vertical_cut = config.vertical_cut
+        self.spectrogram = self.spectrogram[self.vertical_cut :].log2()
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, figsize=(8, 6))
 
@@ -86,12 +104,15 @@ class SimpleLabeler:
         self.label_list = []
 
         self.ax1.imshow(
-            self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval]
+            self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval],
+            origin="upper",
         )
+        self.ax1.axis("off")
+        self.ax2.axis("off")
 
         self.ax1.set_title(
             "Press left mouse button and drag "
-            "to select a region in the top graph "
+            "to select a region in the top graph. "
             "{:d} percent through spectrogram".format(
                 int(self.n / self.spectrogram.shape[-1])
             )
@@ -100,26 +121,22 @@ class SimpleLabeler:
         textstr = (
             "keys control which label is\n"
             "assigned to the selected region.\n"
-            "first navigate with <f,d,j> over\n"
+            "first navigate with <g,d,j> over\n"
             "the spectrogram, then click and\n"
             "drag to select a region.\n"
             "The selected region will appear\n"
             "on the bottom plot. If it looks good,\n"
-            "save it with <y,w,e>.\n"
+            "save it by pressing the keys "
+            f"{self.config.label_keys} (defined in config.py,"
+            f" or in your custom config.yaml)>.\n"
             "Closing the window will save the labels.\n "
             "key:\n"
-            "y: save A chirp\n"
-            "w: save B chirp\n"
-            "e: save background\n"
             "r: delete last label\n"
             "a: widen window\n"
             "t: tighten window\n"
-            "f: move window right\n"
+            "g: move window right\n"
             "d: move window left\n"
             "j: jump 10 windows forward\n\n"
-            "disclaimer: this is not production\n"
-            "code and has severe limitations\n"
-            "but should work in certain scenarios."
         )
 
         plt.figtext(0.02, 0.25, textstr, fontsize=8)
@@ -143,18 +160,19 @@ class SimpleLabeler:
     def save_labels(self):
         if len(self.label_list):
             label_df = pd.DataFrame.from_dict(self.label_list)
-            if os.path.isfile(self.output_csv_path):
-                label_df.to_csv(
-                    self.output_csv_path, index=False, mode="a", header=False
-                )
-            else:
-                label_df.to_csv(self.output_csv_path, index=False, mode="w")
+            label_df.to_csv(
+                self.output_csv_path,
+                index=False,
+                mode="a" if os.path.isfile(self.output_csv_path) else "w",
+                header=False if os.path.isfile(self.output_csv_path) else True,
+            )
 
     def _redraw_ax2(self):
         self.ax2.imshow(
             self.spectrogram[
                 self.vertical_cut :, self.n + self.xmin : self.n + self.xmax
-            ]
+            ],
+            origin="upper",
         )
         self.ax2.set_title("selected region")
         self.fig.canvas.draw()
@@ -165,6 +183,7 @@ class SimpleLabeler:
         self.ax1.imshow(
             self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval],
             aspect="auto",
+            origin="upper",
         )
         self.ax1.set_title(
             "Press left mouse button and drag "
@@ -183,82 +202,68 @@ class SimpleLabeler:
 
     def process_keystroke(self, key):
 
-        if key.key in ("y", "Y"):
-            print("saving A chirp (r to delete)")
+        if key.key in self.config.label_keys:
+            log.info(f"saving {self.config.key_to_label[key.key]} chirp (r to delete)")
             add_example(
                 self.label_list,
                 self.wav_file,
                 self.n + self.xmin,
                 self.n + self.xmax,
-                "A",
+                sound_type=self.config.key_to_label[key.key],
                 hop_length=self.hop_length,
                 sample_rate=self.sample_rate,
             )
-        elif key.key in ("w", "W"):
-            print("saving B chirp (r to delete)")
-            add_example(
-                self.label_list,
-                self.wav_file,
-                self.n + self.xmin,
-                self.n + self.xmax,
-                "B",
-                hop_length=self.hop_length,
-                sample_rate=self.sample_rate,
-            )
-        elif key.key in ("e", "E"):
-            add_example(
-                self.label_list,
-                self.wav_file,
-                self.n + self.xmin,
-                self.n + self.xmax,
-                "background",
-                hop_length=self.hop_length,
-                sample_rate=self.sample_rate,
-            )
-            print("saving background chirp (r to delete)")
-        elif key.key in ("r", "R"):
+        elif key.key == "r":
             if len(self.label_list):
                 self.label_list.pop()
-                print("deleting last selection")
+                log.info("deleting last selection")
             else:
-                print(
+                log.info(
                     "empty label list! hit <A, B, X> after selecting a region"
                     " to add a labeled region to the list"
                 )
-        elif key.key in ("a", "A"):
-            print("widening window")
+        elif key.key == "a":
+            log.info("widening window")
             self.interval += 10
             self._redraw_ax1()
-        elif key.key in ("t", "T"):
-            print("tightening window")
+        elif key.key == "t":
+            log.info("tightening window")
             self.interval -= 10
             self._redraw_ax1()
-        elif key.key in ("g", "G"):
+        elif key.key == "g":
             self.n = self.n + self.interval // 2
             self._redraw_ax1()
-        elif key.key in ("j", "J"):
+        elif key.key == "j":
             self.n = int(self.spectrogram.shape[-1] * np.random.rand())
             self._redraw_ax1()
-        elif key.key in ("d", "D"):
-            print("reversing window")
+        elif key.key == "d":
+            log.info("reversing window")
             self.n = self.n - self.interval // 2
             self._redraw_ax1()
-        elif key.key in ("c", "C"):
-            print("shifting top limit down")
+        elif key.key == "c":
+            log.info("shifting top limit down")
             self.vertical_cut = self.vertical_cut - 1
             self._redraw_ax1()
-        elif key.key in ("v", "V"):
-            print("shifting top limit up")
+        elif key.key == "v":
+            log.info("shifting top limit up")
             self.vertical_cut = self.vertical_cut + 1
             self._redraw_ax1()
         elif key.key == "q":
-            print("saving and quitting")
+            log.info("saving and quitting")
         else:
-            print("unknown key pressed")
+            log.info("unknown key pressed")
 
 
-def main(args):
-    labeler = SimpleLabeler(args.wav_file, args.output_csv_path)
+def label(config, wav_file, output_csv_path):
+    """
+    Runner file to apply the SimpleLabeler to a .wav file.
+    :param config: beetles.Config() object.
+    :param wav_file: .wav file to label.
+    :param output_csv_path:  Where to save the labels.
+    :return: None.
+    """
+
+    labeler = SimpleLabeler(wav_file, output_csv_path, config=config)
     plt.show()
     labeler.show()
     labeler.save_labels()

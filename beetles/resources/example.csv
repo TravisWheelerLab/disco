@@ -1,0 +1,15 @@
+Begin Time (s),End Time (s),Sound_Type,Filename
+0.37083333333333335,0.8,BACKGROUND,beetles/resources/example.wav
+0.6416666666666666,1.4208333333333334,A,beetles/resources/example.wav
+0.9166666666666666,1.0958333333333332,A,beetles/resources/example.wav
+1.7916666666666667,1.9458333333333333,BACKGROUND,beetles/resources/example.wav
+1.9458333333333333,2.2708333333333335,B,beetles/resources/example.wav
+2.2708333333333335,2.8,BACKGROUND,beetles/resources/example.wav
+2.8,3.175,B,beetles/resources/example.wav
+3.716666666666667,3.9875,B,beetles/resources/example.wav
+4.279166666666667,4.541666666666667,BACKGROUND,beetles/resources/example.wav
+4.595833333333333,4.870833333333334,BACKGROUND,beetles/resources/example.wav
+7.1375,7.270833333333333,A,beetles/resources/example.wav
+7.404166666666667,8.025,BACKGROUND,beetles/resources/example.wav
+9.6875,10.016666666666666,B,beetles/resources/example.wav
+10.15,10.291666666666666,BACKGROUND,beetles/resources/example.wav

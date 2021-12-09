@@ -1,80 +1,15 @@
 from argparse import ArgumentParser
 import os
 import json
+import logging
+from beetles.config import Config
 
-__all__ = [
-    "LABEL_TO_INDEX",
-    "INDEX_TO_LABEL",
-    "MASK_FLAG",
-    "EXCLUDED_CLASSES",
-    "CLASS_CODE_TO_NAME",
-    "NAME_TO_CLASS_CODE",
-    "SOUND_TYPE_TO_COLOR",
-    "AWS_DOWNLOAD_LINK",
-    "DEFAULT_MODEL_DIRECTORY",
-    "DEFAULT_SPECTROGRAM_NUM_ROWS",
-    "HMM_WEIGHTS",
-]
-
-DEFAULT_MODEL_DIRECTORY = os.path.join(os.path.expanduser("~"), ".cache", "beetles")
-
-if os.path.isfile(
-    os.path.join(os.path.expanduser("~"), ".cache", "beetles", "annotations_key.json")
-):
-    with open(
-        os.path.join(
-            os.path.expanduser("~"), ".cache", "beetles", "annotations_key.json"
-        ),
-        "r",
-    ) as src:
-        objects = json.load(src)
-else:
-    with open(
-        os.path.join(os.path.dirname(__file__), "resources", "annotations_key.json"),
-        "r",
-    ) as src:
-        objects = json.load(src)
-# TODO: Replace capitalized objects with a dedicated config object
-
-INDEX_TO_LABEL = {}
-LABEL_TO_INDEX = {}
-for o in objects:
-    index = int(o["index"])
-    label = o["label"]
-    LABEL_TO_INDEX[label] = index
-    INDEX_TO_LABEL[index] = label
-
-if os.path.isfile(
-    os.path.join(os.path.expanduser("~"), ".cache", "beetles", "hmm_weights.json")
-):
-    with open(
-        os.path.join(os.path.expanduser("~"), ".cache", "beetles", "hmm_weights.json"),
-        "r",
-    ) as src:
-        hmm_objects = json.load(src)
-else:
-    with open(
-        os.path.join(os.path.dirname(__file__), "resources", "hmm_weights.json"), "r"
-    ) as src:
-        hmm_objects = json.load(src)
-
-DISTRIBUTIONS = hmm_objects["distributions"]
-for i in range(len(DISTRIBUTIONS)):
-    DISTRIBUTIONS[i] = {int(k): v for k, v in DISTRIBUTIONS[i].items()}
-TRANSITION_MATRIX = hmm_objects["transition_matrix"]
-STARTS = hmm_objects["starts"]
-HMM_WEIGHTS = [DISTRIBUTIONS, TRANSITION_MATRIX, STARTS]
-
-MASK_FLAG = -1
-EXCLUDED_CLASSES = ("Y", "C")
-CLASS_CODE_TO_NAME = {0: "A", 1: "B", 2: "BACKGROUND"}
-NAME_TO_CLASS_CODE = {v: k for k, v in CLASS_CODE_TO_NAME.items()}
-SOUND_TYPE_TO_COLOR = {"A": "r", "B": "y", "BACKGROUND": "k"}
-AWS_DOWNLOAD_LINK = "https://beetles-cnn-models.s3.amazonaws.com/model_{}.pt"
-DEFAULT_SPECTROGRAM_NUM_ROWS = 128
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 
 def parser():
+
     ap = ArgumentParser()
     ap.add_argument("--version", action="version", version="0.0.1-alpha")
     # infer
@@ -84,7 +19,7 @@ def parser():
     infer_parser.add_argument(
         "--saved_model_directory",
         required=False,
-        default=DEFAULT_MODEL_DIRECTORY,
+        default=Config().default_model_directory,
         type=str,
         help="where the ensemble of models is stored",
     )
@@ -94,14 +29,13 @@ def parser():
         type=str,
         help="filename extension of saved model files",
     )
+    infer_parser.add_argument("wav_file", type=str, help=".wav file to predict")
     infer_parser.add_argument(
-        "--wav_file", required=True, type=str, help=".wav file to predict"
-    )
-    infer_parser.add_argument(
+        "-o",
         "--output_csv_path",
         default=None,
         type=str,
-        required=True,
+        required=False,
         help="where to save the final predictions",
     )
     infer_parser.add_argument(
@@ -141,7 +75,7 @@ def parser():
         help="size of the fft to use when calculating spectrogram",
     )
     infer_parser.add_argument(
-        "--debug", type=str, default=None, help="where to save debugging data"
+        "-d", "--debug", type=str, default=None, help="where to save debugging data"
     )
     infer_parser.add_argument(
         "--num_threads",
@@ -152,9 +86,9 @@ def parser():
 
     # train
     train_parser = subparsers.add_parser("train", add_help=True)
-
+    train_parser.add_argument('--shoptimize', action="store_true", help="whether or not you're using shopty.")
     tunable = train_parser.add_argument_group(
-        title="tunable args", description="arguments in this group are" " tunable"
+        title="tunable args", description="arguments in this group are tunable"
     )
     tunable.add_argument(
         "--n_fft",
@@ -170,12 +104,6 @@ def parser():
         type=int,
         default=20,
         help="how many rows to remove from the low-frequency range of the spectrogram.",
-    )
-    tunable.add_argument(
-        "--mask_beginning_and_end",
-        type=int,
-        default=1,
-        help="whether or not to mask the beginning and end of single-label chirps",
     )
     tunable.add_argument(
         "--begin_mask",
@@ -295,18 +223,24 @@ def parser():
         default=42,
         help="what number to use as the random seed. Default: Deep Thought's answer",
     )
+    extract_parser.add_argument(
+        "--train_pct",
+        type=float,
+        default=0.8,
+        help="Percentage of labels to use as train. Test/val are allocated (1-train_pct)/2 percent of labels each.",
+    )
     # label
     label_parser = subparsers.add_parser("label", add_help=True)
+    label_parser.add_argument("wav_file", type=str, help="which .wav file to analyze")
     label_parser.add_argument(
-        "--wav_file", required=True, type=str, help="which .wav file to analyze"
-    )
-    label_parser.add_argument(
-        "--output_csv_path", required=True, type=str, help="where to save the labels"
+        "output_csv_path", type=str, help="where to save the labels"
     )
     # viz
     viz_parser = subparsers.add_parser("viz", add_help=True)
     viz_parser.add_argument(
-        "--debug_data_path", type=str, help="location of debugging data", required=True
+        "data_path",
+        type=str,
+        help="location of debugging data (directory, output of beetles infer --debug",
     )
     viz_parser.add_argument(
         "--sample_rate", type=int, default=48000, help="sample rate of audio recording"
@@ -321,28 +255,71 @@ def parser():
 
 
 def main():
+    config_path = os.path.join(
+        os.path.expanduser("~"), ".cache", "beetles", "params.yaml"
+    )
+    if os.path.isfile(config_path):
+        log.info(f"loading configuration from {config_path}")
+        config = Config(config_file=config_path)
+    else:
+        config = Config()
+
     ap = parser()
     args = ap.parse_args()
-    if args.command == "label":
-        from beetles.simple_labeler import main
 
-        main(args)
+    if args.command == "label":
+        from beetles.label import label
+
+        label(config, wav_file=args.wav_file, output_csv_path=args.output_csv_path)
     elif args.command == "train":
         from beetles.train import train
-
-        train(args)
+        # too many hparams to pass in
+        # arguments in the function
+        train(config, args)
     elif args.command == "extract":
-        from beetles.extract_data import main
+        from beetles.extract_data import extract
 
-        main(args)
+        extract(
+            config,
+            random_seed=args.random_seed,
+            no_mel_scale=args.no_mel_scale,
+            n_fft=args.n_fft,
+            data_dir=args.data_dir,
+            output_data_path=args.output_data_path,
+            train_pct=args.train_pct,
+        )
     elif args.command == "viz":
-        from beetles.interactive_plot import main
+        from beetles.visualize import visualize
 
-        main(args)
+        visualize(
+            config,
+            data_path=args.data_path,
+            hop_length=args.hop_length,
+            sample_rate=args.sample_rate,
+        )
+
     elif args.command == "infer":
         from beetles.infer import run_inference
 
-        delattr(args, "command")
-        run_inference(**dict(vars(args)))
+        if args.debug is None and args.output_csv_path is None:
+            raise ValueError("Must specify either --output_csv_path or --debug.")
+
+        run_inference(
+            config,
+            wav_file=args.wav_file,
+            output_csv_path=args.output_csv_path,
+            saved_model_directory=args.saved_model_directory,
+            model_extension=args.model_extension,
+            tile_overlap=args.tile_overlap,
+            tile_size=args.tile_size,
+            batch_size=args.batch_size,
+            input_channels=args.input_channels,
+            hop_length=args.hop_length,
+            vertical_trim=args.vertical_trim,
+            n_fft=args.n_fft,
+            debug=args.debug,
+            num_threads=args.num_threads,
+        )
+
     else:
         ap.print_usage()

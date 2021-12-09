@@ -2,18 +2,23 @@ import pdb
 import warnings
 import numpy as np
 import os
+import logging
 import torch
 
 from argparse import ArgumentParser
 
 import beetles.heuristics as heuristics
 import beetles.inference_utils as infer
+from beetles.config import Config
 
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
 
+log = logging.getLogger(__name__)
+
 
 def run_inference(
+    config,
     wav_file=None,
     output_csv_path=None,
     saved_model_directory=None,
@@ -28,9 +33,29 @@ def run_inference(
     debug=None,
     num_threads=4,
 ):
+    """
+    Script to run the inference routine. Briefly: Model ensemble is loaded in, used to evaluate the spectrogram, and
+    heuristics and the hmm are applied to the ensemble's predictions. The .csv containing model labels is saved and
+    debugging information is saved depending on whether or not debug is a string or None.
 
-    if wav_file is None or output_csv_path is None:
-        raise ValueError("specify both wav_file and output_csv_path")
+    The ensemble predicts a .wav file quickly and seamlessly by using an overlap-tile strategy.
+
+    :param config: beetles.Config() object.
+    :param wav_file: str. .wav file to analyze.
+    :param output_csv_path: str. Where to save predictions.
+    :param saved_model_directory: str. Where models are saved.
+    :param model_extension: str. Model file suffix. Default ".pt".
+    :param tile_overlap: How much to overlap subsequent evaluation windows.
+    :param tile_size: Size of tiles ingested into ensemble.
+    :param batch_size: How many tiles to evaluate in parallel.
+    :param input_channels: Number of input channels for the model ensemble.
+    :param hop_length: Used in spectrogram calculation.
+    :param vertical_trim: How many rows to chop off from the beginning of the spectrogram (in effect, a high-pass filter).
+    :param n_fft: N ffts to use when calulating the spectrogram.
+    :param debug: str. Whether or not to save debugging data. None: Don't save, str: save in "str".
+    :param num_threads: How many threads to use when loading data.
+    :return: None. Everything relevant is saved to disk.
+    """
 
     if tile_size % 2 != 0:
         raise ValueError("tile_size must be even, got {}".format(tile_size))
@@ -39,7 +64,7 @@ def run_inference(
     if device == "cpu":
         torch.set_num_threads(num_threads)
     models = infer.assemble_ensemble(
-        saved_model_directory, model_extension, device, input_channels
+        saved_model_directory, model_extension, device, input_channels, config
     )
 
     if len(models) < 2:
@@ -73,18 +98,25 @@ def run_inference(
     )
 
     predictions = np.argmax(medians, axis=0).squeeze()
-    for heuristic in heuristics.HEURISTIC_FNS:
-        print("applying heuristic function", heuristic.__name__)
-        predictions = heuristic(predictions, iqr)
 
-    hmm_predictions = infer.smooth_predictions_with_hmm(predictions)
+    for heuristic in heuristics.HEURISTIC_FNS:
+        log.info("applying heuristic function", heuristic.__name__)
+        predictions = heuristic(predictions, iqr, config.name_to_class_code)
+
+    hmm_predictions = infer.smooth_predictions_with_hmm(predictions, config)
 
     if output_csv_path is not None:
+        _, ext = os.path.splitext(output_csv_path)
+
+        if not ext:
+            output_csv_path = f"{output_csv_path}.csv"
+
         infer.save_csv_from_predictions(
             output_csv_path,
             hmm_predictions,
             sample_rate=spectrogram_iterator.sample_rate,
             hop_length=hop_length,
+            name_to_class_code=config.name_to_class_code,
         )
 
     if debug is not None:
@@ -103,9 +135,10 @@ def run_inference(
             hmm_predictions,
             sample_rate=spectrogram_iterator.sample_rate,
             hop_length=hop_length,
+            name_to_class_code=config.name_to_class_code,
         )
 
-        infer.pickle_data(spectrogram_iterator.original_spectrogram, spectrogram_path)
-        infer.pickle_data(hmm_predictions, hmm_prediction_path)
-        infer.pickle_data(medians, median_prediction_path)
-        infer.pickle_data(iqr, iqr_path)
+        infer.pickle_tensor(spectrogram_iterator.original_spectrogram, spectrogram_path)
+        infer.pickle_tensor(hmm_predictions, hmm_prediction_path)
+        infer.pickle_tensor(medians, median_prediction_path)
+        infer.pickle_tensor(iqr, iqr_path)

@@ -48,6 +48,7 @@ class UNet1D(pl.LightningModule):
         end_mask,
         train_files,
         val_files,
+        mask_character,
         divisible_by=16,
     ):
 
@@ -68,6 +69,7 @@ class UNet1D(pl.LightningModule):
         self.train_files = list(train_files)
         self.val_files = list(val_files)
         self.initial_power = 5
+        self.mask_character = mask_character
 
         self.save_hyperparameters()
 
@@ -191,10 +193,10 @@ class UNet1D(pl.LightningModule):
             x, y = batch
             logits = self.forward(x)
 
-        loss = torch.nn.functional.nll_loss(logits, y, ignore_index=MASK_CHARACTER)
+        loss = torch.nn.functional.nll_loss(logits, y, ignore_index=self.mask_character)
         preds = logits.argmax(dim=1)
-        preds = preds[y != MASK_CHARACTER]
-        labels = y[y != MASK_CHARACTER]
+        preds = preds[y != self.mask_character]
+        labels = y[y != self.mask_character]
         acc = self.accuracy(preds, labels)
         return loss, acc
 
@@ -234,26 +236,3 @@ class UNet1D(pl.LightningModule):
         val_acc = torch.mean(torch.stack(val_acc))
         self.log("val_loss", val_loss)
         self.log("val_acc", val_acc)
-
-
-if __name__ == "__main__":
-    pass
-    # batch size by channels (feature depth) by sequence length
-    #     model = UNet1D(in_channels=128,
-    #                    learning_rate=None,
-    #                    mel=None,
-    #                    apply_log=None,
-    #                    n_fft=None,
-    #                    vertical_trim=None,
-    #                    mask_beginning_and_end=None,
-    #                    begin_mask=None,
-    #                    end_mask=None,
-    #                    train_files=[1],
-    #                    val_files=[1])
-    #
-    #     for i in range(48, 500, 1):
-    #         random_data = torch.rand((16, 128, i))
-    #         random_labels = torch.rand((16, i))
-    #         random_labels[random_labels < 0.3] = 0
-    #         random_labels[random_labels != 0] = 1
-    #         a = model._shared_step([random_data, random_labels.long()])
