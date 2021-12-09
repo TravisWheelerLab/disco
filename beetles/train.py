@@ -29,21 +29,33 @@ def train(config, hparams):
 
     train_path = os.path.join(hparams.data_path, "train", "*")
     val_path = os.path.join(hparams.data_path, "validation", "*")
+    
+    if hparams.shoptimize:
+        shopty_config = ShoptyConfig()
+        result_file = shopty_config.results_path
+        experiment_dir = shopty_config.experiment_directory
+        checkpoint_dir = shopty_config.checkpoint_directory
+        checkpoint_file = shopty_config.checkpoint_file
+        max_iter = shopty_config.max_iter
+        min_training_unit = 1
+    else:
+        max_iter = hparams.epochs
 
-    shopty_config = ShoptyConfig()
-
-    result_file = shopty_config.results_path
-    experiment_dir = shopty_config.experiment_directory
-    checkpoint_dir = shopty_config.checkpoint_directory
-    checkpoint_file = shopty_config.checkpoint_file
-    max_iter = shopty_config.max_iter
-    min_training_unit = 1
-    last_epoch = 0
-
-    checkpoint_callback = pl.callbacks.model_checkpoint.ModelCheckpoint(
-        dirpath=checkpoint_dir, save_last=True, save_top_k=0, verbose=True
-    )
-    logger = pl.loggers.TensorBoardLogger(experiment_dir, name="", version="")
+    if hparams.shoptimize:
+        checkpoint_callback = pl.callbacks.model_checkpoint.ModelCheckpoint(
+            dirpath=checkpoint_dir, save_last=True, save_top_k=0, verbose=True
+        )
+    else:
+        checkpoint_callback = pl.callbacks.model_checkpoint.ModelCheckpoint(
+            monitor="val_loss",
+            filename="{epoch}-{val_loss:.5f}-{val_acc:.5f}",
+            save_top_k=1,
+        )
+        
+    if hparams.shoptimize:
+        logger = pl.loggers.TensorBoardLogger(experiment_dir, name="", version="")
+    else:
+        logger = pl.loggers.TensorBoardLogger(hparams.log_dir)
 
     if not len(glob(train_path)) or not len(glob(val_path)):
         raise ValueError("no files found in one of {}, {}".format(train_path, val_path))
@@ -116,14 +128,17 @@ def train(config, hparams):
         model = UNet1DAttn(**model_kwargs)
     else:
         model = UNet1D(**model_kwargs)
+    
+    last_epoch = 0
 
-    if os.path.isfile(checkpoint_file):
+    if hparams.shoptimize:
+        if os.path.isfile(checkpoint_file):
 
-        checkpoint = torch.load(checkpoint_file)
-        last_epoch = checkpoint["epoch"]
-        model = model.load_from_checkpoint(
-            checkpoint_file, map_location=torch.device("cuda")
-        )
+            checkpoint = torch.load(checkpoint_file)
+            last_epoch = checkpoint["epoch"]
+            model = model.load_from_checkpoint(
+                checkpoint_file, map_location=torch.device("cuda")
+            )
 
     lr_monitor = pl.callbacks.lr_monitor.LearningRateMonitor()
 
@@ -152,16 +167,22 @@ def train(config, hparams):
     else:
         trainer = pl.Trainer(**trainer_kwargs)
 
+    ckpt_path = None
+    if hparams.shoptimize:
+        ckpt_path = checkpoint_file if os.path.isfile(checkpoint_file) else None
+
     trainer.fit(
         model,
         train_loader,
         val_loader,
-        ckpt_path=checkpoint_file if os.path.isfile(checkpoint_file) else None,
+        ckpt_path=ckpt_path
     )
-    results = trainer.validate(model, val_loader)[0]
-    log.info(results)
-    with open(result_file, "w") as dst:
-        dst.write(f"val_loss:{results['val_loss']}")
+    
+    if hparams.shoptimize:
+        results = trainer.validate(model, val_loader)[0]
+        log.info(results)
+        with open(result_file, "w") as dst:
+            dst.write(f"val_loss:{results['val_loss']}")
 
 
 def main(args):

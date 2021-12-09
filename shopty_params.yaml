@@ -50,11 +50,12 @@ statics:
   log: true
   mel: true
   bootstrap: true
-
+  shoptimize: true
 
 slurm_directives:
   - "--partition=wheeler_lab_gpu"
   - "--gres=gpu:1"
+  - "--exclude=compute-1-5"
 
 environment_commands:
   - 'source ~/anaconda/bin/activate'
