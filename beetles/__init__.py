@@ -1,11 +1,20 @@
+"""
+beetles-cnn classifies chirps in .wav files using machine learning.
+
+"""
+__version__ = "1.0.4"
+
 from argparse import ArgumentParser
 import os
 import json
 import logging
 from beetles.config import Config
 
+
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
+
+
 
 
 def parser():
