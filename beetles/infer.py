@@ -100,7 +100,7 @@ def run_inference(
     predictions = np.argmax(medians, axis=0).squeeze()
 
     for heuristic in heuristics.HEURISTIC_FNS:
-        log.info("applying heuristic function", heuristic.__name__)
+        log.info(f"applying heuristic function {heuristic.__name__}")
         predictions = heuristic(predictions, iqr, config.name_to_class_code)
 
     hmm_predictions = infer.smooth_predictions_with_hmm(predictions, config)

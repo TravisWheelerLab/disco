@@ -13,7 +13,7 @@ import logging
 from glob import glob
 from collections import defaultdict
 
-from beetles.models import SimpleCNN, UNet1D
+from beetles.models import UNet1D
 import beetles.heuristics as heuristics
 
 log = logging.getLogger(__name__)

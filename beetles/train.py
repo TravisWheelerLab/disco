@@ -29,7 +29,7 @@ def train(config, hparams):
 
     train_path = os.path.join(hparams.data_path, "train", "*")
     val_path = os.path.join(hparams.data_path, "validation", "*")
-    
+
     if hparams.shoptimize:
         shopty_config = ShoptyConfig()
         result_file = shopty_config.results_path
@@ -51,7 +51,7 @@ def train(config, hparams):
             filename="{epoch}-{val_loss:.5f}-{val_acc:.5f}",
             save_top_k=1,
         )
-        
+
     if hparams.shoptimize:
         logger = pl.loggers.TensorBoardLogger(experiment_dir, name="", version="")
     else:
@@ -128,7 +128,7 @@ def train(config, hparams):
         model = UNet1DAttn(**model_kwargs)
     else:
         model = UNet1D(**model_kwargs)
-    
+
     last_epoch = 0
 
     if hparams.shoptimize:
@@ -171,13 +171,8 @@ def train(config, hparams):
     if hparams.shoptimize:
         ckpt_path = checkpoint_file if os.path.isfile(checkpoint_file) else None
 
-    trainer.fit(
-        model,
-        train_loader,
-        val_loader,
-        ckpt_path=ckpt_path
-    )
-    
+    trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
+
     if hparams.shoptimize:
         results = trainer.validate(model, val_loader)[0]
         log.info(results)

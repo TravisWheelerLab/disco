@@ -15,8 +15,6 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
-
-
 def parser():
 
     ap = ArgumentParser()
@@ -95,7 +93,9 @@ def parser():
 
     # train
     train_parser = subparsers.add_parser("train", add_help=True)
-    train_parser.add_argument('--shoptimize', action="store_true", help="whether or not you're using shopty.")
+    train_parser.add_argument(
+        "--shoptimize", action="store_true", help="whether or not you're using shopty."
+    )
     tunable = train_parser.add_argument_group(
         title="tunable args", description="arguments in this group are tunable"
     )
@@ -282,6 +282,7 @@ def main():
         label(config, wav_file=args.wav_file, output_csv_path=args.output_csv_path)
     elif args.command == "train":
         from beetles.train import train
+
         # too many hparams to pass in
         # arguments in the function
         train(config, args)
