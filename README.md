@@ -4,9 +4,11 @@
 beetles-cnn classifies chirps with machine learning. 
 
 Quickstart:
+Install from source. Clone this repo and run
 ```
-pip install beetles
+flit install -s
 ```
+
 Learn how to use the tools provided in this package [here](https://github.com/TravisWheelerLab/beetles-cnn/wiki).
 
 Python example of inference:
