@@ -4,7 +4,12 @@
 beetles-cnn classifies chirps with machine learning. 
 
 Quickstart:
+
+Install requires python==3.8.1.
+
+
 Install from source. Clone this repo and run
+
 ```
 flit install -s
 ```
