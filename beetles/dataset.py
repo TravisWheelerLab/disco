@@ -61,7 +61,7 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
         if mask_beginning_and_end and (begin_mask is None or end_mask is None):
             raise ValueError(
                 "If mask_beginning_and_end is true begin_mask and end_mask must"
-                "not be None"
+                " not be None"
             )
 
         self.apply_log = apply_log
@@ -70,12 +70,12 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
         self.bootstrap_sample = bootstrap_sample
         self.begin_mask = begin_mask
         self.end_mask = end_mask
-        self.files = files
         self.files = (
-            np.random.choice(self.files, size=len(self.files), replace=True)
+            np.random.choice(files, size=len(files), replace=True)
             if self.bootstrap_sample
-            else self.files
+            else files
         )
+        # load all data into RAM before training
         self.examples = [_load_pickle(f) for f in self.files]
 
     def __getitem__(self, idx):
@@ -113,24 +113,27 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
 
 
 class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
+    # TODO: put label_type in config file
     def __init__(
         self,
         dataset_type,
         data_path,
         spect_type,
         config,
+        label_type='non-continuous',
         max_spec_length=40,
         filtered_sounds=["C", "Y"],
         apply_log=True,
         vertical_trim=0,
         begin_cutoff_idx=0,
         clip_spects=True,
-        bootstrap_sample=False,
+        bootstrap_sample=False
     ):
 
         self.spect_lengths = defaultdict(list)
         self.dataset_type = dataset_type
         self.config = config
+        self.label_type = label_type
         self.data_path = data_path
         self.spect_type = spect_type
         self.max_spec_length = max_spec_length
@@ -162,7 +165,7 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
             spect = np.load(filepath)
             if label not in filtered_labels and spect.shape[1] >= self.max_spec_length:
                 class_counter[label] += 1
-                spect = spect[self.vertical_trim :, self.begin_cutoff_idx :]
+                spect = spect[self.vertical_trim:, self.begin_cutoff_idx:]
 
                 if self.apply_log:
                     # sometimes the mel spectrogram has all 0 filter banks.
@@ -222,3 +225,5 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
 
     def get_unique_labels(self):
         return self.unique_labels.keys()
+
+
