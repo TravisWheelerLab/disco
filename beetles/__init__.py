@@ -179,17 +179,14 @@ def parser():
         "logged "
         "and if it's lower than the previous best the current model is saved",
     )
+    non_tunable.add_argument("data_path", type=str, help="where the data are saved")
     non_tunable.add_argument(
-        "--log_dir",
+        "log_dir",
         type=str,
-        required=True,
         help="where to save the model logs (train, test "
         "loss "
         "and hyperparameters). Visualize with "
         "tensorboard",
-    )
-    non_tunable.add_argument(
-        "--data_path", type=str, required=True, help="where the data are saved"
     )
     non_tunable.add_argument(
         "--model_name",
@@ -218,13 +215,12 @@ def parser():
         help="number of ffts used in spect. calculation",
     )
     extract_parser.add_argument(
-        "--data_dir",
-        required=True,
+        "data_dir",
         type=str,
         help="parent directory of labels and .wav files are saved",
     )
     extract_parser.add_argument(
-        "--output_data_path", required=True, type=str, help="where to save the data"
+        "output_data_path", type=str, help="where to save the data"
     )
     extract_parser.add_argument(
         "--random_seed",
