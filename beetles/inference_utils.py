@@ -413,7 +413,7 @@ def evaluate_spectrogram(
         all_features = np.concatenate(all_features, axis=-1)[
             :, : original_spectrogram_shape[-1]
         ]
-        assert np.all(all_features == spectrogram_iterator.original_spectrogram.numpy())
+        assert np.all(all_features == SpectrogramIterator.original_spectrogram.numpy())
 
     medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[
         :, : original_spectrogram_shape[-1]
