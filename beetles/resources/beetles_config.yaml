@@ -1,4 +1,4 @@
-# name of each class to it's numeric id.
+# name of each class to its numeric id.
 name_to_index: {"A": 0, "B": 1, "BACKGROUND": 2}
 # transition matrix. 0th axis indices should be the same as the ones
 # in name_to_index.
