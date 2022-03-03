@@ -11,13 +11,12 @@ from pytorch_lightning.plugins import DDPPlugin
 from glob import glob
 from argparse import ArgumentParser
 
-from beetles.models import SimpleCNN, UNet1D, UNet1DAttn
+from beetles.models import UNet1D, UNet1DAttn
 from beetles.dataset import SpectrogramDatasetMultiLabel, pad_batch
 from beetles.config import Config
 from shopty import ShoptyConfig
 
 log = logging.getLogger(__name__)
-
 
 def train(config, hparams):
     """
@@ -84,6 +83,7 @@ def train(config, hparams):
         begin_mask=None,
         end_mask=None,
     )
+
     # batch size of 1 since we're evaluating on lots of differently sized
     # labeled regions. Could implement a mask to zero out bits of predictions
     # but this is too much work for the amount of time it takes to evaluate our validation
@@ -133,7 +133,6 @@ def train(config, hparams):
 
     if hparams.shoptimize:
         if os.path.isfile(checkpoint_file):
-
             checkpoint = torch.load(checkpoint_file)
             last_epoch = checkpoint["epoch"]
             model = model.load_from_checkpoint(
