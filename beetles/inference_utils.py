@@ -289,7 +289,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
     if not len(model_paths):
         log.info("no models found, downloading to {}".format(model_directory))
 
-        download_models(config.default_model_directory)
+        download_models(config.default_model_directory, config.aws_download_link)
         model_paths = glob(
             os.path.join(config.default_model_directory, "*" + model_extension)
         )
