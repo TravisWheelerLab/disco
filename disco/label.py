@@ -10,8 +10,8 @@ from matplotlib.widgets import SpanSelector
 
 np.random.seed(19680801)
 
-import beetles.inference_utils as infer
-from beetles.config import Config
+import disco.inference_utils as infer
+from disco.config import Config
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ def add_example(
 class SimpleLabeler:
     """
     This class uses matplotlib widgets to label a spectrogram.
-    Can be customized by a beetles.Config() object.
+    Can be customized by a disco.Config() object.
 
     """
 
@@ -257,7 +257,7 @@ class SimpleLabeler:
 def label(config, wav_file, output_csv_path):
     """
     Runner file to apply the SimpleLabeler to a .wav file.
-    :param config: beetles.Config() object.
+    :param config: disco.Config() object.
     :param wav_file: .wav file to label.
     :param output_csv_path:  Where to save the labels.
     :return: None.

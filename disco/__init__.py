@@ -1,5 +1,5 @@
 """
-beetles-cnn classifies chirps in .wav files using machine learning.
+disco classifies sound events within .wav files using machine learning.
 
 """
 __version__ = "1.0.4"
@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 import os
 import json
 import logging
-from beetles.config import Config
+from disco.config import Config
 
 
 logging.basicConfig(level=logging.INFO)
@@ -245,7 +245,7 @@ def parser():
     viz_parser.add_argument(
         "data_path",
         type=str,
-        help="location of debugging data (directory, output of beetles infer --debug",
+        help="location of debugging data (directory, output of disco infer --debug",
     )
     viz_parser.add_argument(
         "--sample_rate", type=int, default=48000, help="sample rate of audio recording"
@@ -261,7 +261,7 @@ def parser():
 
 def main():
     config_path = os.path.join(
-        os.path.expanduser("~"), ".cache", "beetles", "params.yaml"
+        os.path.expanduser("~"), ".cache", "disco", "params.yaml"
     )
     if os.path.isfile(config_path):
         log.info(f"loading configuration from {config_path}")
@@ -273,17 +273,17 @@ def main():
     args = ap.parse_args()
 
     if args.command == "label":
-        from beetles.label import label
+        from disco.label import label
 
         label(config, wav_file=args.wav_file, output_csv_path=args.output_csv_path)
     elif args.command == "train":
-        from beetles.train import train
+        from disco.train import train
 
         # too many hparams to pass in
         # arguments in the function
         train(config, args)
     elif args.command == "extract":
-        from beetles.extract_data import extract
+        from disco.extract_data import extract
 
         extract(
             config,
@@ -295,7 +295,7 @@ def main():
             train_pct=args.train_pct,
         )
     elif args.command == "viz":
-        from beetles.visualize import visualize
+        from disco.visualize import visualize
 
         visualize(
             config,
@@ -305,7 +305,7 @@ def main():
         )
 
     elif args.command == "infer":
-        from beetles.infer import run_inference
+        from disco.infer import run_inference
 
         if args.debug is None and args.output_csv_path is None:
             raise ValueError("Must specify either --output_csv_path or --debug.")

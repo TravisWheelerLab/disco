@@ -13,8 +13,8 @@ import logging
 from glob import glob
 from collections import defaultdict
 
-from beetles.models import UNet1D
-import beetles.heuristics as heuristics
+from disco.models import UNet1D
+import disco.heuristics as heuristics
 
 log = logging.getLogger(__name__)
 
@@ -206,7 +206,7 @@ def smooth_predictions_with_hmm(unsmoothed_predictions, config):
     """
     Run the hmm defined by the config on the point-wise predictions.
     :param unsmoothed_predictions: np array of point-wise argmaxed predictions (size Nx1).
-    :param config: beetles.Config() object.
+    :param config: disco.Config() object.
     :return: smoothed predictions
     """
     if unsmoothed_predictions.ndim != 1:
@@ -278,7 +278,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
     :param model_extension: Glob extension to load the models.
     :param device: 'cuda' or 'cpu'. What device to place the models on.
     :param in_channels: How many channels the models accepts
-    :param config: beetles.Config() object.
+    :param config: disco.Config() object.
     :return: list of torch.Models().
     """
 

@@ -1,6 +1,6 @@
 import numpy as np
 import logging
-import beetles.inference_utils as infer
+import disco.inference_utils as infer
 
 log = logging.getLogger(__name__)
 

@@ -115,7 +115,7 @@ def process_wav_file(csv_filename, n_fft, mel_scale, config, hop_length=200):
     :param csv_filename: Csv file containing the labels.
     :param n_fft: Number of ffts to use when calculating the spectrogram.
     :param mel_scale: bool. Whether or not to calculate a MelSpectrogram.
-    :param config: beetles.Config object. Controls the mapping from class name to class code and the classes to exclude
+    :param config: disco.Config object. Controls the mapping from class name to class code and the classes to exclude
     from the labeled sounds.
     :param hop_length: int. Hop length between subsequent fft calculations when forming the spectrogram.
     :return: list: List of lists. Each sublist contains a feature tensor and the associated vector of labels.
@@ -225,7 +225,7 @@ def extract(
     file, and saves the regions to disk after shuffling and splitting into train/test/validation splits randomly.
 
 
-    :param config: beetles.Config() object.
+    :param config: disco.Config() object.
     :param random_seed: int. What to seed RNGs with for reproducibility.
     :param no_mel_scale: Whether or not to use the mel scale.
     :param n_fft: How many ffts to use when calculating the spectrogram.

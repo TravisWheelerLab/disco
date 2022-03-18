@@ -7,9 +7,9 @@ import torch
 
 from argparse import ArgumentParser
 
-import beetles.heuristics as heuristics
-import beetles.inference_utils as infer
-from beetles.config import Config
+import disco.heuristics as heuristics
+import disco.inference_utils as infer
+from disco.config import Config
 
 # get rid of torchaudio warning us that our spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -40,7 +40,7 @@ def run_inference(
 
     The ensemble predicts a .wav file quickly and seamlessly by using an overlap-tile strategy.
 
-    :param config: beetles.Config() object.
+    :param config: disco.Config() object.
     :param wav_file: str. .wav file to analyze.
     :param output_csv_path: str. Where to save predictions.
     :param saved_model_directory: str. Where models are saved.

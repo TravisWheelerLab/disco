@@ -3,13 +3,13 @@ requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "beetles"
-authors = [{name = "Thomas Colligan", email = "thomas.colligan@umontana.edu"}]
+name = "disco"
+authors = [{name = "Kayla Irish", email = "kayla.irish@umontana.edu"}]
 readme = "README.md"
 dynamic = ["version", "description"]
 
 [project.urls]
-Home = "https://github.com/TravisWheelerLab/beetles-cnn"
+Home = "https://github.com/TravisWheelerLab/disco"
 
 [project.scripts]
-beetles = "beetles:main"
+disco = "disco:main"

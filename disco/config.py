@@ -9,7 +9,7 @@ class Config:
     and overwrite default config values with those in the yaml file.
     """
 
-    default_model_directory = os.path.join(os.path.expanduser("~"), ".cache", "beetles")
+    default_model_directory = os.path.join(os.path.expanduser("~"), ".cache", "disco")
 
     name_to_index = {"A": 0, "B": 1, "BACKGROUND": 2}
 
