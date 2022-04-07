@@ -6,4 +6,13 @@ See the sidebar to the right for more links.
 
 Jupyter notebook with example of evaluating data (upload into colab for GPU access) is [here](https://github.com/TravisWheelerLab/disco/blob/main/beetles/resources/using_beetles_on_colab.ipynb).
 
--[] Checkbox not checked
+### Project status
+
+- [x] Design
+- [x] Mockups
+- [x] Development
+- [x] Unit testing
+- [ ] QA
+- [ ] Stage
+- [ ] Beta Testing
+- [ ] Production
