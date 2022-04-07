@@ -5,3 +5,5 @@ Also covered in this wiki is how to label your own .wav file, extract those labe
 See the sidebar to the right for more links.
 
 Jupyter notebook with example of evaluating data (upload into colab for GPU access) is [here](https://github.com/TravisWheelerLab/disco/blob/main/beetles/resources/using_beetles_on_colab.ipynb).
+
+{{Thing to do|White|No}}
