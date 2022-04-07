@@ -6,4 +6,4 @@ See the sidebar to the right for more links.
 
 Jupyter notebook with example of evaluating data (upload into colab for GPU access) is [here](https://github.com/TravisWheelerLab/disco/blob/main/beetles/resources/using_beetles_on_colab.ipynb).
 
-{{Checkbox 1 (simple)|Black|Yes}}
+[] Checkbox not checked
