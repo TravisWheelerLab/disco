@@ -18,6 +18,7 @@ from shopty import ShoptyConfig
 
 log = logging.getLogger(__name__)
 
+
 def train(config, hparams):
     """
     Training script.
@@ -39,6 +40,7 @@ def train(config, hparams):
         min_training_unit = 1
     else:
         max_iter = hparams.epochs
+        min_training_unit = 1
 
     if hparams.shoptimize:
         checkpoint_callback = pl.callbacks.model_checkpoint.ModelCheckpoint(
@@ -47,7 +49,8 @@ def train(config, hparams):
     else:
         checkpoint_callback = pl.callbacks.model_checkpoint.ModelCheckpoint(
             monitor="val_loss",
-            filename="{epoch}-{val_loss:.5f}-{val_acc:.5f}",
+            # filename="{epoch}-{val_loss:.5f}-{val_acc:.5f}",
+            filename="no_bootstrap_model_1-{epoch}-{val_loss:.5f}-{val_acc:.5f}",
             save_top_k=1,
         )
 
@@ -169,8 +172,9 @@ def train(config, hparams):
     ckpt_path = None
     if hparams.shoptimize:
         ckpt_path = checkpoint_file if os.path.isfile(checkpoint_file) else None
+        trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
 
-    trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
+    trainer.fit(model, train_loader, val_loader)
 
     if hparams.shoptimize:
         results = trainer.validate(model, val_loader)[0]
