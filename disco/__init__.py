@@ -10,18 +10,17 @@ import json
 import logging
 from disco.config import Config
 
-
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
 def parser():
-
     ap = ArgumentParser()
     ap.add_argument("--version", action="version", version="0.0.1-alpha")
     # infer
     subparsers = ap.add_subparsers(title="actions", dest="command")
 
+    # INFER #
     infer_parser = subparsers.add_parser("infer", add_help=True)
     infer_parser.add_argument(
         "--saved_model_directory",
@@ -50,8 +49,8 @@ def parser():
         default=128,
         type=int,
         help="how much to overlap consecutive predictions. Larger values will mean slower "
-        "performance as "
-        "there is more repeated computation",
+             "performance as "
+             "there is more repeated computation",
     )
     infer_parser.add_argument(
         "--tile_size", default=1024, type=int, help="length of input spectrogram"
@@ -91,7 +90,7 @@ def parser():
         help="how many threads to use when evaluating on CPU",
     )
 
-    # train
+    # TRAIN #
     train_parser = subparsers.add_parser("train", add_help=True)
     train_parser.add_argument(
         "--shoptimize", action="store_true", help="whether or not you're using shopty."
@@ -129,8 +128,8 @@ def parser():
     non_tunable = train_parser.add_argument_group(
         title="non-tunable args",
         description='the "mel" argument depends on the data'
-        " extraction step - whether or not a mel"
-        " spectrogram was computed",
+                    " extraction step - whether or not a mel"
+                    " spectrogram was computed",
     )
     non_tunable.add_argument(
         "--log",
@@ -164,9 +163,9 @@ def parser():
         type=int,
         default=1,
         help="number of nodes. If you want to train with 8"
-        " GPUs, --gpus should be 4 and --num_nodes"
-        " should be 2 (assuming you have 4 GPUs per "
-        " node",
+             " GPUs, --gpus should be 4 and --num_nodes"
+             " should be 2 (assuming you have 4 GPUs per "
+             " node",
     )
     non_tunable.add_argument(
         "--epochs", type=int, default=300, help="max number of epochs to train"
@@ -176,17 +175,17 @@ def parser():
         type=int,
         default=1,
         help="how often to validate the model. On each validation run the loss is "
-        "logged "
-        "and if it's lower than the previous best the current model is saved",
+             "logged "
+             "and if it's lower than the previous best the current model is saved",
     )
     non_tunable.add_argument("--data_path", type=str, help="where the data are saved")
     non_tunable.add_argument(
         "--log_dir",
         type=str,
         help="where to save the model logs (train, test "
-        "loss "
-        "and hyperparameters). Visualize with "
-        "tensorboard"
+             "loss "
+             "and hyperparameters). Visualize with "
+             "tensorboard"
     )
     non_tunable.add_argument(
         "--model_name",
@@ -201,7 +200,7 @@ def parser():
         help="number of threads to use when loading data",
     )
 
-    # extract
+    # EXTRACT #
     extract_parser = subparsers.add_parser("extract", add_help=True)
     extract_parser.add_argument(
         "--no_mel_scale",
@@ -234,13 +233,15 @@ def parser():
         default=0.8,
         help="Percentage of labels to use as train. Test/val are allocated (1-train_pct)/2 percent of labels each.",
     )
-    # label
+
+    # LABEL #
     label_parser = subparsers.add_parser("label", add_help=True)
     label_parser.add_argument("wav_file", type=str, help="which .wav file to analyze")
     label_parser.add_argument(
         "output_csv_path", type=str, help="where to save the labels"
     )
-    # viz
+
+    # VISUALIZE #
     viz_parser = subparsers.add_parser("viz", add_help=True)
     viz_parser.add_argument(
         "data_path",
