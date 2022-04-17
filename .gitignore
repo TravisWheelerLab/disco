@@ -147,3 +147,5 @@ cython_debug/
 
 # disco
 disco/data/
+disco/models/bootstrap models/
+disco/models/random init models/
