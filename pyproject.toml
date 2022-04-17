@@ -4,7 +4,8 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "disco"
-authors = [{name = "Kayla Irish", email = "kayla.irish@umontana.edu"}]
+authors = [{name = "Kayla Irish", email = "kayla.irish@umontana.edu"},
+    {name = "Tommy Colligan", email = "thomas.colligan@umontana.edu"}]
 readme = "README.md"
 dynamic = ["version", "description"]
 
