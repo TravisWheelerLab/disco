@@ -34,7 +34,7 @@ def visualize(config, data_path, hop_length, sample_rate):
     median_argmax = np.argmax(medians, axis=0)
     medians = medians.T[np.arange(medians.shape[-1]), median_argmax]
     # when the prediction is confidently background (i.e. the argmax
-    # results in the background class, set the probabilities to 0.
+    # results in the background class, set the probabilities to 0).
     medians[median_argmax == config.name_to_class_code["BACKGROUND"]] = 0
     medians = np.expand_dims(medians, axis=0)
 
