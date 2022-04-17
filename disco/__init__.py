@@ -179,14 +179,14 @@ def parser():
         "logged "
         "and if it's lower than the previous best the current model is saved",
     )
-    non_tunable.add_argument("data_path", type=str, help="where the data are saved")
+    non_tunable.add_argument("--data_path", type=str, help="where the data are saved")
     non_tunable.add_argument(
-        "log_dir",
+        "--log_dir",
         type=str,
         help="where to save the model logs (train, test "
         "loss "
         "and hyperparameters). Visualize with "
-        "tensorboard",
+        "tensorboard"
     )
     non_tunable.add_argument(
         "--model_name",
