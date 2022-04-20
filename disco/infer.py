@@ -77,12 +77,12 @@ def run_inference(
     spectrogram_iterator = infer.SpectrogramIterator(
         tile_size,
         tile_overlap,
-        wav_file,
         vertical_trim=vertical_trim,
         n_fft=n_fft,
         hop_length=hop_length,
         log_spect=True,
         mel_transform=True,
+        wav_file=wav_file,
     )
 
     spectrogram_dataset = torch.utils.data.DataLoader(
