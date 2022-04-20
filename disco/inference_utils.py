@@ -143,7 +143,7 @@ def load_pickle(path):
 
 
 def save_csv_from_predictions(
-    output_csv_path, predictions, sample_rate, hop_length, name_to_class_code
+        output_csv_path, predictions, sample_rate, hop_length, name_to_class_code
 ):
     """
     Ingest a Nx1 np.array of point-wise predictions and save a .csv with
@@ -310,9 +310,14 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
             val_files=[1],
             mask_character=config.mask_flag,
         ).to(device)
-        skeleton.load_state_dict(
-            torch.load(model_path, map_location=torch.device(device))
-        )
+
+        if model_extension == ".ckpt":
+            skeleton.load_from_checkpoint(model_path)
+        elif model_extension == ".pt":
+            skeleton.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
+        else:
+            raise RuntimeError("Unrecognized model extension.")
+
         models.append(skeleton.eval())
 
     return models
@@ -368,7 +373,7 @@ def calculate_median_and_iqr(ensemble_preds):
 
 
 def evaluate_spectrogram(
-    spectrogram_dataset, models, tile_overlap, original_spectrogram_shape, device="cpu"
+        spectrogram_dataset, models, tile_overlap, original_spectrogram_shape, device="cpu"
 ):
     """
     Use the overlap-tile strategy to seamlessly evaluate a spectrogram.
@@ -411,49 +416,51 @@ def evaluate_spectrogram(
 
     if assert_accuracy:
         all_features = np.concatenate(all_features, axis=-1)[
-            :, : original_spectrogram_shape[-1]
-        ]
+                       :, : original_spectrogram_shape[-1]
+                       ]
         assert np.all(all_features == SpectrogramIterator.original_spectrogram.numpy())
 
     medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[
-        :, : original_spectrogram_shape[-1]
-    ]
+                            :, : original_spectrogram_shape[-1]
+                            ]
     iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)[
-        :, : original_spectrogram_shape[-1]
-    ]
+                         :, : original_spectrogram_shape[-1]
+                         ]
 
     return medians_full_sequence, iqrs_full_sequence
 
 
 class SpectrogramIterator(torch.nn.Module):
-    # TODO: replace args in __init__ with sa.form_spectrogram_type
-    def __init__(
-        self,
-        tile_size,
-        tile_overlap,
-        wav_file,
-        vertical_trim,
-        n_fft,
-        hop_length,
-        log_spect,
-        mel_transform,
-    ):
-
+    def __init__(self,
+                 tile_size,
+                 tile_overlap,
+                 vertical_trim,
+                 n_fft,
+                 hop_length,
+                 log_spect,
+                 mel_transform,
+                 wav_file=None,
+                 spectrogram=None):
+        super().__init__()
         self.tile_size = tile_size
         self.tile_overlap = tile_overlap
         if self.tile_size <= tile_overlap:
             raise ValueError()
         self.wav_file = wav_file
+        self.spectrogram = spectrogram[vertical_trim:]
+        if self.spectrogram is None and self.wav_file is None:
+            raise ValueError()
+        if self.spectrogram is None:
+            waveform, self.sample_rate = load_wav_file(self.wav_file)
+            self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)[vertical_trim:]
         self.vertical_trim = vertical_trim
         self.n_fft = n_fft
         self.hop_length = hop_length
         self.log_spect = log_spect
         self.mel_transform = mel_transform
+        if not torch.is_tensor(self.spectrogram):
+            self.spectrogram = torch.tensor(self.spectrogram)
 
-        waveform, self.sample_rate = load_wav_file(self.wav_file)
-        self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)[
-            vertical_trim:
-        ]
         self.original_spectrogram = self.spectrogram.clone()
         self.original_shape = self.spectrogram.shape
 
@@ -493,7 +500,6 @@ class SpectrogramIterator(torch.nn.Module):
             )(waveform)
         else:
             spectrogram = torchaudio.transforms.Spectrogram(
-                sample_rate=self.sample_rate,
                 n_fft=self.n_fft,
                 hop_length=self.hop_length,
             )(waveform)
@@ -510,6 +516,6 @@ class SpectrogramIterator(torch.nn.Module):
         # we want to overlap-tile starting from the beginning
         # so that our predictions are seamless.
         x = self.spectrogram[
-            :, center_idx - self.tile_size // 2 : center_idx + self.tile_size // 2
-        ]
+            :, center_idx - self.tile_size // 2: center_idx + self.tile_size // 2
+            ]
         return x
