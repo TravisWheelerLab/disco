@@ -364,9 +364,9 @@ def calculate_median_and_iqr(ensemble_preds):
         (ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3])
     )
     for class_idx in range(ensemble_preds.shape[2]):
-        q75 = np.percentile(ensemble_preds[:, :, class_idx, :], [60], axis=0)
+        q75, q25 = np.percentile(ensemble_preds[:, :, class_idx, :], [75, 25], axis=0)
         median = np.median(ensemble_preds[:, :, class_idx, :], axis=0)
-        iqrs[:, class_idx] = q75
+        iqrs[:, class_idx] = q75 - q25
         medians[:, class_idx] = median
 
     return iqrs, medians
