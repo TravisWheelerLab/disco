@@ -124,12 +124,10 @@ def process_wav_file(csv_filename, n_fft, mel_scale, config, hop_length=200):
 
     labels = pd.read_csv(csv_filename)
 
-    if "Filename" in labels.keys():
-        wav_filename = labels.iloc[0]["Filename"]
-    else:
-        wav_filename = os.path.splitext(csv_filename)[0] + ".wav"
+    wav_filename = os.path.splitext(csv_filename)[0] + ".wav"
 
     if not os.path.isfile(wav_filename):
+        breakpoint()
         raise ValueError(
             f"couldn't find .wav file at {wav_filename}. "
             f"Make sure the correct .wav file is in the filename column of {csv_filename},"
@@ -317,7 +315,9 @@ def load_csvs_from_subdirectories(subdirectory_paths):
     csvs = []
 
     for subdirectory in subdirectory_paths:
-        csvs.append(glob(os.path.join(subdirectory, "*.csv"))[0])
+        subdirectory_csvs = glob(os.path.join(subdirectory, "*.csv"))
+        if subdirectory_csvs:
+            csvs.append(subdirectory_csvs[0])
 
     return csvs
 
@@ -352,6 +352,7 @@ def process_files(config, random_seed, mel, n_fft, data_dir, output_data_path, t
         validation_path = os.path.join(output_data_path, "validation")
         test_path = os.path.join(output_data_path, "test")
 
+        breakpoint()
         save_data(train_path, train_split, config.class_code_to_name)
         save_data(validation_path, val_split, config.class_code_to_name)
         save_data(test_path, test_split, config.class_code_to_name)
