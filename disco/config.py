@@ -11,8 +11,6 @@ class Config:
 
     default_model_directory = os.path.join(os.path.expanduser("~"), ".cache", "disco")
 
-    name_to_index = {"A": 0, "B": 1, "BACKGROUND": 2}
-
     hmm_transition_probabilities = [
         [0.995, 0.00000, 0.005],
         [0.0000, 0.995, 0.005],
@@ -29,6 +27,7 @@ class Config:
     excluded_classes = ("Y", "C")
 
     class_code_to_name = {0: "A", 1: "B", 2: "BACKGROUND"}
+    name_to_class_code = {"A": 0, "B": 1, "BACKGROUND": 2, "X": 2}
 
     name_to_rgb_code = {"A": "#b65b47", "B": "#A36DE9", "BACKGROUND": "#AAAAAA"}
     aws_download_link = "https://beetles-cnn-models.s3.amazonaws.com/model_{}.pt"
@@ -59,10 +58,6 @@ class Config:
     @property
     def index_to_name(self):
         return {v: k for k, v in self.name_to_index.items()}
-
-    @property
-    def name_to_class_code(self):
-        return {v: k for k, v in self.class_code_to_name.items()}
 
     def __getitem__(self, item):
         return getattr(self, item)
