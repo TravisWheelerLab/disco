@@ -291,9 +291,9 @@ def main():
             random_seed=args.random_seed,
             no_mel_scale=args.no_mel_scale,
             n_fft=args.n_fft,
-            data_dir=args.data_dir,
             output_data_path=args.output_data_path,
             train_pct=args.train_pct,
+            data_dir=args.data_dir,
         )
     elif args.command == "viz":
         from disco.visualize import visualize
