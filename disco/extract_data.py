@@ -127,12 +127,13 @@ def process_wav_file(csv_filename, n_fft, mel_scale, config, hop_length=200):
     wav_filename = os.path.splitext(csv_filename)[0] + ".wav"
 
     if not os.path.isfile(wav_filename):
-        breakpoint()
-        raise ValueError(
-            f"couldn't find .wav file at {wav_filename}. "
-            f"Make sure the correct .wav file is in the filename column of {csv_filename},"
-            f" or that the .wav file has the name filename as the csv but with the .wav extension."
-        )
+        wav_filename = os.path.splitext(csv_filename)[0] + ".WAV"
+        if not os.path.isfile(wav_filename):
+            raise ValueError(
+                f"couldn't find .wav file at {wav_filename}. "
+                f"Make sure the correct .wav file is in the filename column of {csv_filename},"
+                f" or that the .wav file has the name filename as the csv but with the .wav extension."
+            )
 
     waveform, sample_rate = torchaudio.load(wav_filename)
     # adds additional columns to give indices of these chirp locations
@@ -352,7 +353,6 @@ def process_files(config, random_seed, mel, n_fft, data_dir, output_data_path, t
         validation_path = os.path.join(output_data_path, "validation")
         test_path = os.path.join(output_data_path, "test")
 
-        breakpoint()
         save_data(train_path, train_split, config.class_code_to_name)
         save_data(validation_path, val_split, config.class_code_to_name)
         save_data(test_path, test_split, config.class_code_to_name)
