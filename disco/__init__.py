@@ -17,7 +17,6 @@ log = logging.getLogger(__name__)
 def parser():
     ap = ArgumentParser()
     ap.add_argument("--version", action="version", version="0.0.1-alpha")
-    # infer
     subparsers = ap.add_subparsers(title="actions", dest="command")
 
     # INFER #
@@ -306,7 +305,10 @@ def main():
         )
 
     elif args.command == "infer":
+        import torch
         from disco.infer import run_inference
+
+        torch.manual_seed(0)
 
         if args.debug is None and args.output_csv_path is None:
             raise ValueError("Must specify either --output_csv_path or --debug.")
