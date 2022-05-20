@@ -161,7 +161,7 @@ def save_csv_from_predictions(
     class_idx_to_prediction_start_end = aggregate_predictions(predictions)
 
     class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(
-        predictions, None, name_to_class_code, return_preds=False
+       predictions, None, name_to_class_code, return_preds=False
     )
     class_code_to_name = {v: k for k, v in name_to_class_code.items()}
     # window size by default is n_fft. hop_length is interval b/t consecutive spectrograms
@@ -396,7 +396,6 @@ def evaluate_spectrogram(
 
             features = features.to(device)
             ensemble_preds = predict_with_ensemble(models, features)
-
             if assert_accuracy:
                 all_features.extend(
                     np.stack(
@@ -447,19 +446,22 @@ class SpectrogramIterator(torch.nn.Module):
         if self.tile_size <= tile_overlap:
             raise ValueError()
         self.wav_file = wav_file
-        self.spectrogram = spectrogram[vertical_trim:]
+        self.spectrogram = spectrogram
         if self.spectrogram is None and self.wav_file is None:
             raise ValueError()
-        if self.spectrogram is None:
-            waveform, self.sample_rate = load_wav_file(self.wav_file)
-            self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)[vertical_trim:]
         self.vertical_trim = vertical_trim
         self.n_fft = n_fft
         self.hop_length = hop_length
         self.log_spect = log_spect
         self.mel_transform = mel_transform
+        if self.spectrogram is None:
+            waveform, self.sample_rate = load_wav_file(self.wav_file)
+            self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)
+        self.spectrogram = self.spectrogram[vertical_trim:]
         if not torch.is_tensor(self.spectrogram):
             self.spectrogram = torch.tensor(self.spectrogram)
+        if self.log_spect:
+            self.spectrogram = self.spectrogram.log2()
 
         self.original_spectrogram = self.spectrogram.clone()
         self.original_shape = self.spectrogram.shape
@@ -503,9 +505,6 @@ class SpectrogramIterator(torch.nn.Module):
                 n_fft=self.n_fft,
                 hop_length=self.hop_length,
             )(waveform)
-        if self.log_spect:
-            spectrogram = spectrogram.log2()
-
         return spectrogram.squeeze()
 
     def __len__(self):
