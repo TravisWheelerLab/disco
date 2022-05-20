@@ -149,5 +149,10 @@ cython_debug/
 disco/data/
 disco/models/bootstrap-models/
 disco/models/random-init-models/
-disco/train.sh
+disco/models/random_init_models/
+disco/visualization_of_examplewav
+
 disco/debug_scripts/
+
+disco/train.sh
+disco/infer.sh
