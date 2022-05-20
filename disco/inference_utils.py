@@ -461,6 +461,7 @@ class SpectrogramIterator(torch.nn.Module):
         if not torch.is_tensor(self.spectrogram):
             self.spectrogram = torch.tensor(self.spectrogram)
         if self.log_spect:
+            self.spectrogram[self.spectrogram == 0] = 1
             self.spectrogram = self.spectrogram.log2()
 
         self.original_spectrogram = self.spectrogram.clone()
