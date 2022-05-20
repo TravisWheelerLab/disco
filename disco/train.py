@@ -48,9 +48,9 @@ def train(config, hparams):
         )
     else:
         checkpoint_callback = pl.callbacks.model_checkpoint.ModelCheckpoint(
+            dirpath=f"{os.environ['HOME']}/disco/disco/models/random_init_models",
             monitor="val_loss",
-            # filename="{epoch}-{val_loss:.5f}-{val_acc:.5f}",
-            filename="no_bootstrap_model_1-{epoch}-{val_loss:.5f}-{val_acc:.5f}",
+            filename="random_init_model_1_1150_nfft-{epoch}-{val_loss:.5f}-{val_acc:.5f}",
             save_top_k=1,
         )
 
