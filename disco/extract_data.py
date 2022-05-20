@@ -7,6 +7,7 @@ import pandas as pd
 import pickle
 import os
 import logging
+import matplotlib.pyplot as plt
 
 from glob import glob
 from sklearn.model_selection import train_test_split
@@ -314,7 +315,7 @@ def extract(config,
 
 def load_csvs_from_subdirectories(subdirectory_paths):
     csvs = []
-
+    # TODO: Fix bug -- unable to retrieve .xlsx files.
     for subdirectory in subdirectory_paths:
         subdirectory_csvs = glob(os.path.join(subdirectory, "*.csv"))
         if subdirectory_csvs:
@@ -323,12 +324,28 @@ def load_csvs_from_subdirectories(subdirectory_paths):
     return csvs
 
 
-def process_files(config, random_seed, mel, n_fft, data_dir, output_data_path, train_pct, csv):
+def display_spectrogram(trial_name, spectrogram_and_labels):
+    unlogged_spectrogram = spectrogram_and_labels[0]
+    spectrogram = np.log2(unlogged_spectrogram[35:, :])
+    labels = spectrogram_and_labels[1]
+    name = trial_name
+    fig, ax = plt.subplots(nrows=2)
+    ax[0].imshow(spectrogram, aspect="auto")
+    ax[1].imshow(np.expand_dims(labels, axis=0), aspect="auto")
+    plt.title(name + ', first label: ' + str(int(labels[0])))
+    plt.show()
+
+
+def process_files(config, random_seed, mel, n_fft, data_dir, output_data_path, train_pct, csv, display=False):
     out = []
 
     for filename in csv:
         features_and_labels = process_wav_file(filename, n_fft, mel, config)
         out.extend(features_and_labels)
+        trial_name = filename.split('/')[-1].split('.')[0]
+        if display:
+            for spectrogram_and_labels in features_and_labels:
+                display_spectrogram(trial_name, spectrogram_and_labels, config)
 
     if len(out) == 0:
         raise ValueError(f"couldn't find data at {data_dir}")
