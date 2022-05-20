@@ -66,8 +66,7 @@ def run_inference(
     models = infer.assemble_ensemble(
         saved_model_directory, model_extension, device, input_channels, config
     )
-
-    if len(models) < 2:
+    if len(models) < 1:
         raise ValueError(
             "expected more than 1 model, found {}. Is the model directory and extension correct?".format(
                 len(models)
@@ -84,7 +83,6 @@ def run_inference(
         mel_transform=True,
         wav_file=wav_file,
     )
-
     spectrogram_dataset = torch.utils.data.DataLoader(
         spectrogram_iterator, shuffle=False, batch_size=batch_size, drop_last=False
     )
@@ -98,12 +96,15 @@ def run_inference(
     )
 
     predictions = np.argmax(medians, axis=0).squeeze()
+    print("All predictions are the same:", np.all(np.diff(predictions) == 0))
+    print(predictions)
 
     for heuristic in heuristics.HEURISTIC_FNS:
         log.info(f"applying heuristic function {heuristic.__name__}")
         predictions = heuristic(predictions, iqr, config.name_to_class_code)
 
     hmm_predictions = infer.smooth_predictions_with_hmm(predictions, config)
+    print("All hmm preds are the same:", np.all(np.diff(hmm_predictions) == 0))
 
     if output_csv_path is not None:
         _, ext = os.path.splitext(output_csv_path)
