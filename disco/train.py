@@ -1,7 +1,4 @@
-from pytorch_lightning import seed_everything
 from time import time
-
-seed_everything(int(time() * 1000))
 
 import os
 import torch
@@ -17,6 +14,8 @@ from disco.config import Config
 from shopty import ShoptyConfig
 
 log = logging.getLogger(__name__)
+
+torch.manual_seed(int(time() * 1000))
 
 
 def train(config, hparams):
@@ -48,9 +47,9 @@ def train(config, hparams):
         )
     else:
         checkpoint_callback = pl.callbacks.model_checkpoint.ModelCheckpoint(
-            dirpath=f"{os.environ['HOME']}/disco/disco/models/random_init_models",
+            dirpath=f"{os.environ['HOME']}/disco/disco/models/1150",
             monitor="val_loss",
-            filename="random_init_model_1_1150_nfft-{epoch}-{val_loss:.5f}-{val_acc:.5f}",
+            filename="random_init_1_1150_nfft-{epoch}-{val_loss:.3f}-{val_acc:.2f}",
             save_top_k=1,
         )
 
