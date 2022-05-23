@@ -1,11 +1,11 @@
-pytorch_lightning==1.4.9
-torchaudio==0.9.0
+pytorch_lightning
+torchaudio
 matplotlib
 torchmetrics==0.5.1
 tqdm==4.62.3
 numpy==1.20.3
 pandas==1.3.2
-torch==1.9.0
+torch==1.11
 pomegranate==0.14.5
 requests==2.26.0
 scikit_learn==1.0.1
