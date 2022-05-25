@@ -312,7 +312,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
         ).to(device)
 
         if model_extension == ".ckpt":
-            skeleton.load_from_checkpoint(model_path)
+            skeleton = skeleton.load_from_checkpoint(model_path)
         elif model_extension == ".pt":
             skeleton.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
         else:
@@ -344,7 +344,9 @@ def predict_with_ensemble(ensemble, features):
     ensemble_preds = []
 
     for model in ensemble:
-        preds = torch.exp(model(features))
+        preds = torch.nn.functional.softmax((model(features)))
+        print("preds:", preds[:1, :, :10])
+        print("features:", features[:1, :1, :10])
         ensemble_preds.append(preds.to("cpu").numpy())
 
     return ensemble_preds
@@ -384,7 +386,7 @@ def evaluate_spectrogram(
     :param device: 'cuda' or 'cpu'
     :return: medians and iqrs.
     """
-    assert_accuracy = False
+    assert_accuracy = True
 
     with torch.no_grad():
         medians_full_sequence = []
@@ -471,7 +473,7 @@ class SpectrogramIterator(torch.nn.Module):
         leftover = self.spectrogram.shape[-1] % step_size
         # Since the length of our spectrogram % step_size isn't always 0, we will have a little
         # leftover at the end of spectrogram that we need to predict to get full coverage. There
-        # are multiple ways to do this but I decided to mirror pad the end of the spectrogram with
+        # are multiple ways to do this, but I decided to mirror pad the end of the spectrogram with
         # the correct amount of columns from the spectrogram so that padded_spectrogram % step_size == 0.
         # I cut off the predictions on the mirrored data after stitching the predictions together.
         to_pad = step_size - leftover + tile_size // 2
