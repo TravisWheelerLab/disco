@@ -6,16 +6,15 @@ import logging
 import pytorch_lightning as pl
 from pytorch_lightning.plugins import DDPPlugin
 from glob import glob
-from argparse import ArgumentParser
+from pytorch_lightning import seed_everything
 
 from disco.models import UNet1D, UNet1DAttn
 from disco.dataset import SpectrogramDatasetMultiLabel, pad_batch
 from disco.config import Config
-from shopty import ShoptyConfig
 
 log = logging.getLogger(__name__)
 
-torch.manual_seed(int(time() * 1000))
+seed_everything(int(time() * 3))
 
 
 def train(config, hparams):
@@ -47,9 +46,9 @@ def train(config, hparams):
         )
     else:
         checkpoint_callback = pl.callbacks.model_checkpoint.ModelCheckpoint(
-            dirpath=f"{os.environ['HOME']}/disco/disco/models/1150",
+            dirpath=f"{os.environ['HOME']}/disco/disco/models/bootstrap_random_init_1150",
             monitor="val_loss",
-            filename="random_init_1_1150_nfft-{epoch}-{val_loss:.3f}-{val_acc:.2f}",
+            filename="random_init_1150_bootstrap-{epoch}-{val_loss:.3f}-{val_acc:.2f}",
             save_top_k=1,
         )
 
@@ -168,12 +167,11 @@ def train(config, hparams):
     else:
         trainer = pl.Trainer(**trainer_kwargs)
 
-    ckpt_path = None
     if hparams.shoptimize:
         ckpt_path = checkpoint_file if os.path.isfile(checkpoint_file) else None
         trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
-
-    trainer.fit(model, train_loader, val_loader)
+    else:
+        trainer.fit(model, train_loader, val_loader)
 
     if hparams.shoptimize:
         results = trainer.validate(model, val_loader)[0]
