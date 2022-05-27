@@ -151,6 +151,7 @@ disco/models/bootstrap-models/
 disco/models/random-init-models/
 disco/models/random_init_models/
 disco/visualization_of_examplewav
+disco/trained_models
 
 disco/debug_scripts/
 
