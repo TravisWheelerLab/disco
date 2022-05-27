@@ -1,5 +1,4 @@
 import os
-import pdb
 import torch
 import torchaudio
 import numpy as np
@@ -7,11 +6,9 @@ import pandas as pd
 import pickle
 import requests
 import tqdm
-import matplotlib.pyplot as plt
 import pomegranate as pom
 import logging
 from glob import glob
-from collections import defaultdict
 
 from disco.models import UNet1D
 import disco.heuristics as heuristics
@@ -345,8 +342,6 @@ def predict_with_ensemble(ensemble, features):
 
     for model in ensemble:
         preds = torch.nn.functional.softmax((model(features)))
-        print("preds:", preds[:1, :, :10])
-        print("features:", features[:1, :1, :10])
         ensemble_preds.append(preds.to("cpu").numpy())
 
     return ensemble_preds
@@ -375,13 +370,14 @@ def calculate_median_and_iqr(ensemble_preds):
 
 
 def evaluate_spectrogram(
-        spectrogram_dataset, models, tile_overlap, original_spectrogram_shape, device="cpu"
+        spectrogram_dataset, models, tile_overlap, original_spectrogram, original_spectrogram_shape, device="cpu"
 ):
     """
     Use the overlap-tile strategy to seamlessly evaluate a spectrogram.
     :param spectrogram_dataset: torch.data.DataLoader()
     :param models: list of model ensemble.
     :param tile_overlap: How much to overlap the tiles.
+    :param original_spectrogram: Original spectrogram.
     :param original_spectrogram_shape: Shape of original spectrogram.
     :param device: 'cuda' or 'cpu'
     :return: medians and iqrs.
@@ -419,7 +415,7 @@ def evaluate_spectrogram(
         all_features = np.concatenate(all_features, axis=-1)[
                        :, : original_spectrogram_shape[-1]
                        ]
-        assert np.all(all_features == SpectrogramIterator.original_spectrogram.numpy())
+        assert np.all(all_features == original_spectrogram.numpy())
 
     medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[
                             :, : original_spectrogram_shape[-1]
