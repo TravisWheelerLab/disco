@@ -91,20 +91,18 @@ def run_inference(
         spectrogram_dataset,
         models,
         tile_overlap,
+        spectrogram_iterator.original_spectrogram,
         spectrogram_iterator.original_shape,
         device=device,
     )
 
     predictions = np.argmax(medians, axis=0).squeeze()
-    print("All predictions are the same:", np.all(np.diff(predictions) == 0))
-    print(predictions)
 
     for heuristic in heuristics.HEURISTIC_FNS:
         log.info(f"applying heuristic function {heuristic.__name__}")
         predictions = heuristic(predictions, iqr, config.name_to_class_code)
 
     hmm_predictions = infer.smooth_predictions_with_hmm(predictions, config)
-    print("All hmm preds are the same:", np.all(np.diff(hmm_predictions) == 0))
 
     if output_csv_path is not None:
         _, ext = os.path.splitext(output_csv_path)
