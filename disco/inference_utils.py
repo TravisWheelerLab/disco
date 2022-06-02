@@ -347,26 +347,28 @@ def predict_with_ensemble(ensemble, features):
     return ensemble_preds
 
 
-def calculate_median_and_iqr(ensemble_preds):
+def calculate_ensemble_statistics(ensemble_preds):
     """
     Get the median prediction and iqr of softmax values of the predictions from each model in the ensemble.
     :param ensemble_preds: List of np.arrays, one for each model.
     :return: tuple (np.array, np.array) of iqrs and medians.
     """
 
-    iqrs = np.zeros(
-        (ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3])
-    )
-    medians = np.zeros(
-        (ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3])
-    )
+    iqrs = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
+    medians = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
+    means = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
+    votes = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
+
     for class_idx in range(ensemble_preds.shape[2]):
         q75, q25 = np.percentile(ensemble_preds[:, :, class_idx, :], [75, 25], axis=0)
         median = np.median(ensemble_preds[:, :, class_idx, :], axis=0)
+        mean = np.mean(ensemble_preds[:, :, class_idx, :], axis=0)
+
         iqrs[:, class_idx] = q75 - q25
         medians[:, class_idx] = median
+        means[:, class_idx] = mean
 
-    return iqrs, medians
+    return iqrs, medians, means, votes
 
 
 def evaluate_spectrogram(
@@ -407,7 +409,7 @@ def evaluate_spectrogram(
             ensemble_preds = np.stack(
                 [seq[:, :, tile_overlap:-tile_overlap] for seq in ensemble_preds]
             )
-            iqrs, medians = calculate_median_and_iqr(ensemble_preds)
+            iqrs, medians, means, votes = calculate_ensemble_statistics(ensemble_preds)
             medians_full_sequence.extend(medians)
             iqrs_full_sequence.extend(iqrs)
 
