@@ -87,7 +87,7 @@ def run_inference(
         spectrogram_iterator, shuffle=False, batch_size=batch_size, drop_last=False
     )
 
-    medians, iqr = infer.evaluate_spectrogram(
+    iqr, medians, means, votes = infer.evaluate_spectrogram(
         spectrogram_dataset,
         models,
         tile_overlap,
