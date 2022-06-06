@@ -399,8 +399,10 @@ def evaluate_spectrogram(
     assert_accuracy = True
 
     with torch.no_grad():
-        medians_full_sequence = []
         iqrs_full_sequence = []
+        medians_full_sequence = []
+        means_full_sequence = []
+        votes_full_sequence = []
         if assert_accuracy:
             all_features = []
 
@@ -408,31 +410,28 @@ def evaluate_spectrogram(
             features = features.to(device)
             ensemble_preds = predict_with_ensemble(models, features)
             if assert_accuracy:
-                all_features.extend(np.stack(
-                    [seq[:, tile_overlap:-tile_overlap] for seq in features.to("cpu").numpy()])
-                )
+                all_features.extend(np.stack([seq[:, tile_overlap:-tile_overlap]
+                                              for seq in features.to("cpu").numpy()]))
 
-            ensemble_preds = np.stack(
-                [seq[:, :, tile_overlap:-tile_overlap] for seq in ensemble_preds]
-            )
+            ensemble_preds = np.stack([seq[:, :, tile_overlap:-tile_overlap]
+                                       for seq in ensemble_preds])
             iqrs, medians, means, votes = calculate_ensemble_statistics(ensemble_preds)
-            medians_full_sequence.extend(medians)
+
             iqrs_full_sequence.extend(iqrs)
+            medians_full_sequence.extend(medians)
+            means_full_sequence.extend(means)
+            votes_full_sequence.extend(votes)
 
     if assert_accuracy:
-        all_features = np.concatenate(all_features, axis=-1)[
-                       :, : original_spectrogram_shape[-1]
-                       ]
+        all_features = np.concatenate(all_features, axis=-1)[:, : original_spectrogram_shape[-1]]
         assert np.all(all_features == original_spectrogram.numpy())
 
-    medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[
-                            :, : original_spectrogram_shape[-1]
-                            ]
-    iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)[
-                         :, : original_spectrogram_shape[-1]
-                         ]
+    iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
+    medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
+    means_full_sequence = np.concatenate(means_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
+    votes_full_sequence = np.concatenate(votes_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
 
-    return medians_full_sequence, iqrs_full_sequence
+    return iqrs_full_sequence, medians_full_sequence, means_full_sequence, votes_full_sequence
 
 
 class SpectrogramIterator(torch.nn.Module):
