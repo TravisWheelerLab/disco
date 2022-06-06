@@ -373,7 +373,14 @@ def calculate_ensemble_statistics(ensemble_preds):
         medians[:, class_idx] = median
         means[:, class_idx] = mean
 
-    return iqrs, medians, means
+    for ensemble_member in range(number_of_models):
+        for spectrogram_number in range(number_of_spectrograms):
+            slice_to_analyze = ensemble_preds[ensemble_member, spectrogram_number, :, :]
+            class_votes = list(np.argmax(slice_to_analyze, axis=0))
+            for i in range(len(class_votes)):
+                votes[spectrogram_number, class_votes[i], i] += 1
+
+    return iqrs, medians, means, votes
 
 
 def evaluate_spectrogram(
@@ -408,7 +415,7 @@ def evaluate_spectrogram(
             ensemble_preds = np.stack(
                 [seq[:, :, tile_overlap:-tile_overlap] for seq in ensemble_preds]
             )
-            iqrs, medians, means = calculate_ensemble_statistics(ensemble_preds)
+            iqrs, medians, means, votes = calculate_ensemble_statistics(ensemble_preds)
             medians_full_sequence.extend(medians)
             iqrs_full_sequence.extend(iqrs)
 
