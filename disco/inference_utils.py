@@ -354,12 +354,17 @@ def calculate_ensemble_statistics(ensemble_preds):
     :return: tuple (np.array, np.array) of iqrs and medians.
     """
 
-    iqrs = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
-    medians = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
-    means = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
-    votes = np.zeros((ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3]))
+    number_of_models = ensemble_preds.shape[0]
+    number_of_spectrograms = ensemble_preds.shape[1]
+    number_of_classes = ensemble_preds.shape[2]
+    length_per_spectrogram = ensemble_preds.shape[3]
 
-    for class_idx in range(ensemble_preds.shape[2]):
+    iqrs = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+    medians = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+    means = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+    votes = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+
+    for class_idx in range(number_of_classes):
         q75, q25 = np.percentile(ensemble_preds[:, :, class_idx, :], [75, 25], axis=0)
         median = np.median(ensemble_preds[:, :, class_idx, :], axis=0)
         mean = np.mean(ensemble_preds[:, :, class_idx, :], axis=0)
@@ -393,17 +398,11 @@ def evaluate_spectrogram(
             all_features = []
 
         for features in spectrogram_dataset:
-
             features = features.to(device)
             ensemble_preds = predict_with_ensemble(models, features)
             if assert_accuracy:
-                all_features.extend(
-                    np.stack(
-                        [
-                            seq[:, tile_overlap:-tile_overlap]
-                            for seq in features.to("cpu").numpy()
-                        ]
-                    )
+                all_features.extend(np.stack(
+                    [seq[:, tile_overlap:-tile_overlap] for seq in features.to("cpu").numpy()])
                 )
 
             ensemble_preds = np.stack(
