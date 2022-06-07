@@ -68,7 +68,7 @@ def run_inference(
     )
     if len(models) < 1:
         raise ValueError(
-            "expected more than 1 model, found {}. Is the model directory and extension correct?".format(
+            "expected 1 or more models, found {}. Is the model directory and extension correct?".format(
                 len(models)
             )
         )
@@ -125,7 +125,8 @@ def run_inference(
         spectrogram_path = os.path.join(debug_path, "raw_spectrogram.pkl")
         hmm_prediction_path = os.path.join(debug_path, "hmm_predictions.pkl")
         median_prediction_path = os.path.join(debug_path, "median_predictions.pkl")
-
+        mean_prediction_path = os.path.join(debug_path, "mean_predictions.pkl")
+        votes_path = os.path.join(debug_path, "votes.pkl")
         iqr_path = os.path.join(debug_path, "iqrs.pkl")
         csv_path = os.path.join(debug_path, "classifications.csv")
 
@@ -141,3 +142,5 @@ def run_inference(
         infer.pickle_tensor(hmm_predictions, hmm_prediction_path)
         infer.pickle_tensor(medians, median_prediction_path)
         infer.pickle_tensor(iqr, iqr_path)
+        infer.pickle_tensor(means, mean_prediction_path)
+        infer.pickle_tensor(votes, votes_path)
