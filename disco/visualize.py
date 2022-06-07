@@ -1,15 +1,10 @@
 import os
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib
 from matplotlib.widgets import Slider
 import disco.inference_utils as infer
-from glob import glob
-from argparse import ArgumentParser
 
 import disco.heuristics as heuristics
-from disco.inference_utils import smooth_predictions_with_hmm
 
 
 def load_arrays(data_root):
