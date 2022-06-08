@@ -341,7 +341,7 @@ def predict_with_ensemble(ensemble, features):
     ensemble_preds = []
 
     for model in ensemble:
-        preds = torch.nn.functional.softmax((model(features)))
+        preds = torch.nn.functional.softmax((model(features)), dim=1)
         ensemble_preds.append(preds.to("cpu").numpy())
 
     return ensemble_preds
