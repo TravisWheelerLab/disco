@@ -299,9 +299,7 @@ def main():
 
         visualize(
             config,
-            data_path=args.data_path,
-            hop_length=args.hop_length,
-            sample_rate=args.sample_rate,
+            data_path=args.data_path
         )
 
     elif args.command == "infer":
