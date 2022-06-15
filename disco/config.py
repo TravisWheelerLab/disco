@@ -34,7 +34,7 @@ class Config:
     default_spectrogram_num_rows = 128
     visualization_n_fft = 1150
     vertical_cut = 20
-    visualization_zoom_out = 2000
+    visualization_zoom_out = 1200
 
     key_to_label = {"y": "A", "w": "B", "e": "BACKGROUND"}
     label_keys = set(key_to_label.keys())
