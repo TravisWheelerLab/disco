@@ -30,6 +30,16 @@ def add_predictions_bar(output, ax, y1, y2, config):
         ax[1].fill_between(x, y1, y2, where=all_class, color=config.name_to_rgb_code[name])
 
 
+def set_up_spectrogram_axes(spectrogram, ax):
+    ax[0].imshow(spectrogram, aspect="auto", origin="lower")
+    ax[0].set_ylim([0, spectrogram.shape[0]])
+
+    ax[0].set_title("raw spectrogram")
+    ax[0].set_ylabel("frequency bin")
+    ax[0].set_yticks([])
+    ax[0].set_xticks([])
+
+
 def visualize(config, data_path):
     """
     Visualize predictions interactively.
@@ -46,16 +56,9 @@ def visualize(config, data_path):
     add_predictions_bar(visualizer.median_argmax, ax, 15, 19, config)
     add_predictions_bar(visualizer.post_hmm, ax, 10, 14, config)
 
-
     ax[1].axis("off")
 
-    ax[0].imshow(visualizer.spectrogram, aspect="auto", origin="lower")
-    ax[0].set_ylim([0, visualizer.spectrogram.shape[0]])
-
-    ax[0].set_title("Raw spectrogram")
-    ax[0].set_ylabel("frequency bin")
-    ax[0].set_yticks([])
-    ax[0].set_xticks([])
+    set_up_spectrogram_axes(visualizer.spectrogram, ax)
 
     plt.subplots_adjust()
     n = 1200
