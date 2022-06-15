@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 from matplotlib.widgets import Slider
 import disco.inference_utils as infer
 
@@ -74,6 +75,13 @@ def visualize(config, data_path):
 
     spect_position = ax[0].get_position()
     add_prediction_bar_labels(fig, spect_position)
+
+    gray_square = mlines.Line2D([], [], color="#AAAAAA", marker="s", linestyle='None', markersize=10, label="Background")
+    red_square = mlines.Line2D([], [], color="#b65b47", marker="s", linestyle='None', markersize=10, label="A Chirp")
+    purple_square = mlines.Line2D([], [], color="#A36DE9", marker="s", linestyle='None', markersize=10, label="B Chirp")
+
+    legend_handles = [red_square, purple_square, gray_square]
+    ax[0].legend(handles=legend_handles, loc='upper right', fontsize='small', title='predictions')
 
     axis_position = plt.axes([spect_position.x0, spect_position.y0 - 0.2, spect_position.x1 - spect_position.x0, 0.05])
 
