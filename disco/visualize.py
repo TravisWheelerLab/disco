@@ -40,40 +40,48 @@ def set_up_spectrogram_axes(spectrogram, ax):
     ax[0].set_xticks([])
 
 
+def set_up_figure_positioning(ax, visualizer, config):
+    ax[1].axis([0, config.visualization_zoom_out, 4, 20])
+    ax[0].axis([0, config.visualization_zoom_out, 0, visualizer.spectrogram.shape[0]])
+    spect_position = ax[0].get_position()
+    ax[1].set_position([spect_position.x0, spect_position.y0 - 0.1, spect_position.x1 - spect_position.x0, 0.09])
+
+
+def add_prediction_bar_labels(fig, spect_position):
+    fig.text(spect_position.x0 - 0.08, spect_position.y0 - 0.03, "ensemble prediction", fontsize=8)
+    fig.text(spect_position.x0 - 0.08, spect_position.y0 - 0.06, "post processed", fontsize=8)
+
+
 def visualize(config, data_path):
     """
     Visualize predictions interactively.
     :param config:
     :param data_path:
-    :param hop_length:
-    :param sample_rate:
     :return:
     """
     fig, ax = plt.subplots(sharex=True, nrows=2, figsize=(10, 7))
-
     visualizer = Visualizer(data_path, config)
 
     add_predictions_bar(visualizer.median_argmax, ax, 15, 19, config)
     add_predictions_bar(visualizer.post_hmm, ax, 10, 14, config)
-
     ax[1].axis("off")
 
     set_up_spectrogram_axes(visualizer.spectrogram, ax)
 
     plt.subplots_adjust()
-    ax[1].axis([0, config.visualization_zoom_out, 4, 20])
-    ax[0].axis([0, config.visualization_zoom_out, 0, visualizer.spectrogram.shape[0]])
+
+    set_up_figure_positioning(ax, visualizer, config)
+
     spect_position = ax[0].get_position()
-    ax[1].set_position([spect_position.x0, spect_position.y0 - 0.1, spect_position.x1 - spect_position.x0, 0.09])
-    fig.text(spect_position.x0 - 0.08, spect_position.y0 - 0.03, "ensemble prediction", fontsize=8)
-    fig.text(spect_position.x0 - 0.08, spect_position.y0 - 0.06, "post processed", fontsize=8)
+    add_prediction_bar_labels(fig, spect_position)
 
     axis_position = plt.axes([spect_position.x0, spect_position.y0 - 0.2, spect_position.x1 - spect_position.x0, 0.05])
-    slider_position = Slider(axis_position, "x-position", 0.0, visualizer.medians.shape[1])
+
+    slider = Slider(axis_position, "x-position", 0.0, visualizer.medians.shape[1])
 
     def update(val):
-        ax[1].axis([slider_position.val, slider_position.val + config.visualization_zoom_out, 4, 20])
-        ax[0].axis([slider_position.val, slider_position.val + config.visualization_zoom_out, 0, visualizer.spectrogram.shape[0]])
+        ax[1].axis([slider.val, slider.val + config.visualization_zoom_out, 4, 20])
+        ax[0].axis([slider.val, slider.val + config.visualization_zoom_out, 0, visualizer.spectrogram.shape[0]])
 
-    slider_position.on_changed(update)
+    slider.on_changed(update)
     plt.show()
