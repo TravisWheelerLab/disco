@@ -61,20 +61,19 @@ def visualize(config, data_path):
     set_up_spectrogram_axes(visualizer.spectrogram, ax)
 
     plt.subplots_adjust()
-    n = 1200
-    ax[1].axis([0, n, 4, 20])
-    ax[0].axis([0, n, 0, visualizer.spectrogram.shape[0]])
-    p = ax[0].get_position()
-    ax[1].set_position([p.x0, p.y0 - 0.1, p.x1 - p.x0, 0.09])
-    fig.text(p.x0 - 0.08, p.y0 - 0.03, "ensemble prediction", fontsize=8)
-    fig.text(p.x0 - 0.08, p.y0 - 0.06, "post processed", fontsize=8)
+    ax[1].axis([0, config.visualization_zoom_out, 4, 20])
+    ax[0].axis([0, config.visualization_zoom_out, 0, visualizer.spectrogram.shape[0]])
+    spect_position = ax[0].get_position()
+    ax[1].set_position([spect_position.x0, spect_position.y0 - 0.1, spect_position.x1 - spect_position.x0, 0.09])
+    fig.text(spect_position.x0 - 0.08, spect_position.y0 - 0.03, "ensemble prediction", fontsize=8)
+    fig.text(spect_position.x0 - 0.08, spect_position.y0 - 0.06, "post processed", fontsize=8)
 
-    axpos = plt.axes([p.x0, p.y0 - 0.2, p.x1 - p.x0, 0.05])
-    spos = Slider(axpos, "x-position", 0.0, visualizer.medians.shape[1])
+    axis_position = plt.axes([spect_position.x0, spect_position.y0 - 0.2, spect_position.x1 - spect_position.x0, 0.05])
+    slider_position = Slider(axis_position, "x-position", 0.0, visualizer.medians.shape[1])
 
     def update(val):
-        ax[1].axis([spos.val, spos.val + n, 4, 20])
-        ax[0].axis([spos.val, spos.val + n, 0, visualizer.spectrogram.shape[0]])
+        ax[1].axis([slider_position.val, slider_position.val + config.visualization_zoom_out, 4, 20])
+        ax[0].axis([slider_position.val, slider_position.val + config.visualization_zoom_out, 0, visualizer.spectrogram.shape[0]])
 
-    spos.on_changed(update)
+    slider_position.on_changed(update)
     plt.show()
