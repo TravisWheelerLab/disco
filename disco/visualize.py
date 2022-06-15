@@ -55,8 +55,8 @@ def add_prediction_bar_labels(fig, spect_position):
 def visualize(config, data_path):
     """
     Visualize predictions interactively.
-    :param config:
-    :param data_path:
+    :param config: disco.Config() object.
+    :param data_path: path of directory containing spectrogram and inference ran on it
     :return:
     """
     fig, ax = plt.subplots(sharex=True, nrows=2, figsize=(10, 7))
