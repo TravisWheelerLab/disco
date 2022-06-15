@@ -23,6 +23,13 @@ def load_arrays(data_root):
     return spectrogram, medians, post_hmm, iqr, means, votes
 
 
+def add_predictions_bar(output, ax, y1, y2, config):
+    for class_index, name in config.class_code_to_name.items():
+        all_class = output == class_index
+        x = range(0, all_class.shape[-1])
+        ax[1].fill_between(x, y1, y2, where=all_class, color=config.name_to_rgb_code[name])
+
+
 def visualize(config, data_path):
     """
     Visualize predictions interactively.
@@ -36,17 +43,9 @@ def visualize(config, data_path):
 
     visualizer = Visualizer(data_path, config)
 
-    for class_index, name in config.class_code_to_name.items():
-        all_class = visualizer.median_argmax == class_index
-        x = range(0, all_class.shape[-1])
-        ax[1].fill_between(x, 15, 19, where=all_class, color=config.name_to_rgb_code[name])
+    add_predictions_bar(visualizer.median_argmax, ax, 15, 19, config)
+    add_predictions_bar(visualizer.post_hmm, ax, 10, 14, config)
 
-    for class_index, name in config.class_code_to_name.items():
-        all_class = visualizer.post_hmm == class_index
-        x = range(0, all_class.shape[-1])
-        ax[1].fill_between(
-            x, 10, 14, where=all_class, color=config.name_to_rgb_code[name]
-        )
 
     ax[1].axis("off")
 
