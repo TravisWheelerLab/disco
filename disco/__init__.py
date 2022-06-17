@@ -236,26 +236,27 @@ def parser():
     # LABEL #
     label_parser = subparsers.add_parser("label", add_help=True)
     label_parser.add_argument("wav_file", type=str, help="which .wav file to analyze")
-    label_parser.add_argument(
-        "output_csv_path", type=str, help="where to save the labels"
-    )
+    label_parser.add_argument("output_csv_path", type=str, help="where to save the labels")
 
     # VISUALIZE #
     viz_parser = subparsers.add_parser("viz", add_help=True)
-    viz_parser.add_argument(
-        "data_path",
-        type=str,
-        help="location of debugging data (directory, output of disco infer --debug",
-    )
-    viz_parser.add_argument(
-        "--sample_rate", type=int, default=48000, help="sample rate of audio recording"
-    )
-    viz_parser.add_argument(
-        "--hop_length",
-        type=int,
-        default=200,
-        help="length of hops b/t subsequent spectrogram windows",
-    )
+    viz_parser.add_argument("data_path",
+                            type=str,
+                            help="location of debugging data (directory, output of disco infer --debug")
+    viz_parser.add_argument("--medians",
+                            action="store_true",
+                            help="display median ensemble predictions")
+    viz_parser.add_argument("--post_process",
+                            action="store_true",
+                            help="display post-processed ensemble predictions")
+    viz_parser.add_argument("--sample_rate",
+                            type=int,
+                            default=48000,
+                            help="sample rate of audio recording")
+    viz_parser.add_argument("--hop_length",
+                            type=int,
+                            default=200,
+                            help="length of hops b/t subsequent spectrogram windows")
     return ap
 
 
@@ -276,12 +277,14 @@ def main():
         from disco.label import label
 
         label(config, wav_file=args.wav_file, output_csv_path=args.output_csv_path)
+
     elif args.command == "train":
         from disco.train import train
 
         # too many hparams to pass in
         # arguments in the function
         train(config, args)
+
     elif args.command == "extract":
         from disco.extract_data import extract
 
@@ -294,12 +297,15 @@ def main():
             train_pct=args.train_pct,
             data_dir=args.data_dir,
         )
+
     elif args.command == "viz":
         from disco.visualize import visualize
 
         visualize(
             config,
-            data_path=args.data_path
+            data_path=args.data_path,
+            medians=args.medians,
+            post_process=args.post_process,
         )
 
     elif args.command == "infer":
