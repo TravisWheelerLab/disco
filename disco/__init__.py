@@ -249,6 +249,9 @@ def parser():
     viz_parser.add_argument("--post_process",
                             action="store_true",
                             help="display post-processed ensemble predictions")
+    viz_parser.add_argument("--means",
+                            action="store_true",
+                            help="display mean ensemble predictions")
     viz_parser.add_argument("--sample_rate",
                             type=int,
                             default=48000,
@@ -306,6 +309,7 @@ def main():
             data_path=args.data_path,
             medians=args.medians,
             post_process=args.post_process,
+            means=args.means,
         )
 
     elif args.command == "infer":
