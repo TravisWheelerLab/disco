@@ -34,7 +34,8 @@ def load_arrays(data_root):
 
 def add_statistical_visualizations(visualizer, ax):
     for statistic_index in range(len(visualizer.displayed_statistics)):
-        add_predictions_bar(visualizer.median_argmax, ax, 15-5*statistic_index, 19-5*statistic_index, visualizer.config)
+        add_predictions_bar(visualizer.median_argmax, ax, 15 - 5*statistic_index, 19 - 5*statistic_index,
+                            visualizer.config)
 
 
 def add_predictions_bar(output, ax, y1, y2, config):
@@ -67,12 +68,11 @@ def add_prediction_bar_labels(fig, spect_position):
 
 
 def add_predictions_legend(ax, config):
-    background_icon = mlines.Line2D([], [], color="#AAAAAA", marker="s", linestyle='None', markersize=10,
-                                    label="Background")
-    a_icon = mlines.Line2D([], [], color="#b65b47", marker="s", linestyle='None', markersize=10, label="A Chirp")
-    b_icon = mlines.Line2D([], [], color="#A36DE9", marker="s", linestyle='None', markersize=10, label="B Chirp")
-
-    legend_handles = [background_icon, a_icon, b_icon]
+    legend_handles = []
+    for name in config.name_to_rgb_code.keys():
+        icon = mlines.Line2D([], [], color=config.name_to_rgb_code[name], marker="s", linestyle='None', markersize=10,
+                             label=name.title())
+        legend_handles.append(icon)
     ax[0].legend(handles=legend_handles, loc='upper right', fontsize='small', title='prediction')
 
 
@@ -103,7 +103,7 @@ def visualize(config, data_path, medians, post_process):
     add_prediction_bar_labels(fig, spect_position)
     add_predictions_legend(ax, config)
 
-    axis_position = plt.axes([spect_position.x0, spect_position.y0-0.2, spect_position.x1 - spect_position.x0, 0.05])
+    axis_position = plt.axes([spect_position.x0, spect_position.y0 - 0.2, spect_position.x1 - spect_position.x0, 0.05])
 
     slider = Slider(axis_position, "x-position", 0.0, visualizer.medians.shape[1])
 
