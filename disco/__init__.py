@@ -252,6 +252,9 @@ def parser():
     viz_parser.add_argument("--means",
                             action="store_true",
                             help="display mean ensemble predictions")
+    viz_parser.add_argument("--iqr",
+                            action="store_true",
+                            help="display mean ensemble predictions")
     viz_parser.add_argument("--sample_rate",
                             type=int,
                             default=48000,
@@ -278,19 +281,14 @@ def main():
 
     if args.command == "label":
         from disco.label import label
-
         label(config, wav_file=args.wav_file, output_csv_path=args.output_csv_path)
 
     elif args.command == "train":
         from disco.train import train
-
-        # too many hparams to pass in
-        # arguments in the function
         train(config, args)
 
     elif args.command == "extract":
         from disco.extract_data import extract
-
         extract(
             config,
             random_seed=args.random_seed,
@@ -303,19 +301,18 @@ def main():
 
     elif args.command == "viz":
         from disco.visualize import visualize
-
         visualize(
             config,
             data_path=args.data_path,
             medians=args.medians,
             post_process=args.post_process,
             means=args.means,
+            iqr=args.iqr,
         )
 
     elif args.command == "infer":
         import torch
         from disco.infer import run_inference
-
         torch.manual_seed(0)
 
         if args.debug is None and args.output_csv_path is None:
