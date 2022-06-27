@@ -224,19 +224,6 @@ def smooth_predictions_with_hmm(unsmoothed_predictions, config):
     return smoothed_predictions
 
 
-def convert_argmaxed_array_to_rgb(predictions):
-    """
-    Utility function for visualization. Converts categorical labels (0, 1, 2) to RGB vectors ([1, 0, 0], [0, 1, 0],
-    [0, 0, 1])
-    :param predictions: Nx1 np.array.
-    :return: Nx3 np.array.
-    """
-    rgb = np.zeros((1, predictions.shape[-1], 3))
-    for class_idx in CLASS_CODE_TO_NAME.keys():
-        rgb[:, np.where(predictions == class_idx), class_idx] = 1
-    return rgb
-
-
 def convert_time_to_spect_index(time, hop_length, sample_rate):
     """
     Converts time (seconds) to spectrogram index.
