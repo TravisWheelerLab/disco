@@ -7,7 +7,7 @@ import disco.inference_utils as infer
 
 
 class Visualizer:
-    def __init__(self, data_path, medians, post_process, means, config):
+    def __init__(self, data_path, medians, post_process, means, iqr, config):
         self.config = config
         self.spectrogram, self.medians, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
 
@@ -22,6 +22,13 @@ class Visualizer:
             self.displayed_statistics.append(self.post_hmm)
         if means:
             self.displayed_statistics.append(self.mean_argmax)
+        if iqr:
+            self.displayed_statistics.append(self.iqr)
+
+        self.statistics_dict = {"ensemble preds (medians)": [medians, self.median_argmax],
+                                "post process (medians)": [post_process, self.post_hmm],
+                                "ensemble preds (means)": [means, self.mean_argmax],
+                                "ensemble iqr (medians)": [iqr, self.iqr]}
 
 
 def load_arrays(data_root):
@@ -35,16 +42,30 @@ def load_arrays(data_root):
 
 
 def add_statistical_visualizations(visualizer, ax):
-    for statistic_index in range(len(visualizer.displayed_statistics)):
-        add_predictions_bar(visualizer.displayed_statistics[statistic_index], ax, 15 - 5*statistic_index,
-                            19 - 5*statistic_index, visualizer.config)
+    key_index = 0
+    for key in visualizer.statistics_dict.keys():
+        if key == "ensemble preds (medians)" or key == "post process (medians)" or key == "ensemble preds (means)":
+            if visualizer.statistics_dict[key][0]:
+                add_predictions_bar(visualizer.statistics_dict[key][1], ax, 15 - 5*key_index,
+                                    19 - 5*key_index, visualizer.config)
+                key_index += 1
+        elif key == "ensemble iqr (medians)":
+            if visualizer.statistics_dict[key][0]:
+                add_iqr_bar(visualizer.statistics_dict[key][1], ax, 15 - 5*key_index, 19 - 5*key_index)
 
 
-def add_predictions_bar(output, ax, y1, y2, config):
+def add_predictions_bar(output_array, ax, y1, y2, config):
     for class_index, name in config.class_code_to_name.items():
-        all_class = output == class_index
+        all_class = output_array == class_index
         x = range(0, all_class.shape[-1])
         ax[1].fill_between(x, y1, y2, where=all_class, color=config.name_to_rgb_code[name])
+
+
+def add_iqr_bar(output_array, ax, y1, y2):
+    # todo: debug this so it shows a colormap rather than a solid blue
+    average_across_classes = np.mean(output_array, axis=0)
+    x = range(0, average_across_classes.shape[-1])
+    ax[1].fill_between(x, y1, y2, where=average_across_classes, cmap="viridis")
 
 
 def set_up_spectrogram_axes(spectrogram, ax):
@@ -64,14 +85,11 @@ def set_up_figure_positioning(ax, visualizer):
     ax[1].set_position([spect_position.x0, spect_position.y0 - 0.1, spect_position.x1 - spect_position.x0, 0.09])
 
 
-def add_prediction_bar_labels(fig, spect_position, medians, post_process, means):
-    statistics = [medians, post_process, means]
-    text = ["ensemble pred (medians)", "post process (means)", "ensemble pred (means)"]
+def add_prediction_bar_labels(fig, spect_position, statistics_dict):
     index_iterator = 0.03
-
-    for statistic_bool_idx in range(len(statistics)):
-        if statistics[statistic_bool_idx]:
-            fig.text(spect_position.x0 - 0.08, spect_position.y0 - index_iterator, text[statistic_bool_idx], fontsize=8)
+    for key in statistics_dict.keys():
+        if statistics_dict[key][0]:
+            fig.text(spect_position.x0 - 0.08, spect_position.y0 - index_iterator, key, fontsize=8)
             index_iterator += 0.03
 
 
@@ -84,7 +102,7 @@ def add_predictions_legend(ax, config):
     ax[0].legend(handles=legend_handles, loc='upper right', fontsize='small', title='prediction')
 
 
-def visualize(config, data_path, medians, post_process, means):
+def visualize(config, data_path, medians, post_process, means, iqr):
     """
     Visualize predictions interactively.
     :param config: disco.Config() object.
@@ -95,7 +113,7 @@ def visualize(config, data_path, medians, post_process, means):
     :return:
     """
     fig, ax = plt.subplots(sharex=True, nrows=2, figsize=(10, 7))
-    visualizer = Visualizer(data_path, medians, post_process, means, config)
+    visualizer = Visualizer(data_path, medians, post_process, means, iqr, config)
 
     add_statistical_visualizations(visualizer, ax)
 
@@ -108,8 +126,10 @@ def visualize(config, data_path, medians, post_process, means):
     set_up_figure_positioning(ax, visualizer)
 
     spect_position = ax[0].get_position()
-    add_prediction_bar_labels(fig, spect_position, medians, post_process, means)
-    add_predictions_legend(ax, config)
+    add_prediction_bar_labels(fig, spect_position, visualizer.statistics_dict)
+
+    if medians or post_process or means:
+        add_predictions_legend(ax, config)
 
     axis_position = plt.axes([spect_position.x0, spect_position.y0 - 0.2, spect_position.x1 - spect_position.x0, 0.05])
 
