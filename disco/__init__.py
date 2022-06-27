@@ -21,73 +21,55 @@ def parser():
 
     # INFER #
     infer_parser = subparsers.add_parser("infer", add_help=True)
-    infer_parser.add_argument(
-        "--saved_model_directory",
-        required=False,
-        default=Config().default_model_directory,
-        type=str,
-        help="where the ensemble of models is stored",
-    )
-    infer_parser.add_argument(
-        "--model_extension",
-        default=".pt",
-        type=str,
-        help="filename extension of saved model files",
-    )
+    infer_parser.add_argument("--saved_model_directory",
+                              required=False,
+                              default=Config().default_model_directory,
+                              type=str,
+                              help="where the ensemble of models is stored")
+    infer_parser.add_argument("--model_extension",
+                              default=".pt",
+                              type=str,
+                              help="filename extension of saved model files")
     infer_parser.add_argument("wav_file", type=str, help=".wav file to predict")
-    infer_parser.add_argument(
-        "-o",
-        "--output_csv_path",
-        default=None,
-        type=str,
-        required=False,
-        help="where to save the final predictions",
-    )
-    infer_parser.add_argument(
-        "--tile_overlap",
-        default=128,
-        type=int,
-        help="how much to overlap consecutive predictions. Larger values will mean slower "
-             "performance as "
-             "there is more repeated computation",
-    )
-    infer_parser.add_argument(
-        "--tile_size", default=1024, type=int, help="length of input spectrogram"
-    )
+    infer_parser.add_argument("-o",
+                              "--output_csv_path",
+                              default=None,
+                              type=str,
+                              required=False,
+                              help="where to save the final predictions")
+    infer_parser.add_argument("--tile_overlap",
+                              default=128,
+                              type=int,
+                              help="how much to overlap consecutive predictions. Larger values will mean slower "
+                                   "performance as "
+                                   "there is more repeated computation")
+    infer_parser.add_argument("--tile_size", default=1024, type=int, help="length of input spectrogram")
     infer_parser.add_argument("--batch_size", default=32, type=int, help="batch size")
-    infer_parser.add_argument(
-        "--input_channels",
-        default=108,
-        type=int,
-        help="number of channels of input spectrogram",
-    )
-    infer_parser.add_argument(
-        "--hop_length",
-        type=int,
-        default=200,
-        help="length of hops b/t subsequent spectrogram windows",
-    )
-    infer_parser.add_argument(
-        "--vertical_trim",
-        type=int,
-        default=20,
-        help="how many rows to remove from the spectrogram ",
-    )
-    infer_parser.add_argument(
-        "--n_fft",
-        type=int,
-        default=1150,
-        help="size of the fft to use when calculating spectrogram",
-    )
-    infer_parser.add_argument(
-        "-d", "--debug", type=str, default=None, help="where to save debugging data"
-    )
-    infer_parser.add_argument(
-        "--num_threads",
-        type=int,
-        default=4,
-        help="how many threads to use when evaluating on CPU",
-    )
+    infer_parser.add_argument("--input_channels",
+                              default=108,
+                              type=int,
+                              help="number of channels of input spectrogram")
+    infer_parser.add_argument("--hop_length",
+                              type=int,
+                              default=200,
+                              help="length of hops b/t subsequent spectrogram windows")
+    infer_parser.add_argument("--vertical_trim",
+                              type=int,
+                              default=20,
+                              help="how many rows to remove from the spectrogram ")
+    infer_parser.add_argument("--n_fft",
+                              type=int,
+                              default=1150,
+                              help="size of the fft to use when calculating spectrogram")
+    infer_parser.add_argument("-d", "--debug", type=str, default=None, help="where to save debugging data")
+    infer_parser.add_argument("--num_threads",
+                              type=int,
+                              default=4,
+                              help="how many threads to use when evaluating on CPU")
+    infer_parser.add_argument("--noise_pct",
+                              type=float,
+                              default=0,
+                              help="how much noise to add to the spectrogram")
 
     # TRAIN #
     train_parser = subparsers.add_parser("train", add_help=True)
@@ -333,6 +315,7 @@ def main():
             n_fft=args.n_fft,
             debug=args.debug,
             num_threads=args.num_threads,
+            noise_pct=args.noise_pct
         )
 
     else:
