@@ -5,13 +5,10 @@ import os
 import logging
 import torch
 
-from argparse import ArgumentParser
-
 import disco.heuristics as heuristics
 import disco.inference_utils as infer
-from disco.config import Config
 
-# get rid of torchaudio warning us that our spectrogram calculation needs different parameters
+# removes torchaudio warning that spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
 
 log = logging.getLogger(__name__)
@@ -32,6 +29,7 @@ def run_inference(
     n_fft=1150,
     debug=None,
     num_threads=4,
+    noise_pct=0,
 ):
     """
     Script to run the inference routine. Briefly: Model ensemble is loaded in, used to evaluate the spectrogram, and
@@ -54,24 +52,23 @@ def run_inference(
     :param n_fft: N ffts to use when calulating the spectrogram.
     :param debug: str. Whether or not to save debugging data. None: Don't save, str: save in "str".
     :param num_threads: How many threads to use when loading data.
+    :param noise_pct: How much noise to add to the data.
     :return: None. Everything relevant is saved to disk.
     """
 
     if tile_size % 2 != 0:
         raise ValueError("tile_size must be even, got {}".format(tile_size))
+    if noise_pct < 0 or noise_pct > 100:
+        raise ValueError("noise_pct must be a percentage, got {}".format(noise_pct))
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cpu":
         torch.set_num_threads(num_threads)
-    models = infer.assemble_ensemble(
-        saved_model_directory, model_extension, device, input_channels, config
-    )
+    models = infer.assemble_ensemble(saved_model_directory, model_extension, device, input_channels, config)
     if len(models) < 1:
-        raise ValueError(
-            "expected 1 or more models, found {}. Is the model directory and extension correct?".format(
+        raise ValueError("expected 1 or more models, found {}. Is model directory and extension correct?".format(
                 len(models)
-            )
-        )
+        ))
 
     spectrogram_iterator = infer.SpectrogramIterator(
         tile_size,
@@ -81,6 +78,7 @@ def run_inference(
         hop_length=hop_length,
         log_spect=True,
         mel_transform=True,
+        noise_pct=noise_pct,
         wav_file=wav_file,
     )
     spectrogram_dataset = torch.utils.data.DataLoader(
