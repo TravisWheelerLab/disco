@@ -9,6 +9,7 @@ import tqdm
 import pomegranate as pom
 import logging
 from glob import glob
+import matplotlib.pyplot as plt
 
 from disco.models import UNet1D
 import disco.heuristics as heuristics
@@ -434,6 +435,19 @@ def evaluate_spectrogram(
     return iqrs_full_sequence, medians_full_sequence, means_full_sequence, votes_full_sequence
 
 
+def add_gaussian_noise(spectrogram, noise_pct):
+    spect_sd = torch.std(spectrogram)
+    noise = .01 * noise_pct
+
+    spectrogram = spectrogram + noise * spect_sd * torch.randn(size=spectrogram.shape)
+    for i in range(spectrogram.shape[-1]):
+        if i % 500 == 0:
+            plt.imshow(spectrogram[:, i:i+500])
+            plt.show()
+    breakpoint()
+    return spectrogram
+
+
 class SpectrogramIterator(torch.nn.Module):
     def __init__(self,
                  tile_size,
@@ -443,8 +457,10 @@ class SpectrogramIterator(torch.nn.Module):
                  hop_length,
                  log_spect,
                  mel_transform,
+                 noise_pct,
                  wav_file=None,
-                 spectrogram=None):
+                 spectrogram=None,
+                 ):
         super().__init__()
         self.tile_size = tile_size
         self.tile_overlap = tile_overlap
@@ -459,12 +475,15 @@ class SpectrogramIterator(torch.nn.Module):
         self.hop_length = hop_length
         self.log_spect = log_spect
         self.mel_transform = mel_transform
+        self.noise_pct = noise_pct
         if self.spectrogram is None:
             waveform, self.sample_rate = load_wav_file(self.wav_file)
             self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)
         self.spectrogram = self.spectrogram[vertical_trim:]
         if not torch.is_tensor(self.spectrogram):
             self.spectrogram = torch.tensor(self.spectrogram)
+        if self.noise_pct != 0:
+            self.spectrogram = add_gaussian_noise(self.spectrogram, self.noise_pct)
         if self.log_spect:
             self.spectrogram[self.spectrogram == 0] = 1
             self.spectrogram = self.spectrogram.log2()
