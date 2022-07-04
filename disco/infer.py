@@ -114,6 +114,7 @@ def run_inference(
             sample_rate=spectrogram_iterator.sample_rate,
             hop_length=hop_length,
             name_to_class_code=config.name_to_class_code,
+            noise_pct=noise_pct,
         )
 
     if debug is not None:
