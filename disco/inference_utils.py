@@ -141,7 +141,7 @@ def load_pickle(path):
 
 
 def save_csv_from_predictions(
-        output_csv_path, predictions, sample_rate, hop_length, name_to_class_code
+        output_csv_path, predictions, sample_rate, hop_length, name_to_class_code, noise_pct
 ):
     """
     Ingest a Nx1 np.array of point-wise predictions and save a .csv with
@@ -152,39 +152,31 @@ def save_csv_from_predictions(
     :param sample_rate: Sample rate of predicted .wav file.
     :param hop_length: Spectrogram hop length.
     :param name_to_class_code: mapping from class name to class code (ex {"A":1}).
+    :param noise_pct: Float of how much noise is added to the spectrogram.
     :return: pandas.DataFrame describing the saved csv.
     """
-    # We just need to get the beginning and end of each chirp and convert those
-    # to seconds.
-    class_idx_to_prediction_start_end = aggregate_predictions(predictions)
 
     class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(
        predictions, None, name_to_class_code, return_preds=False
     )
     class_code_to_name = {v: k for k, v in name_to_class_code.items()}
-    # window size by default is n_fft. hop_length is interval b/t consecutive spectrograms
-    # i don't think padding is performed when the spectrogram is calculated
+
     list_of_dicts_for_dataframe = []
     i = 1
     for class_to_start_and_end in class_idx_to_prediction_start_end:
-        # TODO: handle the case where there's only one prediction per class
         end = class_to_start_and_end["end"]
         start = class_to_start_and_end["start"]
 
-        dataframe_dict = {
-            "Selection": i,
-            "View": 0,
-            "Channel": 0,
-            "Begin Time (s)": convert_spectrogram_index_to_seconds(
-                start, hop_length=hop_length, sample_rate=sample_rate
-            ),
-            "End Time (s)": convert_spectrogram_index_to_seconds(
-                end, hop_length=hop_length, sample_rate=sample_rate
-            ),
-            "Low Freq (Hz)": 0,
-            "High Freq (Hz)": 0,
-            "Sound_Type": class_code_to_name[class_to_start_and_end["class"]],
-        }
+        dataframe_dict = {"Selection": i,
+                          "View": 0,
+                          "Channel": 0,
+                          "Begin Time (s)": convert_spectrogram_index_to_seconds(start, hop_length=hop_length,
+                                                                                 sample_rate=sample_rate),
+                          "End Time (s)": convert_spectrogram_index_to_seconds(end, hop_length=hop_length,
+                                                                               sample_rate=sample_rate),
+                          "Low Freq (Hz)": 0,
+                          "High Freq (Hz)": 0,
+                          "Sound_Type": class_code_to_name[class_to_start_and_end["class"]]}
 
         list_of_dicts_for_dataframe.append(dataframe_dict)
         i += 1
@@ -194,6 +186,9 @@ def save_csv_from_predictions(
 
     if not os.path.isdir(dirname):
         os.makedirs(dirname, exist_ok=True)
+
+    if noise_pct > 0:
+        output_csv_path = output_csv_path + "_" + str(noise_pct) + "_pctnoise"
 
     df.to_csv(output_csv_path, index=False)
 
