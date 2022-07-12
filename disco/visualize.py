@@ -15,20 +15,17 @@ class Visualizer:
         self.median_argmax = np.argmax(self.medians, axis=0)
         self.mean_argmax = np.argmax(self.means, axis=0)
 
-        self.displayed_statistics = []
+        self.statistics = []
+        self.show_legend = False
         if medians:
-            self.displayed_statistics.append(self.median_argmax)
+            self.statistics.append(("ensemble preds (medians)", self.median_argmax))
         if post_process:
-            self.displayed_statistics.append(self.post_hmm)
+            self.statistics.append(("post process (medians)", self.post_hmm))
         if means:
-            self.displayed_statistics.append(self.mean_argmax)
+            self.statistics.append(("ensemble preds (means)", self.mean_argmax))
         if iqr:
-            self.displayed_statistics.append(self.iqr)
-
-        self.statistics_dict = {"ensemble preds (medians)": [medians, self.median_argmax],
-                                "post process (medians)": [post_process, self.post_hmm],
-                                "ensemble preds (means)": [means, self.mean_argmax],
-                                "ensemble iqr (medians)": [iqr, self.iqr]}
+            self.iqr = np.mean(self.iqr, axis=0)
+            self.statistics.append(("ensemble iqr (medians)", self.iqr))
 
 
 def load_arrays(data_root):
@@ -41,65 +38,13 @@ def load_arrays(data_root):
     return spectrogram, medians, post_hmm, iqr, means, votes
 
 
-def add_statistical_visualizations(visualizer, ax):
-    key_index = 0
-    for key in visualizer.statistics_dict.keys():
-        if key == "ensemble preds (medians)" or key == "post process (medians)" or key == "ensemble preds (means)":
-            if visualizer.statistics_dict[key][0]:
-                add_predictions_bar(visualizer.statistics_dict[key][1], ax, 15 - 5*key_index,
-                                    19 - 5*key_index, visualizer.config)
-                key_index += 1
-        elif key == "ensemble iqr (medians)":
-            if visualizer.statistics_dict[key][0]:
-                add_iqr_bar(visualizer.statistics_dict[key][1], ax, 15 - 5*key_index, 19 - 5*key_index)
-
-
-def add_predictions_bar(output_array, ax, y1, y2, config):
-    for class_index, name in config.class_code_to_name.items():
-        all_class = output_array == class_index
-        x = range(0, all_class.shape[-1])
-        ax[1].fill_between(x, y1, y2, where=all_class, color=config.name_to_rgb_code[name])
-
-
-def add_iqr_bar(output_array, ax, y1, y2):
-    # todo: debug this so it shows a colormap rather than a solid blue
-    average_across_classes = np.mean(output_array, axis=0)
-    x = range(0, average_across_classes.shape[-1])
-    ax[1].fill_between(x, y1, y2, where=average_across_classes, cmap="viridis")
-
-
-def set_up_spectrogram_axes(spectrogram, ax):
-    ax[0].imshow(spectrogram, aspect="auto", origin="lower")
-    ax[0].set_ylim([0, spectrogram.shape[0]])
-
-    ax[0].set_title("raw spectrogram")
-    ax[0].set_ylabel("frequency bin")
-    ax[0].set_yticks([])
-    ax[0].set_xticks([])
-
-
-def set_up_figure_positioning(ax, visualizer):
-    ax[1].axis([0, visualizer.config.visualization_zoom_out, 4, 20])
-    ax[0].axis([0, visualizer.config.visualization_zoom_out, 0, visualizer.spectrogram.shape[0]])
-    spect_position = ax[0].get_position()
-    ax[1].set_position([spect_position.x0, spect_position.y0 - 0.1, spect_position.x1 - spect_position.x0, 0.09])
-
-
-def add_prediction_bar_labels(fig, spect_position, statistics_dict):
-    index_iterator = 0.03
-    for key in statistics_dict.keys():
-        if statistics_dict[key][0]:
-            fig.text(spect_position.x0 - 0.08, spect_position.y0 - index_iterator, key, fontsize=8)
-            index_iterator += 0.03
-
-
 def add_predictions_legend(ax, config):
     legend_handles = []
     for name in config.name_to_rgb_code.keys():
         icon = mlines.Line2D([], [], color=config.name_to_rgb_code[name], marker="s", linestyle='None', markersize=10,
                              label=name.title())
         legend_handles.append(icon)
-    ax[0].legend(handles=legend_handles, loc='upper right', fontsize='small', title='prediction')
+    ax.legend(handles=legend_handles, loc='upper right', fontsize='small', title='prediction')
 
 
 def visualize(config, data_path, medians, post_process, means, iqr):
@@ -112,32 +57,47 @@ def visualize(config, data_path, medians, post_process, means, iqr):
     :param means: whether to display mean predictions by the ensemble.
     :return:
     """
-    fig, ax = plt.subplots(sharex=True, nrows=2, figsize=(10, 7))
     visualizer = Visualizer(data_path, medians, post_process, means, iqr, config)
 
-    add_statistical_visualizations(visualizer, ax)
+    # Build the figure height based on the height of the spectrogram and the amount of statistics we want to display.
+    num_statistics_displayed = len(visualizer.statistics)
+    spect_ht = 2.5
+    statistics_ht = (0.5 + (num_statistics_displayed - 1) + (num_statistics_displayed - 2)*0.1) * 0.22
+    fig_ht = spect_ht + statistics_ht
 
-    ax[1].axis("off")
+    # Create width ratios so the spectrogram's window is bigger than the statistics below it, and the
+    #   statistics all have the same size.
+    statistics_display_sizes = np.repeat(statistics_ht/num_statistics_displayed, num_statistics_displayed).tolist()
+    subplot_sizes = [spect_ht] + statistics_display_sizes
+    height_ratios = {'height_ratios': subplot_sizes}
 
-    set_up_spectrogram_axes(visualizer.spectrogram, ax)
+    fig, axs = plt.subplots(sharex=True, nrows=num_statistics_displayed+1,
+                            figsize=(10, fig_ht), gridspec_kw=height_ratios)
+    fig.subplots_adjust(top=1 - 0.35 / fig_ht, bottom=0.15 / fig_ht, left=0.2, right=0.99)
 
-    plt.subplots_adjust()
+    # Show spectrogram
+    axs[0].imshow(visualizer.spectrogram, aspect="auto")
 
-    set_up_figure_positioning(ax, visualizer)
+    for i in range(1, len(axs)):
+        print(i)
 
-    spect_position = ax[0].get_position()
-    add_prediction_bar_labels(fig, spect_position, visualizer.statistics_dict)
+    # Show each statistics row
+    for i in range(1, len(axs)):
+        label = visualizer.statistics[i-1][0]
+        statistics_bar = np.expand_dims(visualizer.statistics[i-1][1], axis=0)
+        if label == "ensemble preds (medians)" or label == "post process (medians)" or label == "ensemble preds (means)":
+            # todo: make colormap discrete, map values to colors
+            cmap = "gist_rainbow"
+        elif label == "ensemble iqr (medians)":
+            cmap = "plasma"
+        axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
+        axs[i].text(-0.01, 0.5, label, va="center", ha="right", fontsize=10, transform=axs[i].transAxes)
 
-    if medians or post_process or means:
-        add_predictions_legend(ax, config)
+    # turn off tick marks for each statistics bar
+    for i in range(1, len(axs)):
+        axs[i].set_axis_off()
 
-    axis_position = plt.axes([spect_position.x0, spect_position.y0 - 0.2, spect_position.x1 - spect_position.x0, 0.05])
+    if visualizer.show_legend:
+        add_predictions_legend(axs[0], config)
 
-    slider = Slider(axis_position, "x-position", 0.0, visualizer.medians.shape[1])
-
-    def update(val):
-        ax[1].axis([slider.val, slider.val + config.visualization_zoom_out, 4, 20])
-        ax[0].axis([slider.val, slider.val + config.visualization_zoom_out, 0, visualizer.spectrogram.shape[0]])
-
-    slider.on_changed(update)
     plt.show()
