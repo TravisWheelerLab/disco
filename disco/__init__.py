@@ -21,73 +21,55 @@ def parser():
 
     # INFER #
     infer_parser = subparsers.add_parser("infer", add_help=True)
-    infer_parser.add_argument(
-        "--saved_model_directory",
-        required=False,
-        default=Config().default_model_directory,
-        type=str,
-        help="where the ensemble of models is stored",
-    )
-    infer_parser.add_argument(
-        "--model_extension",
-        default=".pt",
-        type=str,
-        help="filename extension of saved model files",
-    )
+    infer_parser.add_argument("--saved_model_directory",
+                              required=False,
+                              default=Config().default_model_directory,
+                              type=str,
+                              help="where the ensemble of models is stored")
+    infer_parser.add_argument("--model_extension",
+                              default=".pt",
+                              type=str,
+                              help="filename extension of saved model files")
     infer_parser.add_argument("wav_file", type=str, help=".wav file to predict")
-    infer_parser.add_argument(
-        "-o",
-        "--output_csv_path",
-        default=None,
-        type=str,
-        required=False,
-        help="where to save the final predictions",
-    )
-    infer_parser.add_argument(
-        "--tile_overlap",
-        default=128,
-        type=int,
-        help="how much to overlap consecutive predictions. Larger values will mean slower "
-             "performance as "
-             "there is more repeated computation",
-    )
-    infer_parser.add_argument(
-        "--tile_size", default=1024, type=int, help="length of input spectrogram"
-    )
+    infer_parser.add_argument("-o",
+                              "--output_csv_path",
+                              default=None,
+                              type=str,
+                              required=False,
+                              help="where to save the final predictions")
+    infer_parser.add_argument("--tile_overlap",
+                              default=128,
+                              type=int,
+                              help="how much to overlap consecutive predictions. Larger values will mean slower "
+                                   "performance as "
+                                   "there is more repeated computation")
+    infer_parser.add_argument("--tile_size", default=1024, type=int, help="length of input spectrogram")
     infer_parser.add_argument("--batch_size", default=32, type=int, help="batch size")
-    infer_parser.add_argument(
-        "--input_channels",
-        default=108,
-        type=int,
-        help="number of channels of input spectrogram",
-    )
-    infer_parser.add_argument(
-        "--hop_length",
-        type=int,
-        default=200,
-        help="length of hops b/t subsequent spectrogram windows",
-    )
-    infer_parser.add_argument(
-        "--vertical_trim",
-        type=int,
-        default=20,
-        help="how many rows to remove from the spectrogram ",
-    )
-    infer_parser.add_argument(
-        "--n_fft",
-        type=int,
-        default=1150,
-        help="size of the fft to use when calculating spectrogram",
-    )
-    infer_parser.add_argument(
-        "-d", "--debug", type=str, default=None, help="where to save debugging data"
-    )
-    infer_parser.add_argument(
-        "--num_threads",
-        type=int,
-        default=4,
-        help="how many threads to use when evaluating on CPU",
-    )
+    infer_parser.add_argument("--input_channels",
+                              default=108,
+                              type=int,
+                              help="number of channels of input spectrogram")
+    infer_parser.add_argument("--hop_length",
+                              type=int,
+                              default=200,
+                              help="length of hops b/t subsequent spectrogram windows")
+    infer_parser.add_argument("--vertical_trim",
+                              type=int,
+                              default=20,
+                              help="how many rows to remove from the spectrogram ")
+    infer_parser.add_argument("--n_fft",
+                              type=int,
+                              default=1150,
+                              help="size of the fft to use when calculating spectrogram")
+    infer_parser.add_argument("-d", "--debug", type=str, default=None, help="where to save debugging data")
+    infer_parser.add_argument("--num_threads",
+                              type=int,
+                              default=4,
+                              help="how many threads to use when evaluating on CPU")
+    infer_parser.add_argument("--noise_pct",
+                              type=float,
+                              default=0,
+                              help="how much noise to add to the spectrogram")
 
     # TRAIN #
     train_parser = subparsers.add_parser("train", add_help=True)
@@ -236,33 +218,41 @@ def parser():
     # LABEL #
     label_parser = subparsers.add_parser("label", add_help=True)
     label_parser.add_argument("wav_file", type=str, help="which .wav file to analyze")
-    label_parser.add_argument(
-        "output_csv_path", type=str, help="where to save the labels"
-    )
+    label_parser.add_argument("output_csv_path", type=str, help="where to save the labels")
 
     # VISUALIZE #
     viz_parser = subparsers.add_parser("viz", add_help=True)
-    viz_parser.add_argument(
-        "data_path",
-        type=str,
-        help="location of debugging data (directory, output of disco infer --debug",
-    )
-    viz_parser.add_argument(
-        "--sample_rate", type=int, default=48000, help="sample rate of audio recording"
-    )
-    viz_parser.add_argument(
-        "--hop_length",
-        type=int,
-        default=200,
-        help="length of hops b/t subsequent spectrogram windows",
-    )
+    viz_parser.add_argument("data_path",
+                            type=str,
+                            help="location of debugging data (directory, output of disco infer --debug")
+    viz_parser.add_argument("--medians",
+                            action="store_true",
+                            help="display median ensemble predictions")
+    viz_parser.add_argument("--post_process",
+                            action="store_true",
+                            help="display post-processed ensemble predictions")
+    viz_parser.add_argument("--means",
+                            action="store_true",
+                            help="display mean ensemble predictions")
+    viz_parser.add_argument("--iqr",
+                            action="store_true",
+                            help="display average iqr across median predictions")
+    viz_parser.add_argument("--votes",
+                            action="store_true",
+                            help="display ensemble's voting for each label")
+    viz_parser.add_argument("--sample_rate",
+                            type=int,
+                            default=48000,
+                            help="sample rate of audio recording")
+    viz_parser.add_argument("--hop_length",
+                            type=int,
+                            default=200,
+                            help="length of hops b/t subsequent spectrogram windows")
     return ap
 
 
 def main():
-    config_path = os.path.join(
-        os.path.expanduser("~"), ".cache", "disco", "params.yaml"
-    )
+    config_path = os.path.join(os.path.expanduser("~"), ".cache", "disco", "params.yaml")
     if os.path.isfile(config_path):
         log.info(f"loading configuration from {config_path}")
         config = Config(config_file=config_path)
@@ -274,17 +264,14 @@ def main():
 
     if args.command == "label":
         from disco.label import label
-
         label(config, wav_file=args.wav_file, output_csv_path=args.output_csv_path)
+
     elif args.command == "train":
         from disco.train import train
-
-        # too many hparams to pass in
-        # arguments in the function
         train(config, args)
+
     elif args.command == "extract":
         from disco.extract_data import extract
-
         extract(
             config,
             random_seed=args.random_seed,
@@ -294,20 +281,22 @@ def main():
             train_pct=args.train_pct,
             data_dir=args.data_dir,
         )
+
     elif args.command == "viz":
         from disco.visualize import visualize
-
         visualize(
             config,
             data_path=args.data_path,
-            hop_length=args.hop_length,
-            sample_rate=args.sample_rate,
+            medians=args.medians,
+            post_process=args.post_process,
+            means=args.means,
+            iqr=args.iqr,
+            votes=args.votes,
         )
 
     elif args.command == "infer":
         import torch
         from disco.infer import run_inference
-
         torch.manual_seed(0)
 
         if args.debug is None and args.output_csv_path is None:
@@ -328,6 +317,7 @@ def main():
             n_fft=args.n_fft,
             debug=args.debug,
             num_threads=args.num_threads,
+            noise_pct=args.noise_pct
         )
 
     else:

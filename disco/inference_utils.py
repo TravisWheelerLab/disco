@@ -9,6 +9,7 @@ import tqdm
 import pomegranate as pom
 import logging
 from glob import glob
+import matplotlib.pyplot as plt
 
 from disco.models import UNet1D
 import disco.heuristics as heuristics
@@ -140,7 +141,7 @@ def load_pickle(path):
 
 
 def save_csv_from_predictions(
-        output_csv_path, predictions, sample_rate, hop_length, name_to_class_code
+        output_csv_path, predictions, sample_rate, hop_length, name_to_class_code, noise_pct
 ):
     """
     Ingest a Nx1 np.array of point-wise predictions and save a .csv with
@@ -151,39 +152,31 @@ def save_csv_from_predictions(
     :param sample_rate: Sample rate of predicted .wav file.
     :param hop_length: Spectrogram hop length.
     :param name_to_class_code: mapping from class name to class code (ex {"A":1}).
+    :param noise_pct: Float of how much noise is added to the spectrogram.
     :return: pandas.DataFrame describing the saved csv.
     """
-    # We just need to get the beginning and end of each chirp and convert those
-    # to seconds.
-    class_idx_to_prediction_start_end = aggregate_predictions(predictions)
 
     class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(
        predictions, None, name_to_class_code, return_preds=False
     )
     class_code_to_name = {v: k for k, v in name_to_class_code.items()}
-    # window size by default is n_fft. hop_length is interval b/t consecutive spectrograms
-    # i don't think padding is performed when the spectrogram is calculated
+
     list_of_dicts_for_dataframe = []
     i = 1
     for class_to_start_and_end in class_idx_to_prediction_start_end:
-        # TODO: handle the case where there's only one prediction per class
         end = class_to_start_and_end["end"]
         start = class_to_start_and_end["start"]
 
-        dataframe_dict = {
-            "Selection": i,
-            "View": 0,
-            "Channel": 0,
-            "Begin Time (s)": convert_spectrogram_index_to_seconds(
-                start, hop_length=hop_length, sample_rate=sample_rate
-            ),
-            "End Time (s)": convert_spectrogram_index_to_seconds(
-                end, hop_length=hop_length, sample_rate=sample_rate
-            ),
-            "Low Freq (Hz)": 0,
-            "High Freq (Hz)": 0,
-            "Sound_Type": class_code_to_name[class_to_start_and_end["class"]],
-        }
+        dataframe_dict = {"Selection": i,
+                          "View": 0,
+                          "Channel": 0,
+                          "Begin Time (s)": convert_spectrogram_index_to_seconds(start, hop_length=hop_length,
+                                                                                 sample_rate=sample_rate),
+                          "End Time (s)": convert_spectrogram_index_to_seconds(end, hop_length=hop_length,
+                                                                               sample_rate=sample_rate),
+                          "Low Freq (Hz)": 0,
+                          "High Freq (Hz)": 0,
+                          "Sound_Type": class_code_to_name[class_to_start_and_end["class"]]}
 
         list_of_dicts_for_dataframe.append(dataframe_dict)
         i += 1
@@ -193,6 +186,9 @@ def save_csv_from_predictions(
 
     if not os.path.isdir(dirname):
         os.makedirs(dirname, exist_ok=True)
+
+    if noise_pct > 0:
+        output_csv_path = output_csv_path + "_" + str(noise_pct) + "_pctnoise"
 
     df.to_csv(output_csv_path, index=False)
 
@@ -221,19 +217,6 @@ def smooth_predictions_with_hmm(unsmoothed_predictions, config):
         hmm.predict(sequence=unsmoothed_predictions.copy(), algorithm="viterbi")[1:]
     )
     return smoothed_predictions
-
-
-def convert_argmaxed_array_to_rgb(predictions):
-    """
-    Utility function for visualization. Converts categorical labels (0, 1, 2) to RGB vectors ([1, 0, 0], [0, 1, 0],
-    [0, 0, 1])
-    :param predictions: Nx1 np.array.
-    :return: Nx3 np.array.
-    """
-    rgb = np.zeros((1, predictions.shape[-1], 3))
-    for class_idx in CLASS_CODE_TO_NAME.keys():
-        rgb[:, np.where(predictions == class_idx), class_idx] = 1
-    return rgb
 
 
 def convert_time_to_spect_index(time, hop_length, sample_rate):
@@ -341,32 +324,46 @@ def predict_with_ensemble(ensemble, features):
     ensemble_preds = []
 
     for model in ensemble:
-        preds = torch.nn.functional.softmax((model(features)))
+        preds = torch.nn.functional.softmax((model(features)), dim=1)
         ensemble_preds.append(preds.to("cpu").numpy())
 
     return ensemble_preds
 
 
-def calculate_median_and_iqr(ensemble_preds):
+def calculate_ensemble_statistics(ensemble_preds):
     """
     Get the median prediction and iqr of softmax values of the predictions from each model in the ensemble.
     :param ensemble_preds: List of np.arrays, one for each model.
     :return: tuple (np.array, np.array) of iqrs and medians.
     """
 
-    iqrs = np.zeros(
-        (ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3])
-    )
-    medians = np.zeros(
-        (ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3])
-    )
-    for class_idx in range(ensemble_preds.shape[2]):
+    number_of_models = ensemble_preds.shape[0]
+    number_of_spectrograms = ensemble_preds.shape[1]
+    number_of_classes = ensemble_preds.shape[2]
+    length_per_spectrogram = ensemble_preds.shape[3]
+
+    iqrs = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+    medians = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+    means = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+    votes = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+
+    for class_idx in range(number_of_classes):
         q75, q25 = np.percentile(ensemble_preds[:, :, class_idx, :], [75, 25], axis=0)
         median = np.median(ensemble_preds[:, :, class_idx, :], axis=0)
+        mean = np.mean(ensemble_preds[:, :, class_idx, :], axis=0)
+
         iqrs[:, class_idx] = q75 - q25
         medians[:, class_idx] = median
+        means[:, class_idx] = mean
 
-    return iqrs, medians
+    for ensemble_member in range(number_of_models):
+        for spectrogram_number in range(number_of_spectrograms):
+            slice_to_analyze = ensemble_preds[ensemble_member, spectrogram_number, :, :]
+            class_votes = list(np.argmax(slice_to_analyze, axis=0))
+            for i in range(len(class_votes)):
+                votes[spectrogram_number, class_votes[i], i] += 1
+
+    return iqrs, medians, means, votes
 
 
 def evaluate_spectrogram(
@@ -385,46 +382,52 @@ def evaluate_spectrogram(
     assert_accuracy = True
 
     with torch.no_grad():
-        medians_full_sequence = []
         iqrs_full_sequence = []
+        medians_full_sequence = []
+        means_full_sequence = []
+        votes_full_sequence = []
         if assert_accuracy:
             all_features = []
 
         for features in spectrogram_dataset:
-
             features = features.to(device)
             ensemble_preds = predict_with_ensemble(models, features)
             if assert_accuracy:
-                all_features.extend(
-                    np.stack(
-                        [
-                            seq[:, tile_overlap:-tile_overlap]
-                            for seq in features.to("cpu").numpy()
-                        ]
-                    )
-                )
+                all_features.extend(np.stack([seq[:, tile_overlap:-tile_overlap]
+                                              for seq in features.to("cpu").numpy()]))
 
-            ensemble_preds = np.stack(
-                [seq[:, :, tile_overlap:-tile_overlap] for seq in ensemble_preds]
-            )
-            iqrs, medians = calculate_median_and_iqr(ensemble_preds)
-            medians_full_sequence.extend(medians)
+            ensemble_preds = np.stack([seq[:, :, tile_overlap:-tile_overlap]
+                                       for seq in ensemble_preds])
+            iqrs, medians, means, votes = calculate_ensemble_statistics(ensemble_preds)
+
             iqrs_full_sequence.extend(iqrs)
+            medians_full_sequence.extend(medians)
+            means_full_sequence.extend(means)
+            votes_full_sequence.extend(votes)
 
     if assert_accuracy:
-        all_features = np.concatenate(all_features, axis=-1)[
-                       :, : original_spectrogram_shape[-1]
-                       ]
+        all_features = np.concatenate(all_features, axis=-1)[:, : original_spectrogram_shape[-1]]
         assert np.all(all_features == original_spectrogram.numpy())
 
-    medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[
-                            :, : original_spectrogram_shape[-1]
-                            ]
-    iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)[
-                         :, : original_spectrogram_shape[-1]
-                         ]
+    iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
+    medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
+    means_full_sequence = np.concatenate(means_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
+    votes_full_sequence = np.concatenate(votes_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
 
-    return medians_full_sequence, iqrs_full_sequence
+    return iqrs_full_sequence, medians_full_sequence, means_full_sequence, votes_full_sequence
+
+
+def add_gaussian_noise(spectrogram, noise_pct):
+    spect_sd = torch.std(spectrogram)
+    noise = .01 * noise_pct
+
+    spectrogram = spectrogram + noise * spect_sd * torch.randn(size=spectrogram.shape)
+    for i in range(spectrogram.shape[-1]):
+        if i % 500 == 0:
+            plt.imshow(spectrogram[:, i:i+500])
+            plt.show()
+    breakpoint()
+    return spectrogram
 
 
 class SpectrogramIterator(torch.nn.Module):
@@ -436,8 +439,10 @@ class SpectrogramIterator(torch.nn.Module):
                  hop_length,
                  log_spect,
                  mel_transform,
+                 noise_pct,
                  wav_file=None,
-                 spectrogram=None):
+                 spectrogram=None,
+                 ):
         super().__init__()
         self.tile_size = tile_size
         self.tile_overlap = tile_overlap
@@ -452,12 +457,15 @@ class SpectrogramIterator(torch.nn.Module):
         self.hop_length = hop_length
         self.log_spect = log_spect
         self.mel_transform = mel_transform
+        self.noise_pct = noise_pct
         if self.spectrogram is None:
             waveform, self.sample_rate = load_wav_file(self.wav_file)
             self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)
         self.spectrogram = self.spectrogram[vertical_trim:]
         if not torch.is_tensor(self.spectrogram):
             self.spectrogram = torch.tensor(self.spectrogram)
+        if self.noise_pct != 0:
+            self.spectrogram = add_gaussian_noise(self.spectrogram, self.noise_pct)
         if self.log_spect:
             self.spectrogram[self.spectrogram == 0] = 1
             self.spectrogram = self.spectrogram.log2()
