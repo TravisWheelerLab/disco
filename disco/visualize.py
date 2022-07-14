@@ -20,10 +20,13 @@ class Visualizer:
         self.show_legend = False
         if medians:
             self.statistics.append(("ensemble preds (medians)", self.median_argmax))
+            self.show_legend = True
         if post_process:
             self.statistics.append(("post process (medians)", self.post_hmm))
+            self.show_legend = True
         if means:
             self.statistics.append(("ensemble preds (means)", self.mean_argmax))
+            self.show_legend = True
         if iqr:
             self.iqr = np.mean(self.iqr, axis=0)
             self.statistics.append(("ensemble iqr (medians)", self.iqr))
@@ -90,10 +93,11 @@ def visualize(config, data_path, medians, post_process, means, iqr):
                 class_hex_code = config.name_to_rgb_code[config.class_code_to_name[class_code]]
                 class_rgb_code = np.array(to_rgb(class_hex_code))
                 color_dict[class_code] = class_rgb_code
-            cmap = "viridis"
+            statistics_rgb = np.expand_dims(np.array([color_dict[i] for i in np.squeeze(statistics_bar)]), axis=0)
+            axs[i].imshow(statistics_rgb, aspect="auto")
         elif label == "ensemble iqr (medians)":
             cmap = "plasma"
-        axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
+            axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
         axs[i].text(-0.01, 0.5, label, va="center", ha="right", fontsize=10, transform=axs[i].transAxes)
 
     # turn off tick marks for each statistics bar
