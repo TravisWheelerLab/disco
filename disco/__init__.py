@@ -237,6 +237,9 @@ def parser():
     viz_parser.add_argument("--iqr",
                             action="store_true",
                             help="display average iqr across median predictions")
+    viz_parser.add_argument("--votes",
+                            action="store_true",
+                            help="display ensemble's voting for each label")
     viz_parser.add_argument("--sample_rate",
                             type=int,
                             default=48000,
@@ -249,9 +252,7 @@ def parser():
 
 
 def main():
-    config_path = os.path.join(
-        os.path.expanduser("~"), ".cache", "disco", "params.yaml"
-    )
+    config_path = os.path.join(os.path.expanduser("~"), ".cache", "disco", "params.yaml")
     if os.path.isfile(config_path):
         log.info(f"loading configuration from {config_path}")
         config = Config(config_file=config_path)
@@ -290,6 +291,7 @@ def main():
             post_process=args.post_process,
             means=args.means,
             iqr=args.iqr,
+            votes=args.votes,
         )
 
     elif args.command == "infer":

@@ -8,7 +8,7 @@ import disco.inference_utils as infer
 
 
 class Visualizer:
-    def __init__(self, data_path, medians, post_process, means, iqr, config):
+    def __init__(self, data_path, medians, post_process, means, iqr, votes, config):
         self.config = config
         self.spectrogram, self.medians, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
 
@@ -30,6 +30,10 @@ class Visualizer:
         if iqr:
             self.iqr = np.mean(self.iqr, axis=0)
             self.statistics.append(("ensemble iqr (medians)", self.iqr))
+        if votes:
+            for class_code in range(self.votes.shape[0]):
+                text = "votes for " + config.class_code_to_name[class_code]
+                self.statistics.append((text, self.votes[class_code, :]))
 
 
 def load_arrays(data_root):
@@ -51,7 +55,7 @@ def add_predictions_legend(ax, config):
     ax.legend(handles=legend_handles, loc='upper right', fontsize='small', title='prediction')
 
 
-def visualize(config, data_path, medians, post_process, means, iqr):
+def visualize(config, data_path, medians, post_process, means, iqr, votes):
     """
     Visualize predictions interactively.
     :param config: disco.Config() object.
@@ -61,7 +65,7 @@ def visualize(config, data_path, medians, post_process, means, iqr):
     :param means: whether to display mean predictions by the ensemble.
     :return:
     """
-    visualizer = Visualizer(data_path, medians, post_process, means, iqr, config)
+    visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, config)
 
     # Build the figure height based on the height of the spectrogram and the amount of statistics we want to display.
     num_statistics_displayed = len(visualizer.statistics)
@@ -87,7 +91,7 @@ def visualize(config, data_path, medians, post_process, means, iqr):
     for i in range(1, len(axs)-1):
         label = visualizer.statistics[i-1][0]
         statistics_bar = np.expand_dims(visualizer.statistics[i-1][1], axis=0)
-        if label == "ensemble preds (medians)" or label == "post process (medians)" or label == "ensemble preds (means)":
+        if "preds" in label or "post process" in label:
             color_dict = dict()
             for class_code in range(len(config.class_code_to_name.keys())):
                 class_hex_code = config.name_to_rgb_code[config.class_code_to_name[class_code]]
@@ -95,8 +99,11 @@ def visualize(config, data_path, medians, post_process, means, iqr):
                 color_dict[class_code] = class_rgb_code
             statistics_rgb = np.expand_dims(np.array([color_dict[i] for i in np.squeeze(statistics_bar)]), axis=0)
             axs[i].imshow(statistics_rgb, aspect="auto")
-        elif label == "ensemble iqr (medians)":
-            cmap = "plasma"
+        else:
+            if "iqr" in label:
+                cmap = "plasma"
+            elif "votes for" in label:
+                cmap = "Blues"
             axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
         axs[i].text(-0.01, 0.5, label, va="center", ha="right", fontsize=10, transform=axs[i].transAxes)
 
@@ -107,9 +114,9 @@ def visualize(config, data_path, medians, post_process, means, iqr):
     if visualizer.show_legend:
         add_predictions_legend(axs[0], config)
 
-    spect_position = axs[4].get_position()
+    spect_position = axs[len(visualizer.statistics)+1].get_position()
     axis_position = plt.axes([spect_position.x0, spect_position.y0, spect_position.x1 - spect_position.x0, 0.05])
-    slider = Slider(axis_position, "x-position", 0.0, visualizer.medians.shape[1])
+    slider = Slider(axis_position, "x-position", 0.0, visualizer.medians.shape[1]) # todo: fix this to not be medians
 
     def update(val):
         for i in range(len(axs)-1):
