@@ -236,7 +236,7 @@ def parser():
                             help="display mean ensemble predictions")
     viz_parser.add_argument("--iqr",
                             action="store_true",
-                            help="display mean ensemble predictions")
+                            help="display average iqr across median predictions")
     viz_parser.add_argument("--sample_rate",
                             type=int,
                             default=48000,
