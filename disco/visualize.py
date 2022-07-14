@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 from matplotlib.widgets import Slider
+from matplotlib.colors import to_rgb
 import disco.inference_utils as infer
 
 
@@ -61,33 +62,35 @@ def visualize(config, data_path, medians, post_process, means, iqr):
 
     # Build the figure height based on the height of the spectrogram and the amount of statistics we want to display.
     num_statistics_displayed = len(visualizer.statistics)
+    num_statistics_plus_slider = num_statistics_displayed + 1
     spect_ht = 2.5
-    statistics_ht = (0.5 + (num_statistics_displayed - 1) + (num_statistics_displayed - 2)*0.1) * 0.22
+    statistics_ht = (0.5 + (num_statistics_plus_slider - 1) + (num_statistics_plus_slider - 2)*0.1) * 0.22
     fig_ht = spect_ht + statistics_ht
 
     # Create width ratios so the spectrogram's window is bigger than the statistics below it, and the
     #   statistics all have the same size.
-    statistics_display_sizes = np.repeat(statistics_ht/num_statistics_displayed, num_statistics_displayed).tolist()
+    statistics_display_sizes = np.repeat(statistics_ht/num_statistics_plus_slider, num_statistics_plus_slider).tolist()
     subplot_sizes = [spect_ht] + statistics_display_sizes
     height_ratios = {'height_ratios': subplot_sizes}
 
-    fig, axs = plt.subplots(sharex=True, nrows=num_statistics_displayed+1,
+    fig, axs = plt.subplots(sharex=True, nrows=num_statistics_plus_slider+1,
                             figsize=(10, fig_ht), gridspec_kw=height_ratios)
     fig.subplots_adjust(top=1 - 0.35 / fig_ht, bottom=0.15 / fig_ht, left=0.2, right=0.99)
 
     # Show spectrogram
     axs[0].imshow(visualizer.spectrogram, aspect="auto")
 
-    for i in range(1, len(axs)):
-        print(i)
-
     # Show each statistics row
-    for i in range(1, len(axs)):
+    for i in range(1, len(axs)-1):
         label = visualizer.statistics[i-1][0]
         statistics_bar = np.expand_dims(visualizer.statistics[i-1][1], axis=0)
         if label == "ensemble preds (medians)" or label == "post process (medians)" or label == "ensemble preds (means)":
-            # todo: make colormap discrete, map values to colors
-            cmap = "gist_rainbow"
+            color_dict = dict()
+            for class_code in range(len(config.class_code_to_name.keys())):
+                class_hex_code = config.name_to_rgb_code[config.class_code_to_name[class_code]]
+                class_rgb_code = np.array(to_rgb(class_hex_code))
+                color_dict[class_code] = class_rgb_code
+            cmap = "viridis"
         elif label == "ensemble iqr (medians)":
             cmap = "plasma"
         axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
@@ -99,5 +102,15 @@ def visualize(config, data_path, medians, post_process, means, iqr):
 
     if visualizer.show_legend:
         add_predictions_legend(axs[0], config)
+
+    spect_position = axs[4].get_position()
+    axis_position = plt.axes([spect_position.x0, spect_position.y0, spect_position.x1 - spect_position.x0, 0.05])
+    slider = Slider(axis_position, "x-position", 0.0, visualizer.medians.shape[1])
+
+    def update(val):
+        for i in range(len(axs)-1):
+            axs[i].set_xlim(slider.val, slider.val + config.visualization_zoom_out)
+
+    slider.on_changed(update)
 
     plt.show()
