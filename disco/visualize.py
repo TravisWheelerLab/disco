@@ -102,7 +102,7 @@ def add_predictions_legend(ax, config):
 def build_slider(axs, visualizer):
     spect_position = axs[len(visualizer.statistics) + 1].get_position()
     axis_position = plt.axes([spect_position.x0, spect_position.y0, spect_position.x1 - spect_position.x0, 0.05])
-    slider = Slider(axis_position, "x-position", 0.0, visualizer.medians.shape[1])  # todo: fix this to not be medians
+    slider = Slider(axis_position, "x-position", 0.0, visualizer.statistics[0][1].shape[0])
     return slider
 
 
