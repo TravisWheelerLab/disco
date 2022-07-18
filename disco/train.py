@@ -125,10 +125,7 @@ def train(config, hparams):
         "mask_character": Config().mask_flag,
     }
 
-    if hparams.apply_attn:
-        model = UNet1DAttn(**model_kwargs)
-    else:
-        model = UNet1D(**model_kwargs)
+    model = UNet1D(**model_kwargs)
 
     last_epoch = 0
 
