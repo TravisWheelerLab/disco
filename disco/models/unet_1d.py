@@ -18,13 +18,8 @@ class ConvBlock(nn.Module):
         else:
             pad_width = filter_width // 2
 
-        self.conv1 = nn.Conv1d(
-            in_channels, out_channels, kernel_size=filter_width, padding=pad_width
-        )
-
-        self.conv2 = nn.Conv1d(
-            out_channels, out_channels, kernel_size=filter_width, padding=pad_width
-        )
+        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size=filter_width, padding=pad_width)
+        self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size=filter_width, padding=pad_width)
 
         self.act = nn.ReLU()
 
@@ -38,6 +33,7 @@ class UNet1D(pl.LightningModule):
     def __init__(
         self,
         in_channels,
+        out_channels,
         learning_rate,
         mel,
         apply_log,
@@ -54,6 +50,7 @@ class UNet1D(pl.LightningModule):
 
         super(UNet1D, self).__init__()
         self.in_channels = in_channels
+        self.out_channels = out_channels
         self.filter_width = 3
         self._setup_layers()
         self.divisible_by = divisible_by
@@ -77,26 +74,16 @@ class UNet1D(pl.LightningModule):
         base = 2
         power = 5
         self.conv1 = ConvBlock(self.in_channels, base ** power, self.filter_width)
-        self.conv2 = ConvBlock(base ** power, base ** (power + 1), self.filter_width)
-        self.conv3 = ConvBlock(
-            base ** (power + 1), base ** (power + 2), self.filter_width
-        )
-        self.conv4 = ConvBlock(
-            base ** (power + 2), base ** (power + 3), self.filter_width
-        )
-        self.conv5 = ConvBlock(
-            base ** (power + 3), base ** (power + 3), self.filter_width
-        )
-        self.conv6 = ConvBlock(
-            base ** (power + 3), base ** (power + 2), self.filter_width
-        )
-        self.conv7 = ConvBlock(
-            base ** (power + 2), base ** (power + 1), self.filter_width
-        )
-        self.conv8 = ConvBlock(base ** (power + 1), base ** power, self.filter_width)
-        self.conv9 = ConvBlock(base ** power, base ** power, self.filter_width)
+        self.conv2 = ConvBlock(base ** (power + 0), base ** (power + 1), self.filter_width)
+        self.conv3 = ConvBlock(base ** (power + 1), base ** (power + 2), self.filter_width)
+        self.conv4 = ConvBlock(base ** (power + 2), base ** (power + 3), self.filter_width)
+        self.conv5 = ConvBlock(base ** (power + 3), base ** (power + 3), self.filter_width)
+        self.conv6 = ConvBlock(base ** (power + 3), base ** (power + 2), self.filter_width)
+        self.conv7 = ConvBlock(base ** (power + 2), base ** (power + 1), self.filter_width)
+        self.conv8 = ConvBlock(base ** (power + 1), base ** (power + 0), self.filter_width)
+        self.conv9 = ConvBlock(base ** (power + 0), base ** (power + 0), self.filter_width)
 
-        self.conv_out = nn.Conv1d(base ** power, 3, kernel_size=1, padding=0)
+        self.conv_out = nn.Conv1d(base ** power, self.out_channels, kernel_size=1, padding=0)
         self.act = nn.ReLU()
         self.downsample = nn.MaxPool2d(kernel_size=(1, 2))
         self.upsample = nn.Upsample(scale_factor=2)
@@ -128,7 +115,7 @@ class UNet1D(pl.LightningModule):
 
         x9 = self.conv9(u4)
         x = self.conv_out(x9)
-        x[x_mask.expand(-1, 3, -1)] = 0
+        x[x_mask.expand(-1, self.out_channels, -1)] = 0
         return torch.nn.functional.log_softmax(x, dim=1)
 
     def _forward(self, x):

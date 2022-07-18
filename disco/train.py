@@ -8,7 +8,7 @@ from pytorch_lightning.plugins import DDPPlugin
 from glob import glob
 from pytorch_lightning import seed_everything
 
-from disco.models import UNet1D, UNet1DAttn
+from disco.models import UNet1D
 from disco.dataset import SpectrogramDatasetMultiLabel, pad_batch
 from disco.config import Config
 
@@ -109,9 +109,11 @@ def train(config, hparams):
     )
 
     in_channels = int(config.default_spectrogram_num_rows - hparams.vertical_trim)
+    out_channels = len(config.class_code_to_name.keys())
 
     model_kwargs = {
         "in_channels": in_channels,
+        "out_channels": out_channels,
         "learning_rate": hparams.learning_rate,
         "mel": hparams.mel,
         "apply_log": hparams.log,
