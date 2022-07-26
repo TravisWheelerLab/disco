@@ -5,11 +5,14 @@ import matplotlib.lines as mlines
 from matplotlib.widgets import Slider
 from matplotlib.colors import to_rgb
 import disco.inference_utils as infer
+# TODO: Instead of passing in just config, give functions the specific things config uses for better functionality
+#  elsewhere.
 
 
 class Visualizer:
-    def __init__(self, data_path, medians, post_process, means, iqr, votes, config):
+    def __init__(self, data_path, medians, post_process, means, iqr, votes, spark_line, config):
         self.config = config
+        self.spark_line = spark_line
         self.spectrogram, self.medians, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
 
         self.spectrogram = np.flip(self.spectrogram, axis=0)
@@ -67,8 +70,8 @@ def get_subplot_ht_ratios(height_of_statistics_portion, num_statistics_plus_slid
 def imshow_statistics_rows(axs, visualizer, config):
     # Show each statistics row
     for i in range(1, len(axs) - 1):
-        label = visualizer.statistics[i - 1][0]
-        statistics_bar = np.expand_dims(visualizer.statistics[i - 1][1], axis=0)
+        label = visualizer.statistics[i-1][0]
+        statistics_bar = np.expand_dims(visualizer.statistics[i-1][1], axis=0)
         if "preds" in label or "post process" in label:
             color_dict = dict()
             for class_code in range(len(config.class_code_to_name.keys())):
@@ -79,10 +82,17 @@ def imshow_statistics_rows(axs, visualizer, config):
             axs[i].imshow(statistics_rgb, aspect="auto")
         else:
             if "iqr" in label:
-                cmap = "plasma"
+                if visualizer.spark_line:
+                    x = np.arange(start=0, stop=statistics_bar.shape[-1])
+                    y = visualizer.statistics[i-1][1]
+                    axs[i].scatter(x, y, s=0.25, color="#000000")
+                    axs[i].set_ylim([0, 1])
+                else:
+                    cmap = "plasma"
+                    axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
             elif "votes for" in label:
                 cmap = "Blues"
-            axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
+                axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
         axs[i].text(-0.01, 0.5, label, va="center", ha="right", fontsize=10, transform=axs[i].transAxes)
 
     # turn off tick marks for each statistics bar
@@ -100,13 +110,14 @@ def add_predictions_legend(ax, config):
 
 
 def build_slider(axs, visualizer):
+    # todo: rename to something other than spect_position
     spect_position = axs[len(visualizer.statistics) + 1].get_position()
     axis_position = plt.axes([spect_position.x0, spect_position.y0, spect_position.x1 - spect_position.x0, 0.05])
     slider = Slider(axis_position, "x-position", 0.0, visualizer.statistics[0][1].shape[0])
     return slider
 
 
-def visualize(config, data_path, medians, post_process, means, iqr, votes):
+def visualize(config, data_path, medians, post_process, means, iqr, votes, spark_line):
     """
     Visualize predictions interactively.
     :param config: disco.Config() object.
@@ -116,7 +127,7 @@ def visualize(config, data_path, medians, post_process, means, iqr, votes):
     :param means: whether to display mean predictions by the ensemble.
     :return:
     """
-    visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, config)
+    visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, spark_line, config)
 
     fig, axs = plt.subplots(sharex=True, nrows=visualizer.num_statistics_plus_slider + 1,
                             figsize=(10, visualizer.fig_ht), gridspec_kw=visualizer.height_ratios)
