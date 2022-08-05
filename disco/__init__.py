@@ -240,6 +240,9 @@ def parser():
     viz_parser.add_argument("--votes",
                             action="store_true",
                             help="display ensemble's voting for each label")
+    viz_parser.add_argument("--votes_line",
+                            action="store_true",
+                            help="display ensemble's voting for each label")
     viz_parser.add_argument("--sample_rate",
                             type=int,
                             default=48000,
@@ -292,6 +295,7 @@ def main():
             means=args.means,
             iqr=args.iqr,
             votes=args.votes,
+            votes_line=args.votes_line,
         )
 
     elif args.command == "infer":

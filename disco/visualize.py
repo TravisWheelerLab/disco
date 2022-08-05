@@ -10,8 +10,9 @@ import disco.inference_utils as infer
 
 
 class Visualizer:
-    def __init__(self, data_path, medians, post_process, means, iqr, votes, config):
+    def __init__(self, data_path, medians, post_process, means, iqr, votes, votes_line, config):
         self.config = config
+        self.votes_line = votes_line
         self.spectrogram, self.medians, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
 
         self.spectrogram = np.flip(self.spectrogram, axis=0)
@@ -86,8 +87,14 @@ def imshow_statistics_rows(axs, visualizer, config):
                 axs[i].scatter(x, y, s=0.25, color="#000000")
                 axs[i].set_ylim([0, 1])
             elif "votes for" in label:
-                cmap = "Blues"
-                axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
+                if visualizer.votes_line:
+                    x = np.arange(start=0, stop=statistics_bar.shape[-1])
+                    y = visualizer.statistics[i-1][1]
+                    axs[i].plot(x, y, color="#000000")
+                    axs[i].set_ylim([0, 10])
+                else:
+                    cmap = "Blues"
+                    axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
         axs[i].text(-0.01, 0.5, label, va="center", ha="right", fontsize=10, transform=axs[i].transAxes)
 
     # turn off tick marks for each statistics bar
@@ -112,7 +119,7 @@ def build_slider(axs, visualizer):
     return slider
 
 
-def visualize(config, data_path, medians, post_process, means, iqr, votes):
+def visualize(config, data_path, medians, post_process, means, iqr, votes, votes_line):
     """
     Visualize predictions interactively.
     :param config: disco.Config() object.
@@ -122,7 +129,7 @@ def visualize(config, data_path, medians, post_process, means, iqr, votes):
     :param means: whether to display mean predictions by the ensemble.
     :return:
     """
-    visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, config)
+    visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, votes_line, config)
 
     fig, axs = plt.subplots(sharex=True, nrows=visualizer.num_statistics_plus_slider + 1,
                             figsize=(10, visualizer.fig_ht), gridspec_kw=visualizer.height_ratios)
