@@ -248,9 +248,6 @@ def parser():
                             type=int,
                             default=200,
                             help="length of hops b/t subsequent spectrogram windows")
-    viz_parser.add_argument("--iqr_line",
-                            action="store_true",
-                            help="display iqr as a line (instead of a colorbar)")
     return ap
 
 
@@ -295,7 +292,6 @@ def main():
             means=args.means,
             iqr=args.iqr,
             votes=args.votes,
-            spark_line=args.iqr_line
         )
 
     elif args.command == "infer":

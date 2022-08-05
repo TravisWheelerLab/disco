@@ -10,9 +10,8 @@ import disco.inference_utils as infer
 
 
 class Visualizer:
-    def __init__(self, data_path, medians, post_process, means, iqr, votes, spark_line, config):
+    def __init__(self, data_path, medians, post_process, means, iqr, votes, config):
         self.config = config
-        self.spark_line = spark_line
         self.spectrogram, self.medians, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
 
         self.spectrogram = np.flip(self.spectrogram, axis=0)
@@ -82,14 +81,10 @@ def imshow_statistics_rows(axs, visualizer, config):
             axs[i].imshow(statistics_rgb, aspect="auto")
         else:
             if "iqr" in label:
-                if visualizer.spark_line:
-                    x = np.arange(start=0, stop=statistics_bar.shape[-1])
-                    y = visualizer.statistics[i-1][1]
-                    axs[i].scatter(x, y, s=0.25, color="#000000")
-                    axs[i].set_ylim([0, 1])
-                else:
-                    cmap = "plasma"
-                    axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
+                x = np.arange(start=0, stop=statistics_bar.shape[-1])
+                y = visualizer.statistics[i-1][1]
+                axs[i].scatter(x, y, s=0.25, color="#000000")
+                axs[i].set_ylim([0, 1])
             elif "votes for" in label:
                 cmap = "Blues"
                 axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
@@ -117,7 +112,7 @@ def build_slider(axs, visualizer):
     return slider
 
 
-def visualize(config, data_path, medians, post_process, means, iqr, votes, spark_line):
+def visualize(config, data_path, medians, post_process, means, iqr, votes):
     """
     Visualize predictions interactively.
     :param config: disco.Config() object.
@@ -127,7 +122,7 @@ def visualize(config, data_path, medians, post_process, means, iqr, votes, spark
     :param means: whether to display mean predictions by the ensemble.
     :return:
     """
-    visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, spark_line, config)
+    visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, config)
 
     fig, axs = plt.subplots(sharex=True, nrows=visualizer.num_statistics_plus_slider + 1,
                             figsize=(10, visualizer.fig_ht), gridspec_kw=visualizer.height_ratios)
