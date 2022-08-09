@@ -224,7 +224,7 @@ def parser():
     viz_parser = subparsers.add_parser("viz", add_help=True)
     viz_parser.add_argument("data_path",
                             type=str,
-                            help="location of debugging data (directory, output of disco infer --debug")
+                            help="location of debugging data (directory, output of disco infer --debug)")
     viz_parser.add_argument("--medians",
                             action="store_true",
                             help="display median ensemble predictions")
@@ -251,6 +251,11 @@ def parser():
                             type=int,
                             default=200,
                             help="length of hops b/t subsequent spectrogram windows")
+    viz_parser.add_argument("--second_data_path",
+                            type=str,
+                            default=None,
+                            help="location of debugging data for second model if comparing two"
+                                 "(directory output of disco infer --debug)")
     return ap
 
 
@@ -296,6 +301,7 @@ def main():
             iqr=args.iqr,
             votes=args.votes,
             votes_line=args.votes_line,
+            second_data_path=args.second_data_path,
         )
 
     elif args.command == "infer":

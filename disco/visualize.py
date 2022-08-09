@@ -5,43 +5,51 @@ import matplotlib.lines as mlines
 from matplotlib.widgets import Slider
 from matplotlib.colors import to_rgb
 import disco.inference_utils as infer
-# TODO: Instead of passing in just config, give functions the specific things config uses for better functionality
+
+
+# todo: Instead of passing in just config, give functions the specific things config uses for better functionality
 #  elsewhere.
+# todo: put argmax into create_statistics_array function
 
 
 class Visualizer:
-    def __init__(self, data_path, medians, post_process, means, iqr, votes, votes_line, config):
+    def __init__(self, data_path, medians, post_process, means, iqr, votes, votes_line, second_data_path, config):
         self.config = config
         self.votes_line = votes_line
         self.spectrogram, self.medians, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
-
         self.spectrogram = np.flip(self.spectrogram, axis=0)
+        first_data_path_name = data_path.split("_")[0]
+        if second_data_path:
+            second_data_path_name = second_data_path.split("_")[0]
+
         self.median_argmax = np.argmax(self.medians, axis=0)
         self.mean_argmax = np.argmax(self.means, axis=0)
+        self.statistics, self.show_legend = create_statistics_array(medians, self.median_argmax,
+                                                                    post_process, self.post_hmm,
+                                                                    means, self.mean_argmax,
+                                                                    iqr, self.iqr,
+                                                                    votes, self.votes,
+                                                                    config.class_code_to_name,
+                                                                    first_data_path_name)
 
-        self.statistics = []
-        self.show_legend = False
-        if medians:
-            self.statistics.append(("ensemble preds (medians)", self.median_argmax))
-            self.show_legend = True
-        if post_process:
-            self.statistics.append(("post process (medians)", self.post_hmm))
-            self.show_legend = True
-        if means:
-            self.statistics.append(("ensemble preds (means)", self.mean_argmax))
-            self.show_legend = True
-        if iqr:
-            self.iqr = np.mean(self.iqr, axis=0)
-            self.statistics.append(("ensemble iqr (medians)", self.iqr))
-        if votes:
-            for class_code in range(self.votes.shape[0]):
-                text = "votes for " + config.class_code_to_name[class_code]
-                self.statistics.append((text, self.votes[class_code, :]))
+        if second_data_path is not None:
+            _, self.medians_2, self.post_hmm_2, self.iqr_2, self.means_2, self.votes_2 = load_arrays(second_data_path)
+            self.median_argmax_2 = np.argmax(self.medians_2, axis=0)
+            self.mean_argmax_2 = np.argmax(self.means_2, axis=0)
+            # todo: make sure _ and self.spectrogram are the same, throw an error if they are not.
+            self.statistics_2, _ = create_statistics_array(medians, self.median_argmax_2,
+                                                           post_process, self.post_hmm_2,
+                                                           means, self.mean_argmax_2,
+                                                           iqr, self.iqr_2,
+                                                           votes, self.votes_2,
+                                                           config.class_code_to_name,
+                                                           second_data_path_name)
+            self.statistics += self.statistics_2
 
         # Build the figure height based on the height of the spectrogram and the amount of statistics to display.
         self.num_statistics_plus_slider = len(self.statistics) + 1
         self.spect_ht = 2.5
-        statistics_ht = (0.5+(self.num_statistics_plus_slider-1) + (self.num_statistics_plus_slider-2)*0.1)*0.22
+        statistics_ht = (0.5 + (self.num_statistics_plus_slider-1) + (self.num_statistics_plus_slider-2) * 0.1) * 0.22
         self.fig_ht = self.spect_ht + statistics_ht
 
         self.height_ratios = get_subplot_ht_ratios(statistics_ht, self.num_statistics_plus_slider, self.spect_ht)
@@ -57,10 +65,33 @@ def load_arrays(data_root):
     return spectrogram, medians, post_hmm, iqr, means, votes
 
 
+def create_statistics_array(show_medians, median_argmax, show_post_process, post_hmm, show_means, mean_argmax, show_iqr,
+                            iqr, show_votes, votes, class_code_to_name, dataset_name):
+    statistics = []
+    show_legend = False
+    if show_medians:
+        statistics.append((dataset_name + " ensemble preds (medians)", median_argmax))
+        show_legend = True
+    if show_post_process:
+        statistics.append((dataset_name + " post process (medians)", post_hmm))
+        show_legend = True
+    if show_means:
+        statistics.append((dataset_name + " ensemble preds (means)", mean_argmax))
+        show_legend = True
+    if show_iqr:
+        iqr = np.mean(iqr, axis=0)
+        statistics.append((dataset_name + " ensemble iqr (medians)", iqr))
+    if show_votes:
+        for class_code in range(votes.shape[0]):
+            text = dataset_name + " votes for " + class_code_to_name[class_code]
+            statistics.append((text, votes[class_code, :]))
+    return statistics, show_legend
+
+
 def get_subplot_ht_ratios(height_of_statistics_portion, num_statistics_plus_slider, spectrogram_height):
     # Create width ratios so the spectrogram's window is bigger than the statistics below it, and the
     #   statistics all have the same size.
-    statistics_display_sizes = np.repeat(height_of_statistics_portion/num_statistics_plus_slider,
+    statistics_display_sizes = np.repeat(height_of_statistics_portion / num_statistics_plus_slider,
                                          num_statistics_plus_slider).tolist()
     subplot_sizes = [spectrogram_height] + statistics_display_sizes
     height_ratios = {'height_ratios': subplot_sizes}
@@ -70,8 +101,8 @@ def get_subplot_ht_ratios(height_of_statistics_portion, num_statistics_plus_slid
 def imshow_statistics_rows(axs, visualizer, config):
     # Show each statistics row
     for i in range(1, len(axs) - 1):
-        label = visualizer.statistics[i-1][0]
-        statistics_bar = np.expand_dims(visualizer.statistics[i-1][1], axis=0)
+        label = visualizer.statistics[i - 1][0]
+        statistics_bar = np.expand_dims(visualizer.statistics[i - 1][1], axis=0)
         if "preds" in label or "post process" in label:
             color_dict = dict()
             for class_code in range(len(config.class_code_to_name.keys())):
@@ -83,13 +114,13 @@ def imshow_statistics_rows(axs, visualizer, config):
         else:
             if "iqr" in label:
                 x = np.arange(start=0, stop=statistics_bar.shape[-1])
-                y = visualizer.statistics[i-1][1]
+                y = visualizer.statistics[i - 1][1]
                 axs[i].scatter(x, y, s=0.25, color="#000000")
                 axs[i].set_ylim([0, 1])
             elif "votes for" in label:
                 if visualizer.votes_line:
                     x = np.arange(start=0, stop=statistics_bar.shape[-1])
-                    y = visualizer.statistics[i-1][1]
+                    y = visualizer.statistics[i - 1][1]
                     axs[i].plot(x, y, color="#000000")
                     axs[i].set_ylim([0, 10])
                 else:
@@ -119,7 +150,7 @@ def build_slider(axs, visualizer):
     return slider
 
 
-def visualize(config, data_path, medians, post_process, means, iqr, votes, votes_line):
+def visualize(config, data_path, medians, post_process, means, iqr, votes, votes_line, second_data_path):
     """
     Visualize predictions interactively.
     :param config: disco.Config() object.
@@ -129,11 +160,11 @@ def visualize(config, data_path, medians, post_process, means, iqr, votes, votes
     :param means: whether to display mean predictions by the ensemble.
     :return:
     """
-    visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, votes_line, config)
+    visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, votes_line, second_data_path, config)
 
     fig, axs = plt.subplots(sharex=True, nrows=visualizer.num_statistics_plus_slider + 1,
                             figsize=(10, visualizer.fig_ht), gridspec_kw=visualizer.height_ratios)
-    fig.subplots_adjust(top=1-0.35/visualizer.fig_ht, bottom=0.15/visualizer.fig_ht, left=0.2, right=0.99)
+    fig.subplots_adjust(top=1 - 0.35 / visualizer.fig_ht, bottom=0.15 / visualizer.fig_ht, left=0.2, right=0.99)
 
     axs[0].imshow(visualizer.spectrogram, aspect="auto")
     imshow_statistics_rows(axs, visualizer, config)
