@@ -158,4 +158,3 @@ disco/debug_scripts/
 disco/train.sh
 disco/infer.sh
 disco/visualize.sh
-disco/random_init_example_visualization_files/
