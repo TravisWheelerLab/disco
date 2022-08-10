@@ -278,6 +278,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
     for model_path in model_paths:
         skeleton = UNet1D(
             in_channels,
+            out_channels=len(config.class_code_to_name.keys()),
             learning_rate=1e-2,
             mel=False,
             apply_log=False,
