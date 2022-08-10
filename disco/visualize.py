@@ -130,9 +130,10 @@ def imshow_statistics_rows(axs, visualizer, config):
 
     # turn off tick marks for each statistics bar and for the slider bar
     for i in range(1, len(axs)):
-        if i != len(axs)-1 and "iqr" not in visualizer.statistics[i-1][0]:
+        slider_axs_idx = len(axs)-1
+        if i != slider_axs_idx and "iqr" not in visualizer.statistics[i-1][0]:
             axs[i].set_axis_off()
-        elif i == len(axs)-1:
+        elif i == slider_axs_idx:
             axs[i].get_yaxis().set_visible(False)
 
 
