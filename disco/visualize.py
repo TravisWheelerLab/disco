@@ -132,6 +132,8 @@ def imshow_statistics_rows(axs, visualizer, config):
     for i in range(1, len(axs)):
         if i != len(axs)-1 and "iqr" not in visualizer.statistics[i-1][0]:
             axs[i].set_axis_off()
+        elif i == len(axs)-1:
+            axs[i].get_yaxis().set_visible(False)
 
 
 def add_predictions_legend(ax, config):
