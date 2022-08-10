@@ -135,6 +135,7 @@ def run_inference(
             sample_rate=spectrogram_iterator.sample_rate,
             hop_length=hop_length,
             name_to_class_code=config.name_to_class_code,
+            noise_pct=noise_pct,
         )
 
         infer.pickle_tensor(spectrogram_iterator.original_spectrogram, spectrogram_path)
