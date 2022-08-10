@@ -18,9 +18,7 @@ class Visualizer:
         self.votes_line = votes_line
         self.spectrogram, self.medians, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
         self.spectrogram = np.flip(self.spectrogram, axis=0)
-        first_data_path_name = data_path.split("_")[0]
-        if second_data_path:
-            second_data_path_name = second_data_path.split("_")[0]
+        first_data_path_name = os.path.split(data_path)[-1].split("_")[0]
 
         self.median_argmax = np.argmax(self.medians, axis=0)
         self.mean_argmax = np.argmax(self.means, axis=0)
@@ -30,10 +28,11 @@ class Visualizer:
                                                                     iqr, self.iqr,
                                                                     votes, self.votes,
                                                                     config.class_code_to_name,
-                                                                    first_data_path_name)
+                                                                    first_data_path_name + ":")
 
-        if second_data_path is not None:
+        if second_data_path:
             _, self.medians_2, self.post_hmm_2, self.iqr_2, self.means_2, self.votes_2 = load_arrays(second_data_path)
+            second_data_path_name = os.path.split(second_data_path)[-1].split("_")[0]
             self.median_argmax_2 = np.argmax(self.medians_2, axis=0)
             self.mean_argmax_2 = np.argmax(self.means_2, axis=0)
             # todo: make sure _ and self.spectrogram are the same, throw an error if they are not.
@@ -43,7 +42,7 @@ class Visualizer:
                                                            iqr, self.iqr_2,
                                                            votes, self.votes_2,
                                                            config.class_code_to_name,
-                                                           second_data_path_name)
+                                                           second_data_path_name + ":")
             self.statistics += self.statistics_2
 
         # Build the figure height based on the height of the spectrogram and the amount of statistics to display.
@@ -67,6 +66,7 @@ def load_arrays(data_root):
 
 def create_statistics_array(show_medians, median_argmax, show_post_process, post_hmm, show_means, mean_argmax, show_iqr,
                             iqr, show_votes, votes, class_code_to_name, dataset_name):
+    # todo: make it so dataset name is only shown when there is a second dataset
     statistics = []
     show_legend = False
     if show_medians:
@@ -128,9 +128,10 @@ def imshow_statistics_rows(axs, visualizer, config):
                     axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
         axs[i].text(-0.01, 0.5, label, va="center", ha="right", fontsize=10, transform=axs[i].transAxes)
 
-    # turn off tick marks for each statistics bar
+    # turn off tick marks for each statistics bar and for the slider bar
     for i in range(1, len(axs)):
-        axs[i].set_axis_off()
+        if i != len(axs)-1 and "iqr" not in visualizer.statistics[i-1][0]:
+            axs[i].set_axis_off()
 
 
 def add_predictions_legend(ax, config):
