@@ -61,7 +61,16 @@ def parser():
                               type=int,
                               default=1150,
                               help="size of the fft to use when calculating spectrogram")
-    infer_parser.add_argument("-d", "--debug", type=str, default=None, help="where to save debugging data")
+    infer_parser.add_argument("--debug",
+                              action="store_true",
+                              help="save visualization statistics of the data for calling viz")
+    infer_parser.add_argument("--debug_path",
+                              type=str,
+                              default=None,
+                              help="where to save debugging data. if filepath exists, creates a directory inside with "
+                                   "default name. if filepath doesn't already exist, creates a directory with the name "
+                                   "provided. if argument is unused, creates a directory with default name inside "
+                                   "current directory.")
     infer_parser.add_argument("--num_threads",
                               type=int,
                               default=4,
@@ -309,8 +318,11 @@ def main():
         from disco.infer import run_inference
         torch.manual_seed(0)
 
-        if args.debug is None and args.output_csv_path is None:
-            raise ValueError("Must specify either --output_csv_path or --debug.")
+        if not args.debug and args.output_csv_path is None:
+            if args.output_csv_path is None:
+                raise ValueError("Must specify either --output_csv_path or --debug.")
+            if args.debug_path is not None:
+                raise ValueError("Must call --debug if giving a debug path.")
 
         run_inference(
             config,
@@ -326,6 +338,7 @@ def main():
             vertical_trim=args.vertical_trim,
             n_fft=args.n_fft,
             debug=args.debug,
+            debug_path=args.debug_path,
             num_threads=args.num_threads,
             noise_pct=args.noise_pct
         )
