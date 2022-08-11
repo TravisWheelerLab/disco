@@ -18,7 +18,8 @@ class Visualizer:
         self.votes_line = votes_line
         self.spectrogram, self.medians, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
         self.spectrogram = np.flip(self.spectrogram, axis=0)
-        first_data_path_name = os.path.split(data_path)[-1].split("_")[0]
+
+        first_data_path_name = os.path.split(data_path)[-1].split("-")[1].split("_")[0]
 
         self.median_argmax = np.argmax(self.medians, axis=0)
         self.mean_argmax = np.argmax(self.means, axis=0)
@@ -32,7 +33,7 @@ class Visualizer:
 
         if second_data_path:
             _, self.medians_2, self.post_hmm_2, self.iqr_2, self.means_2, self.votes_2 = load_arrays(second_data_path)
-            second_data_path_name = os.path.split(second_data_path)[-1].split("_")[0]
+            second_data_path_name = os.path.split(second_data_path)[-1].split("-")[1].split("_")[0]
             self.median_argmax_2 = np.argmax(self.medians_2, axis=0)
             self.mean_argmax_2 = np.argmax(self.means_2, axis=0)
             # todo: make sure _ and self.spectrogram are the same, throw an error if they are not.
