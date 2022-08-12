@@ -1,6 +1,4 @@
-import time
 import random
-import torch
 import torchaudio
 import numpy as np
 import pandas as pd
@@ -41,10 +39,14 @@ def create_label_to_spectrogram(
     type(label_to_spectrogram['A']) = class 'list'
     type(label_to_spectrogram['A'][0]) = class 'torch.Tensor'
 
-    If two labeled regions are within :param: neighbor_tolerance of one another they'll be considered
-    one example and saved as one array.
-
-    :return: list: List of lists. Each sublist contains a feature tensor and the associated vector of labels.
+    :param spect: torch.Tensor of the entire spectrogram of the sound file.
+    :param labels: pandas dataframe of raven-format labels of corresponding spectrogram.
+    :param hop_length: int. Length between subsequent spectrogram windows.
+    :param name_to_class_code: dictionary. In config, maps label to its class index.
+    :param excluded_classes: tuple. Any classes left out of training that may be on the Raven .csvs.
+    :param neighbor_tolerance: int. If two labeled regions are within :param: neighbor_tolerance of one another they'll
+    be considered one example and saved as one array.
+    :return: list: List of lists. Each sublist contains a feature tensor and the corresponding vector of labels.
     """
 
     labels["begin spect idx"] = [w2s_idx(x, hop_length) for x in labels["begin idx"]]
@@ -101,8 +103,8 @@ def create_label_to_spectrogram(
 def convert_time_to_index(time, sample_rate):
     """
     Converts time (seconds) to .wav file index.
-    :param time: int. The time to convert.
-    :param sample_rate: int. The sample rate of the .wav file
+    :param time: int. The time to convert to an index.
+    :param sample_rate: int. The sample rate of the .wav file.
     :return: int. converted index.
     """
     return np.round(time * sample_rate).astype(np.int)
@@ -111,17 +113,14 @@ def convert_time_to_index(time, sample_rate):
 def process_wav_file(csv_filename, n_fft, mel_scale, config, hop_length=200):
     """
     Applies the labels contained in csv_filename to the .wav file and extracts the labeled regions.
-    n_fft controls to number of fast fourier transform components to
-    :param wav_filename: .wav file containing the recording.
-    :param csv_filename: Csv file containing the labels.
-    :param n_fft: Number of ffts to use when calculating the spectrogram.
-    :param mel_scale: bool. Whether or not to calculate a MelSpectrogram.
+    :param csv_filename: .csv file containing the labels.
+    :param n_fft: int. Number of ffts to use when calculating the spectrogram.
+    :param mel_scale: bool. Whether to calculate a MelSpectrogram.
     :param config: disco.Config object. Controls the mapping from class name to class code and the classes to exclude
     from the labeled sounds.
     :param hop_length: int. Hop length between subsequent fft calculations when forming the spectrogram.
     :return: list: List of lists. Each sublist contains a feature tensor and the associated vector of labels.
     """
-    # reads the csv into a pandas df called labels, extracts waveform and sample_rate.
 
     labels = pd.read_csv(csv_filename)
 
@@ -170,7 +169,7 @@ def load_csvs(data_dir):
     Each .csv file should have the following header:
     Begin Time (s),End Time (s),Sound_Type,Filename
 
-    :param data_dir: string. Parent directory of subdirectories containing the .wav and .csv pairs.
+    :param data_dir: String. Parent directory of subdirectories containing the .wav and .csv pairs.
     :return: list. Contains .csv files of labels.
     """
     if os.path.isdir(os.path.join(data_dir)):
@@ -226,7 +225,6 @@ def extract_from_subdirectories(
         excluded_directories=None):
     """
     Takes a large directory and calls extract() for non-excluded subdirectories.
-
     :param config: disco.Config() object.
     :param random_seed: int. What to seed RNGs with for reproducibility.
     :param no_mel_scale: Whether or not to use the mel scale.
@@ -251,6 +249,12 @@ def extract_from_subdirectories(
 
 
 def create_subdirectories(data_directory, excluded_directories):
+    """
+    Takes in parent directory and returns list of subdirectories.
+    :param data_directory: String. The parent directory of the subdirectories containing the .wav and .csv files.
+    :param excluded_directories: List of Strings of directories to not extract from (e.g. non-human-labeled files)
+    :return: subdirectories.
+    """
     subdirectories = []
     if os.path.isdir(os.path.join(data_directory)):
         for file in os.scandir(data_directory):
@@ -266,6 +270,12 @@ def create_subdirectories(data_directory, excluded_directories):
 
 
 def filter_subdirectories(subdirectories, excluded_directories):
+    """
+    Filters any subdirectories out that should be excluded from training.
+    :param subdirectories: List of Strings of subdirectories.
+    :param excluded_directories: List of Strings of directories to not extract from (e.g. non-human-labeled files)
+    :return: filtered subdirectories list.
+    """
     filtered_subdirectories = subdirectories
 
     for excluded_dir_name in excluded_directories:
@@ -287,7 +297,6 @@ def extract(config,
     Function to wrap the data loading, extraction, and saving routine.
     Loads data from data_dir, calculates spectrogram, extracts labeled regions based on the .csv
     file, and saves the regions to disk after shuffling and splitting into train/test/validation splits randomly.
-
 
     :param config: disco.Config() object.
     :param random_seed: int. What to seed RNGs with for reproducibility.
@@ -314,38 +323,41 @@ def extract(config,
 
 
 def load_csvs_from_subdirectories(subdirectory_paths):
+    """
+    Goes through each provided subdirectory and finds their csv.
+    :param subdirectory_paths: list of Strings of the subdirectory filepaths.
+    :return: list of .csvs.
+    """
     csvs = []
-    # TODO: Fix bug -- unable to retrieve .xlsx files.
+    # TODO: Create functionality to retrieve .xlsx files.
     for subdirectory in subdirectory_paths:
         subdirectory_csvs = glob(os.path.join(subdirectory, "*.csv"))
         if subdirectory_csvs:
             csvs.append(subdirectory_csvs[0])
-
     return csvs
 
 
-def display_spectrogram(trial_name, spectrogram_and_labels):
-    unlogged_spectrogram = spectrogram_and_labels[0]
-    spectrogram = np.log2(unlogged_spectrogram[35:, :])
-    labels = spectrogram_and_labels[1]
-    name = trial_name
-    fig, ax = plt.subplots(nrows=2)
-    ax[0].imshow(spectrogram, aspect="auto")
-    ax[1].imshow(np.expand_dims(labels, axis=0), aspect="auto")
-    plt.title(name + ', first label: ' + str(int(labels[0])))
-    plt.show()
+def process_files(config, random_seed, mel, n_fft, data_dir, output_data_path, train_pct, csv):
+    """
+    Function to wrap the data loading, extraction, and saving routine.
+    Loads data from data_dir, calculates spectrogram, extracts labeled regions based on the .csv
+    file, and saves the regions to disk after shuffling and splitting into train/test/validation splits randomly.
 
-
-def process_files(config, random_seed, mel, n_fft, data_dir, output_data_path, train_pct, csv, display=False):
+    :param config: disco.Config() object.
+    :param random_seed: int. What to seed RNGs with for reproducibility.
+    :param mel: bool. whether to  use mel scale.
+    :param n_fft: int. ffts used to create spectrogram
+    :param data_dir: Where the .wav and .csv files are stored.
+    :param output_data_path: Where to save the extracted data.
+    :param train_pct: float. Percentage of labels to use as the train set.
+    :param csv: list of strings of csv file locations
+    :return: None.
+    """
     out = []
 
     for filename in csv:
         features_and_labels = process_wav_file(filename, n_fft, mel, config)
         out.extend(features_and_labels)
-        trial_name = filename.split('/')[-1].split('.')[0]
-        if display:
-            for spectrogram_and_labels in features_and_labels:
-                display_spectrogram(trial_name, spectrogram_and_labels, config)
 
     if len(out) == 0:
         raise ValueError(f"couldn't find data at {data_dir}")

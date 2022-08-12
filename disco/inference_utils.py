@@ -104,10 +104,10 @@ def aggregate_predictions(predictions):
 def convert_spectrogram_index_to_seconds(spect_idx, hop_length, sample_rate):
     """
     Converts spectrogram index back to seconds.
-    :param spect_idx: Int.
-    :param hop_length: Int.
-    :param sample_rate: Int.
-    :return:
+    :param spect_idx: Int. of spectrogram index
+    :param hop_length: Int. of hop length
+    :param sample_rate: Int. of wav file sample rate
+    :return: int of converted seconds.
     """
     seconds_per_hop = hop_length / sample_rate
     return spect_idx * seconds_per_hop
@@ -157,7 +157,7 @@ def save_csv_from_predictions(
     """
 
     class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(
-       predictions, None, name_to_class_code, return_preds=False
+        predictions, None, name_to_class_code, return_preds=False
     )
     class_code_to_name = {v: k for k, v in name_to_class_code.items()}
 
@@ -237,7 +237,7 @@ def load_prediction_csv(csv_path, hop_length, sample_rate):
     :param csv_path: Path to the .csv containing predictions.
     :param hop_length:
     :param sample_rate:
-    :return:
+    :return: original dataframe but with new columns, "Begin Spect Index" and "End Spect Index".
     """
     df = pd.read_csv(csv_path)
     df["Begin Spect Index"] = [
@@ -378,7 +378,7 @@ def evaluate_spectrogram(
     :param original_spectrogram: Original spectrogram.
     :param original_spectrogram_shape: Shape of original spectrogram.
     :param device: 'cuda' or 'cpu'
-    :return: medians and iqrs.
+    :return: medians, iqrs, means, and votes, each numpy arrays that have a shape of (classes, length).
     """
     assert_accuracy = True
 
@@ -415,21 +415,29 @@ def evaluate_spectrogram(
     means_full_sequence = np.concatenate(means_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
     votes_full_sequence = np.concatenate(votes_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
 
+    breakpoint()
     return iqrs_full_sequence, medians_full_sequence, means_full_sequence, votes_full_sequence
 
 
 def make_viz_directory(wav_file, saved_model_directory, debug_path):
+    """
+    Creates a directory based on the parser's debug path and returns the updated debug path later used for saving the
+    statistics. If given debug path already exists, creates a directory inside with the default name. If debug path
+    doesn't already exist, creates a directory with the name provided. If there is no debug path provided, creates a
+    default-named directory within the current directory.
+    :param wav_file: String. filepath of the given .wav file.
+    :param saved_model_directory: String. filepath of the saved models.
+    :param debug_path: String. Path indicating where to save the visualization files.
+    :return: Updated debug path used
+    """
     default_dirname = os.path.split(wav_file)[-1].split(".")[0] + "-" + os.path.split(saved_model_directory)[-1]
     if debug_path is not None:
         if os.path.exists(debug_path):
-            # if debug path already exists, create a directory inside with the default name
             debug_path = os.path.join(debug_path, default_dirname)
             os.makedirs(debug_path)
         else:
-            # if debug path doesn't already exist, create a directory with the name provided
             os.makedirs(debug_path)
     else:
-        # if there is not debug path provided, create a default-named directory within the current directory.
         debug_path = default_dirname
         os.makedirs(debug_path)
     print("Created visualizations directory: " + debug_path + ".")
@@ -437,15 +445,17 @@ def make_viz_directory(wav_file, saved_model_directory, debug_path):
 
 
 def add_gaussian_noise(spectrogram, noise_pct):
+    """
+    Adds gaussian noise to the spectrogram to experiment with out-of-distribution data. Find the standard deviation of
+    spectrogram values, multiplies by the percent provided, and multiplies onto a random number torch tensor. Finally,
+    adds these values to given spectrogram.
+    :param spectrogram: torch tensor of spectrogram
+    :param noise_pct: int. of desired noise percent of spectrogram standard deviation.
+    :return: Noised spectrogram
+    """
     spect_sd = torch.std(spectrogram)
     noise = .01 * noise_pct
-
     spectrogram = spectrogram + noise * spect_sd * torch.randn(size=spectrogram.shape)
-    for i in range(spectrogram.shape[-1]):
-        if i % 500 == 0:
-            plt.imshow(spectrogram[:, i:i+500])
-            plt.show()
-    breakpoint()
     return spectrogram
 
 

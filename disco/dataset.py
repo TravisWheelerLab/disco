@@ -4,7 +4,6 @@ import pickle
 from collections import defaultdict, OrderedDict
 from glob import glob
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
@@ -42,7 +41,9 @@ def _load_pickle(f):
 
 class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
     """
-    Multiple labels per example - more similar to FCNN labels.
+    Handles potentially multiple labels per example.
+    This class takes into account labels next to each other and therefore helps the neural network learn
+    transitions between classes in training.
     """
 
     def __init__(
@@ -103,6 +104,9 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
         return torch.tensor(spect_slice), torch.tensor(labels)
 
     def __len__(self):
+        """
+        :return: The number of examples in the dataset.
+        """
         return len(self.examples)
 
     def get_unique_labels(self):
@@ -113,7 +117,11 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
 
 
 class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
+    """
+    Handles one label per example.
+    """
     # TODO: put label_type in config file
+    # TODO: remove
     def __init__(
             self,
             dataset_type,

@@ -35,7 +35,7 @@ def run_inference(
     """
     Script to run the inference routine. Briefly: Model ensemble is loaded in, used to evaluate the spectrogram, and
     heuristics and the hmm are applied to the ensemble's predictions. The .csv containing model labels is saved and
-    debugging information is saved depending on whether or not debug is a string or None.
+    debugging information is saved depending on whether debug is a string or None.
 
     The ensemble predicts a .wav file quickly and seamlessly by using an overlap-tile strategy.
 
@@ -51,7 +51,10 @@ def run_inference(
     :param hop_length: Used in spectrogram calculation.
     :param vertical_trim: How many rows to chop off from the beginning of the spectrogram (in effect, a high-pass filter).
     :param n_fft: N ffts to use when calulating the spectrogram.
-    :param debug: str. Whether or not to save debugging data. None: Don't save, str: save in "str".
+    :param viz: bool. Whether to save statistics of the output predictions.
+    :param viz_path: str. Where to save the visualization data.  If debug path already exists, create a directory inside
+    with the default name. If debug path doesn't already exist, creates a directory with the name provided. Default:
+    creates a default-named directory within the current directory.
     :param num_threads: How many threads to use when loading data.
     :param noise_pct: How much noise to add to the data.
     :return: None. Everything relevant is saved to disk.

@@ -1,4 +1,3 @@
-import numpy as np
 import logging
 import disco.inference_utils as infer
 
@@ -9,7 +8,6 @@ def remove_a_chirps_in_between_b_chirps(
     predictions, iqr, name_to_class_code, return_preds=True
 ):
     """
-
     :param predictions: np.array (size 1xN) containing point-wise class predictions.
     :param iqr: inter-quartile range of model ensemble.
     :param name_to_class_code: Mapping from name of class to the class code (ex: {"A":2}).

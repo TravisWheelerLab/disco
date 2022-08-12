@@ -14,6 +14,22 @@ import disco.inference_utils as infer
 
 class Visualizer:
     def __init__(self, data_path, medians, post_process, means, iqr, votes, votes_line, second_data_path, config):
+        """
+        Class containing most information needed to perform visualization.
+        :param data_path: String. data path to the directory containing the csv of predictions and pkls of statistics.
+        :param medians: bool. Whether to display an array containing the class with the highest median softmax value
+        for each spectrogram index. The median for each time point is found for each class across the entire ensemble
+        during inference.
+        :param post_process: bool. Whether to display post-HMM and other heuristic-changed predictions.
+        :param means: bool. Whether to display means (see medians for how this is calculated).
+        :param iqr: bool. Whether to display average iqr across each class for each time point
+        :param votes: bool. Whether to display heatmap of votes for each class.
+        :param votes_line: bool. Whether to display votes as a line rather than a color bar.
+        :param second_data_path: String. data path to visualizations from a different ensemble of the same .wav file.
+        Useful for comparing multiple ensembles and determining which is better.
+        :param config: disco.Config object helping map pkl data to actual labels and determining colors for display.
+        :return: None.
+        """
         self.config = config
         self.votes_line = votes_line
         self.spectrogram, self.medians, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
@@ -56,6 +72,10 @@ class Visualizer:
 
 
 def load_arrays(data_root):
+    """
+    Get numpy arrays of each statistic saved in the provided visualization data directory.
+    :param data_root: String of the user-provided visualization data directory.
+    """
     medians = infer.load_pickle(os.path.join(data_root, "median_predictions.pkl"))
     spectrogram = infer.load_pickle(os.path.join(data_root, "raw_spectrogram.pkl"))
     post_hmm = infer.load_pickle(os.path.join(data_root, "hmm_predictions.pkl"))
@@ -67,6 +87,23 @@ def load_arrays(data_root):
 
 def create_statistics_array(show_medians, median_argmax, show_post_process, post_hmm, show_means, mean_argmax, show_iqr,
                             iqr, show_votes, votes, class_code_to_name, dataset_name):
+    """
+    Get numpy arrays of each statistic saved in the provided visualization data directory.
+    :param show_medians: bool. Whether to add the medians-based predictions to the visualizer.
+    :param median_argmax: Numpy array of the median-based predictions (calculation explained in Visualizer __init__).
+    :param show_post_process: bool. Whether to add the HMM- and other heuristic-smoothed predictions to the visualizer.
+    :param post_hmm: Numpy array of the smoothed predictions.
+    :param show_means: bool. Whether to add the means-based predictions to the visualizer.
+    :param mean_argmax: Numpy array of the mean-based predictions.
+    :param show_iqr: bool. Whether to add the average ensemble iqr across classes per timepoint to the visualizer.
+    :param iqr: Numpy array of the average iqr.
+    :param show_votes: bool. Whether to add the ensemble's votes for each class to the visualizer.
+    :param votes: Numpy array of the votes for each class, size: (class, length).
+    :param class_code_to_name: Dictionary mapping numpy array values to the actual labels, used for creating the legend.
+    :param dataset_name: Simplified version of dataset displayed in the title of each statistic.
+    :return: statistics array containing tuples of (statistic name, statistic array); bool. of whether to show the
+    legend of class predictions.
+    """
     # todo: make it so dataset name is only shown when there is a second dataset
     statistics = []
     show_legend = False
@@ -90,8 +127,16 @@ def create_statistics_array(show_medians, median_argmax, show_post_process, post
 
 
 def get_subplot_ht_ratios(height_of_statistics_portion, num_statistics_plus_slider, spectrogram_height):
-    # Create width ratios so the spectrogram's window is bigger than the statistics below it, and the
-    #   statistics all have the same size.
+    """
+    Creates a dictionary that can be ingested by the visualization figure that indicates the size of each display.
+    Ensures that the spectrogram's window is bigger than the statistics bars below it and that the statistics
+    all display the same size.
+    :param height_of_statistics_portion: float indicating relative height of the statistics portion.
+    :param num_statistics_plus_slider: int. containing the number of displayed statistics plus 1 (for the slider).
+    :param spectrogram_height: float indicating relative height of the spectrogram.
+    :return: Dictionary mapping 'height_ratios' to a list containing the proportions of each piece of the display to be
+    taken in by the matplotlib figure creation (the pieces are the spectrogram, the statistics, and the slider bar).
+    """
     statistics_display_sizes = np.repeat(height_of_statistics_portion / num_statistics_plus_slider,
                                          num_statistics_plus_slider).tolist()
     subplot_sizes = [spectrogram_height] + statistics_display_sizes
@@ -100,7 +145,13 @@ def get_subplot_ht_ratios(height_of_statistics_portion, num_statistics_plus_slid
 
 
 def imshow_statistics_rows(axs, visualizer, config):
-    # Show each statistics row
+    """
+    Go through each subplot (row) and display each statistic.
+    :param axs: Matplotlib axes containing each subplot.
+    :param visualizer: Visualizer object with all statistics needed for display.
+    :param config: Config object used to map the class numbers to their colors in the display.
+    :return: None.
+    """
     for i in range(1, len(axs) - 1):
         label = visualizer.statistics[i - 1][0]
         statistics_bar = np.expand_dims(visualizer.statistics[i - 1][1], axis=0)
@@ -139,6 +190,12 @@ def imshow_statistics_rows(axs, visualizer, config):
 
 
 def add_predictions_legend(ax, config):
+    """
+    Creates a legend for class predictions in the top right corner of the spectrogram.
+    :param ax: Matplotlib subplot containing the spectrogram
+    :param config: Config object containing the rgb values for each label.
+    :return: None.
+    """
     legend_handles = []
     for name in config.name_to_rgb_code.keys():
         icon = mlines.Line2D([], [], color=config.name_to_rgb_code[name], marker="s", linestyle='None', markersize=10,
@@ -148,6 +205,12 @@ def add_predictions_legend(ax, config):
 
 
 def build_slider(axs, visualizer):
+    """
+    Creates a slider used to move across the spectrogram and its visualization display.
+    :param axs: All Matplotlib subplots in figure.
+    :param visualizer: Visualizer object.
+    :return: Matplotlib Slider object with information it needs to initially display.
+    """
     # todo: rename to something other than spect_position
     spect_position = axs[len(visualizer.statistics) + 1].get_position()
     axis_position = plt.axes([spect_position.x0, spect_position.y0, spect_position.x1 - spect_position.x0, 0.05])
@@ -159,11 +222,15 @@ def visualize(config, data_path, medians, post_process, means, iqr, votes, votes
     """
     Visualize predictions interactively.
     :param config: disco.Config() object.
-    :param data_path: path of directory containing spectrogram and inference ran on it.
-    :param medians: whether to display median predictions by the ensemble.
-    :param post_process: whether to display post-processed (hmm, other heuristics) predictions by the ensemble.
-    :param means: whether to display mean predictions by the ensemble.
-    :return:
+    :param data_path: String. path of directory containing spectrogram and inference ran on it.
+    :param medians: bool. whether to display median predictions by the ensemble.
+    :param post_process: bool. whether to display post-processed (hmm, other heuristics) predictions by the ensemble.
+    :param means: bool. whether to display mean predictions by the ensemble.
+    :param iqr: bool. whether to display average iqr across classes for each spectrogram index.
+    :param votes: bool. whether to display votes for each class for each spectrogram index.
+    :param votes_line: bool. whether to display votes with a line rather than a colorbar.
+    :param second_data_path: String. filepath of second ensemble's visualization statistics for the same spectrogram.
+    :return: None.
     """
     visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, votes_line, second_data_path, config)
 
