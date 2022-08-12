@@ -119,20 +119,7 @@ def run_inference(
         )
 
     if debug:
-        default_dirname = os.path.split(wav_file)[-1].split(".")[0] + "-" + os.path.split(saved_model_directory)[-1]
-        if debug_path is not None:
-            if os.path.exists(debug_path):
-                # if debug path already exists, create a directory inside with the default name
-                debug_path = os.path.join(debug_path, default_dirname)
-                os.makedirs(debug_path)
-            else:
-                # if debug path doesn't already exist, create a directory with the name provided
-                os.makedirs(debug_path)
-        else:
-            # if there is not debug path provided, create a default-named directory within the current directory.
-            debug_path = default_dirname
-            os.makedirs(debug_path)
-        print("Created visualizations directory: " + debug_path + ".")
+        debug_path = infer.make_viz_directory(wav_file, saved_model_directory, debug_path)
 
         spectrogram_path = os.path.join(debug_path, "raw_spectrogram.pkl")
         hmm_prediction_path = os.path.join(debug_path, "hmm_predictions.pkl")
