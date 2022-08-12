@@ -4,10 +4,20 @@ import os
 
 class Config:
     """
-    Class that contains all of the configuration variables for this project.
+    Class that contains all configuration variables for this project.
     If a .yaml file is passed in upon creation, it'll parse the yaml file
     and overwrite default config values with those in the yaml file.
+    See ./resources/example_beetles_config.yaml or the wiki for more information about each of these variables.
     """
+
+    name_to_class_code = {"A": 0, "B": 1, "BACKGROUND": 2, "X": 2}
+    class_code_to_name = {0: "A", 1: "B", 2: "BACKGROUND"}
+
+    name_to_rgb_code = {"A": "#B65B47", "B": "#A36DE9", "BACKGROUND": "#AAAAAA"}
+    visualization_n_fft = 1150
+    visualization_columns = 1000
+
+    excluded_classes = ("Y", "C")
 
     default_model_directory = os.path.join(os.path.expanduser("~"), ".cache", "disco")
 
@@ -23,21 +33,13 @@ class Config:
         {0: 0.05, 1: 0.05, 2: 0.9},
     ]
 
-    mask_flag = -1
-    excluded_classes = ("Y", "C")
-
-    class_code_to_name = {0: "A", 1: "B", 2: "BACKGROUND"}
-    name_to_class_code = {"A": 0, "B": 1, "BACKGROUND": 2, "X": 2}
-
-    name_to_rgb_code = {"A": "#B65B47", "B": "#A36DE9", "BACKGROUND": "#AAAAAA"}
     aws_download_link = "https://beetles-cnn-models.s3.amazonaws.com/model_{}.pt"
-    default_spectrogram_num_rows = 128
-    visualization_n_fft = 1150
-    vertical_cut = 20
-    visualization_zoom_out = 1200
 
+    vertical_cut = 20
     key_to_label = {"y": "A", "w": "B", "e": "BACKGROUND"}
-    label_keys = set(key_to_label.keys())
+
+    mask_flag = -1
+    default_spectrogram_num_rows = 128
 
     def __init__(self, config_file=None):
 

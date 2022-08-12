@@ -181,7 +181,7 @@ def visualize(config, data_path, medians, post_process, means, iqr, votes, votes
 
     def update(val):
         for i in range(len(axs) - 1):
-            axs[i].set_xlim(slider.val, slider.val + config.visualization_zoom_out)
+            axs[i].set_xlim(slider.val, slider.val + config.visualization_columns)
 
     slider.on_changed(update)
 
