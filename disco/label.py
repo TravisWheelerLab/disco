@@ -66,7 +66,7 @@ class SimpleLabeler:
         self.config = config
         self.forbidden_keys = ("a", "t", "g", "j", "d", "c", "v", "q")
 
-        for key in self.config.label_keys:
+        for key in set(self.config.key_to_label.keys()):
             if key in self.forbidden_keys:
                 raise ValueError(
                     f"Cannot override default keypress {key}, change"
@@ -127,7 +127,7 @@ class SimpleLabeler:
             "The selected region will appear\n"
             "on the bottom plot. If it looks good,\n"
             "save it by pressing the keys "
-            f"{self.config.label_keys} (defined in config.py,"
+            f"{set(self.config.key_to_label.keys())} (defined in config.py,"
             f" or in your custom config.yaml)>.\n"
             "Closing the window will save the labels.\n "
             "key:\n"
@@ -202,7 +202,7 @@ class SimpleLabeler:
 
     def process_keystroke(self, key):
 
-        if key.key in self.config.label_keys:
+        if key.key in set(self.config.key_to_label.keys()):
             log.info(f"saving {self.config.key_to_label[key.key]} chirp (r to delete)")
             add_example(
                 self.label_list,
