@@ -1,12 +1,10 @@
 """
 disco classifies sound events within .wav files using machine learning.
-
 """
-__version__ = "1.0.4"
+__version__ = "2.0"
 
 from argparse import ArgumentParser
 import os
-import json
 import logging
 from disco.config import Config
 
@@ -251,8 +249,8 @@ def parser():
     viz_parser.add_argument("--second_data_path",
                             type=str,
                             default=None,
-                            help="location of debugging data for second model if comparing two"
-                                 "(directory output of disco infer --debug)")
+                            help="location of visualization data for second model if comparing two"
+                                 "(directory output of disco infer --viz)")
     return ap
 
 
@@ -306,11 +304,11 @@ def main():
         from disco.infer import run_inference
         torch.manual_seed(0)
 
-        if not args.debug and args.output_csv_path is None:
+        if not args.viz and args.output_csv_path is None:
             if args.output_csv_path is None:
-                raise ValueError("Must specify either --output_csv_path or --debug.")
-            if args.debug_path is not None:
-                raise ValueError("Must call --debug if giving a debug path.")
+                raise ValueError("Must specify either --output_csv_path or --viz.")
+            if args.viz_path is not None:
+                raise ValueError("Must call --viz if giving a statistics visualization path.")
 
         run_inference(
             config,
