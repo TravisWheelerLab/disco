@@ -31,8 +31,7 @@ def parser():
                               type=str,
                               help="filename extension of saved model files")
     infer_parser.add_argument("wav_file", type=str, help=".wav file to predict")
-    infer_parser.add_argument("-o",
-                              "--output_csv_path",
+    infer_parser.add_argument("-o", "--output_csv_path",
                               default=None,
                               type=str,
                               required=False,
@@ -61,16 +60,16 @@ def parser():
                               type=int,
                               default=1150,
                               help="size of the fft to use when calculating spectrogram")
-    infer_parser.add_argument("--debug",
+    infer_parser.add_argument("--viz",
                               action="store_true",
                               help="save visualization statistics of the data for calling viz")
-    infer_parser.add_argument("--debug_path",
+    infer_parser.add_argument("--viz_path",
                               type=str,
                               default=None,
-                              help="where to save debugging data. if filepath exists, creates a directory inside with "
-                                   "default name. if filepath doesn't already exist, creates a directory with the name "
-                                   "provided. if argument is unused, creates a directory with default name inside "
-                                   "current directory.")
+                              help="where to save visualization data. if filepath exists, creates a directory inside "
+                                   "with default name. if filepath doesn't already exist, creates a directory with the "
+                                   "name provided. if argument is unused, creates a directory with default name inside "
+                                   "current directory")
     infer_parser.add_argument("--num_threads",
                               type=int,
                               default=4,
@@ -78,30 +77,19 @@ def parser():
     infer_parser.add_argument("--noise_pct",
                               type=float,
                               default=0,
-                              help="how much noise to add to the spectrogram")
+                              help="how much gaussian noise to add to the spectrogram")
 
     # TRAIN #
     train_parser = subparsers.add_parser("train", add_help=True)
-    train_parser.add_argument(
-        "--shoptimize", action="store_true", help="whether or not you're using shopty."
-    )
-    tunable = train_parser.add_argument_group(
-        title="tunable args", description="arguments in this group are tunable"
-    )
-    tunable.add_argument(
-        "--n_fft",
-        type=int,
-        default=1150,
-        help="number of ffts used to create the spectrogram",
-    )
-    tunable.add_argument(
-        "--learning_rate", type=float, default=0.00040775, help="initial learning rate"
-    )
+    train_parser.add_argument("--shoptimize", action="store_true", help="whether or not you're using shopty")
+    tunable = train_parser.add_argument_group(title="tunable args", description="arguments in this group are tunable")
+    tunable.add_argument("--n_fft", type=int, default=1150, help="number of ffts used to create the spectrogram")
+    tunable.add_argument("--learning_rate", type=float, default=0.00040775, help="initial learning rate")
     tunable.add_argument(
         "--vertical_trim",
         type=int,
         default=20,
-        help="how many rows to remove from the low-frequency range of the spectrogram.",
+        help="how many rows to remove from the low-frequency range of the spectrogram",
     )
     tunable.add_argument(
         "--begin_mask",
@@ -193,20 +181,20 @@ def parser():
     # EXTRACT #
     extract_parser = subparsers.add_parser("extract", add_help=True)
     extract_parser.add_argument(
-        "--no_mel_scale",
-        action="store_false",
-        help="whether or not to calculate a mel spectrogram. Default: calculate it.",
+        "--mel_scale",
+        action="store_true",
+        help="whether or not to create a mel spectrogram. Default: create it",
     )
     extract_parser.add_argument(
         "--n_fft",
         default=1150,
         type=int,
-        help="number of ffts used in spect. calculation",
+        help="number of ffts used in spectrogram calculation",
     )
     extract_parser.add_argument(
         "data_dir",
         type=str,
-        help="parent directory of labels and .wav files are saved",
+        help="parent directory where labels and .wav files are saved",
     )
     extract_parser.add_argument(
         "output_data_path", type=str, help="where to save the data"
@@ -221,7 +209,7 @@ def parser():
         "--train_pct",
         type=float,
         default=0.8,
-        help="Percentage of labels to use as train. Test/val are allocated (1-train_pct)/2 percent of labels each.",
+        help="Percentage of labels to use as train. Test/val are allocated (1-train_pct)/2 percent of labels each",
     )
 
     # LABEL #
@@ -233,7 +221,7 @@ def parser():
     viz_parser = subparsers.add_parser("viz", add_help=True)
     viz_parser.add_argument("data_path",
                             type=str,
-                            help="location of debugging data (directory, output of disco infer --debug)")
+                            help="location of visualization data (directory, output of disco infer --viz)")
     viz_parser.add_argument("--medians",
                             action="store_true",
                             help="display median ensemble predictions")
