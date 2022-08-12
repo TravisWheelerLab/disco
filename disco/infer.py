@@ -27,8 +27,8 @@ def run_inference(
     hop_length=200,
     vertical_trim=20,
     n_fft=1150,
-    debug=None,
-    debug_path=None,
+    viz=None,
+    viz_path=None,
     num_threads=4,
     noise_pct=0,
 ):
@@ -118,8 +118,8 @@ def run_inference(
             noise_pct=noise_pct,
         )
 
-    if debug:
-        debug_path = infer.make_viz_directory(wav_file, saved_model_directory, debug_path)
+    if viz:
+        debug_path = infer.make_viz_directory(wav_file, saved_model_directory, viz_path)
 
         spectrogram_path = os.path.join(debug_path, "raw_spectrogram.pkl")
         hmm_prediction_path = os.path.join(debug_path, "hmm_predictions.pkl")

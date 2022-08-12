@@ -325,8 +325,8 @@ def main():
             hop_length=args.hop_length,
             vertical_trim=args.vertical_trim,
             n_fft=args.n_fft,
-            debug=args.debug,
-            debug_path=args.debug_path,
+            viz=args.viz,
+            viz_path=args.viz_path,
             num_threads=args.num_threads,
             noise_pct=args.noise_pct
         )
