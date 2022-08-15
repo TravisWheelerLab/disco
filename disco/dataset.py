@@ -120,6 +120,7 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
     """
     Handles one label per example.
     """
+
     # TODO: put label_type in config file
     # TODO: remove
     def __init__(
@@ -160,7 +161,11 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
         )
 
     def load_in_all_files(
-            self, dataset_type, spect_type, filtered_labels, bootstrap_sample
+            self,
+            dataset_type,
+            spect_type,
+            filtered_labels,
+            bootstrap_sample
     ):
 
         spectrograms_list = []
@@ -190,9 +195,7 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
         sorted_class_counter = OrderedDict(sorted(class_counter.items()))
 
         if bootstrap_sample:
-            indices = np.random.choice(
-                len(spectrograms_list), size=len(spectrograms_list), replace=True
-            )
+            indices = np.random.choice(len(spectrograms_list), size=len(spectrograms_list), replace=True)
             bootstrapped_spects = []
             for i in range(indices.shape[-1]):
                 spect_to_add_label = spectrograms_list[indices[i]][0]
@@ -213,19 +216,11 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
         random_index = round(random.uniform(0, num_col - spect_size))
 
         if self.clip_spects:
-            spect_slice = torch.tensor(
-                spect[:, random_index: random_index + spect_size]
-            )
-            label_tensor = torch.tensor(
-                np.repeat(a=self.config.name_to_class_code[label], repeats=spect_size)
-            )
+            spect_slice = torch.tensor(spect[:, random_index: random_index + spect_size])
+            label_tensor = torch.tensor(np.repeat(a=self.config.name_to_class_code[label], repeats=spect_size))
         else:
             spect_slice = torch.tensor(spect)
-            label_tensor = torch.tensor(
-                np.repeat(
-                    a=self.config.name_to_class_code[label], repeats=len(spect[1])
-                )
-            )
+            label_tensor = torch.tensor(np.repeat(a=self.config.name_to_class_code[label], repeats=len(spect[1])))
         return spect_slice, label_tensor
 
     def __len__(self):

@@ -14,7 +14,7 @@ from disco.config import Config
 
 log = logging.getLogger(__name__)
 
-seed_everything(int(time() * 3))
+seed_everything(int(time() * 2))
 
 
 def train(config, hparams):

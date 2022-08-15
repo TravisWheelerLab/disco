@@ -86,7 +86,10 @@ def run_inference(
         wav_file=wav_file,
     )
     spectrogram_dataset = torch.utils.data.DataLoader(
-        spectrogram_iterator, shuffle=False, batch_size=batch_size, drop_last=False
+        spectrogram_iterator,
+        shuffle=False,
+        batch_size=batch_size,
+        drop_last=False
     )
 
     iqr, medians, means, votes = infer.evaluate_spectrogram(

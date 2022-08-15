@@ -39,13 +39,15 @@ class Visualizer:
 
         self.median_argmax = np.argmax(self.medians, axis=0)
         self.mean_argmax = np.argmax(self.means, axis=0)
-        self.statistics, self.show_legend = create_statistics_array(medians, self.median_argmax,
-                                                                    post_process, self.post_hmm,
-                                                                    means, self.mean_argmax,
-                                                                    iqr, self.iqr,
-                                                                    votes, self.votes,
-                                                                    config.class_code_to_name,
-                                                                    first_data_path_name + ":")
+        self.statistics, self.show_legend = create_statistics_array(
+            medians, self.median_argmax,
+            post_process, self.post_hmm,
+            means, self.mean_argmax,
+            iqr, self.iqr,
+            votes, self.votes,
+            config.class_code_to_name,
+            first_data_path_name + ":"
+        )
 
         if second_data_path:
             _, self.medians_2, self.post_hmm_2, self.iqr_2, self.means_2, self.votes_2 = load_arrays(second_data_path)
@@ -53,19 +55,22 @@ class Visualizer:
             self.median_argmax_2 = np.argmax(self.medians_2, axis=0)
             self.mean_argmax_2 = np.argmax(self.means_2, axis=0)
             # todo: make sure _ and self.spectrogram are the same, throw an error if they are not.
-            self.statistics_2, _ = create_statistics_array(medians, self.median_argmax_2,
-                                                           post_process, self.post_hmm_2,
-                                                           means, self.mean_argmax_2,
-                                                           iqr, self.iqr_2,
-                                                           votes, self.votes_2,
-                                                           config.class_code_to_name,
-                                                           second_data_path_name + ":")
+            self.statistics_2, _ = create_statistics_array(
+                medians, self.median_argmax_2,
+                post_process, self.post_hmm_2,
+                means, self.mean_argmax_2,
+                iqr, self.iqr_2,
+                votes, self.votes_2,
+                config.class_code_to_name,
+                second_data_path_name + ":"
+            )
             self.statistics += self.statistics_2
 
         # Build the figure height based on the height of the spectrogram and the amount of statistics to display.
         self.num_statistics_plus_slider = len(self.statistics) + 1
         self.spect_ht = 2.5
-        statistics_ht = (0.5 + (self.num_statistics_plus_slider-1) + (self.num_statistics_plus_slider-2) * 0.1) * 0.22
+        statistics_ht = (0.5 + (self.num_statistics_plus_slider - 1) + (
+                    self.num_statistics_plus_slider - 2) * 0.1) * 0.22
         self.fig_ht = self.spect_ht + statistics_ht
 
         self.height_ratios = get_subplot_ht_ratios(statistics_ht, self.num_statistics_plus_slider, self.spect_ht)
@@ -85,8 +90,19 @@ def load_arrays(data_root):
     return spectrogram, medians, post_hmm, iqr, means, votes
 
 
-def create_statistics_array(show_medians, median_argmax, show_post_process, post_hmm, show_means, mean_argmax, show_iqr,
-                            iqr, show_votes, votes, class_code_to_name, dataset_name):
+def create_statistics_array(
+        show_medians,
+        median_argmax,
+        show_post_process,
+        post_hmm,
+        show_means,
+        mean_argmax,
+        show_iqr,
+        iqr,
+        show_votes,
+        votes,
+        class_code_to_name,
+        dataset_name):
     """
     Get numpy arrays of each statistic saved in the provided visualization data directory.
     :param show_medians: bool. Whether to add the medians-based predictions to the visualizer.
@@ -105,6 +121,7 @@ def create_statistics_array(show_medians, median_argmax, show_post_process, post
     legend of class predictions.
     """
     # todo: make it so dataset name is only shown when there is a second dataset
+    # todo: make into a class function to eliminate most arguments
     statistics = []
     show_legend = False
     if show_medians:
@@ -182,8 +199,8 @@ def imshow_statistics_rows(axs, visualizer, config):
 
     # turn off tick marks for each statistics bar and for the slider bar
     for i in range(1, len(axs)):
-        slider_axs_idx = len(axs)-1
-        if i != slider_axs_idx and "iqr" not in visualizer.statistics[i-1][0]:
+        slider_axs_idx = len(axs) - 1
+        if i != slider_axs_idx and "iqr" not in visualizer.statistics[i - 1][0]:
             axs[i].set_axis_off()
         elif i == slider_axs_idx:
             axs[i].get_yaxis().set_visible(False)
@@ -198,8 +215,15 @@ def add_predictions_legend(ax, config):
     """
     legend_handles = []
     for name in config.name_to_rgb_code.keys():
-        icon = mlines.Line2D([], [], color=config.name_to_rgb_code[name], marker="s", linestyle='None', markersize=10,
-                             label=name.title())
+        icon = mlines.Line2D(
+            [],
+            [],
+            color=config.name_to_rgb_code[name],
+            marker="s",
+            linestyle='None',
+            markersize=10,
+            label=name.title()
+        )
         legend_handles.append(icon)
     ax.legend(handles=legend_handles, loc='upper right', fontsize='small', title='prediction')
 
@@ -234,8 +258,12 @@ def visualize(config, data_path, medians, post_process, means, iqr, votes, votes
     """
     visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, votes_line, second_data_path, config)
 
-    fig, axs = plt.subplots(sharex=True, nrows=visualizer.num_statistics_plus_slider + 1,
-                            figsize=(10, visualizer.fig_ht), gridspec_kw=visualizer.height_ratios)
+    fig, axs = plt.subplots(
+        sharex=True,
+        nrows=visualizer.num_statistics_plus_slider + 1,
+        figsize=(10, visualizer.fig_ht),
+        gridspec_kw=visualizer.height_ratios
+    )
     fig.subplots_adjust(top=1 - 0.35 / visualizer.fig_ht, bottom=0.15 / visualizer.fig_ht, left=0.2, right=0.99)
 
     axs[0].imshow(visualizer.spectrogram, aspect="auto")

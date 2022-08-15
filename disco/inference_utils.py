@@ -9,7 +9,6 @@ import tqdm
 import pomegranate as pom
 import logging
 from glob import glob
-import matplotlib.pyplot as plt
 
 from disco.models import UNet1D
 import disco.heuristics as heuristics
@@ -60,9 +59,7 @@ def download_models(directory, aws_download_link):
                 with open(download_destination, "wb") as dst:
                     dst.write(f.content)
             else:
-                raise requests.RequestException(
-                    f"Couldn't download model with code {f.status_code}"
-                )
+                raise requests.RequestException(f"Couldn't download model with code {f.status_code}")
 
 
 def aggregate_predictions(predictions):
@@ -84,11 +81,7 @@ def aggregate_predictions(predictions):
 
     if len(idx) == 0:
         log.info("Only one class found after heuristics, csv will only contain one row")
-        dct = {
-            "class": current_class,
-            "start": current_idx,
-            "end": predictions.shape[-1],
-        }
+        dct = {"class": current_class, "start": current_idx, "end": predictions.shape[-1]}
         class_idx_to_prediction_start_and_end.append(dct)
 
     else:
@@ -157,7 +150,10 @@ def save_csv_from_predictions(
     """
 
     class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(
-        predictions, None, name_to_class_code, return_preds=False
+        predictions,
+        None,
+        name_to_class_code,
+        return_preds=False
     )
     class_code_to_name = {v: k for k, v in name_to_class_code.items()}
 
@@ -167,16 +163,18 @@ def save_csv_from_predictions(
         end = class_to_start_and_end["end"]
         start = class_to_start_and_end["start"]
 
-        dataframe_dict = {"Selection": i,
-                          "View": 0,
-                          "Channel": 0,
-                          "Begin Time (s)": convert_spectrogram_index_to_seconds(start, hop_length=hop_length,
-                                                                                 sample_rate=sample_rate),
-                          "End Time (s)": convert_spectrogram_index_to_seconds(end, hop_length=hop_length,
-                                                                               sample_rate=sample_rate),
-                          "Low Freq (Hz)": 0,
-                          "High Freq (Hz)": 0,
-                          "Sound_Type": class_code_to_name[class_to_start_and_end["class"]]}
+        dataframe_dict = {
+            "Selection": i,
+            "View": 0,
+            "Channel": 0,
+            "Begin Time (s)": convert_spectrogram_index_to_seconds(start, hop_length=hop_length,
+                                                                   sample_rate=sample_rate),
+            "End Time (s)": convert_spectrogram_index_to_seconds(end, hop_length=hop_length,
+                                                                 sample_rate=sample_rate),
+            "Low Freq (Hz)": 0,
+            "High Freq (Hz)": 0,
+            "Sound_Type": class_code_to_name[class_to_start_and_end["class"]]
+        }
 
         list_of_dicts_for_dataframe.append(dataframe_dict)
         i += 1
@@ -203,19 +201,15 @@ def smooth_predictions_with_hmm(unsmoothed_predictions, config):
     :return: smoothed predictions
     """
     if unsmoothed_predictions.ndim != 1:
-        raise ValueError(
-            "expected array of size N, got {}".format(unsmoothed_predictions.shape)
-        )
+        raise ValueError("expected array of size N, got {}".format(unsmoothed_predictions.shape))
 
     hmm = create_hmm(
         config.hmm_transition_probabilities,
         config.hmm_emission_probabilities,
         config.hmm_start_probabilities,
     )
-    # forget about the first element b/c it's the start state
-    smoothed_predictions = np.asarray(
-        hmm.predict(sequence=unsmoothed_predictions.copy(), algorithm="viterbi")[1:]
-    )
+    # forget about the first element because it's the start state
+    smoothed_predictions = np.asarray(hmm.predict(sequence=unsmoothed_predictions.copy(), algorithm="viterbi")[1:])
     return smoothed_predictions
 
 
@@ -227,7 +221,6 @@ def convert_time_to_spect_index(time, hop_length, sample_rate):
     :param sample_rate: Sample rate of recording.
     :return: int. Spectrogram index of the time passed in.
     """
-
     return np.round(time * sample_rate).astype(np.int) // hop_length
 
 
@@ -240,14 +233,8 @@ def load_prediction_csv(csv_path, hop_length, sample_rate):
     :return: original dataframe but with new columns, "Begin Spect Index" and "End Spect Index".
     """
     df = pd.read_csv(csv_path)
-    df["Begin Spect Index"] = [
-        convert_time_to_spect_index(x, hop_length, sample_rate)
-        for x in df["Begin Time (s)"]
-    ]
-    df["End Spect Index"] = [
-        convert_time_to_spect_index(x, hop_length, sample_rate)
-        for x in df["End Time (s)"]
-    ]
+    df["Begin Spect Index"] = [convert_time_to_spect_index(x, hop_length, sample_rate) for x in df["Begin Time (s)"]]
+    df["End Spect Index"] = [convert_time_to_spect_index(x, hop_length, sample_rate) for x in df["End Time (s)"]]
     return df
 
 
@@ -270,9 +257,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
         log.info("no models found, downloading to {}".format(model_directory))
 
         download_models(config.default_model_directory, config.aws_download_link)
-        model_paths = glob(
-            os.path.join(config.default_model_directory, "*" + model_extension)
-        )
+        model_paths = glob(os.path.join(config.default_model_directory, "*" + model_extension))
 
     models = []
     for model_path in model_paths:
@@ -415,7 +400,6 @@ def evaluate_spectrogram(
     means_full_sequence = np.concatenate(means_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
     votes_full_sequence = np.concatenate(votes_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
 
-    breakpoint()
     return iqrs_full_sequence, medians_full_sequence, means_full_sequence, votes_full_sequence
 
 
@@ -460,18 +444,19 @@ def add_gaussian_noise(spectrogram, noise_pct):
 
 
 class SpectrogramIterator(torch.nn.Module):
-    def __init__(self,
-                 tile_size,
-                 tile_overlap,
-                 vertical_trim,
-                 n_fft,
-                 hop_length,
-                 log_spect,
-                 mel_transform,
-                 noise_pct,
-                 wav_file=None,
-                 spectrogram=None,
-                 ):
+    def __init__(
+            self,
+            tile_size,
+            tile_overlap,
+            vertical_trim,
+            n_fft,
+            hop_length,
+            log_spect,
+            mel_transform,
+            noise_pct,
+            wav_file=None,
+            spectrogram=None,
+    ):
         super().__init__()
         self.tile_size = tile_size
         self.tile_overlap = tile_overlap
@@ -513,28 +498,24 @@ class SpectrogramIterator(torch.nn.Module):
 
         if to_pad != 0:
             self.spectrogram = torch.cat(
-                (
-                    self.spectrogram,
-                    torch.flip(self.spectrogram[:, -to_pad:], dims=[-1]),
-                ),
-                dim=-1,
+                (self.spectrogram, torch.flip(self.spectrogram[:, -to_pad:], dims=[-1])),
+                dim=-1
             )
 
         self.indices = range(self.tile_size // 2, self.spectrogram.shape[-1], step_size)
 
         # mirror pad the beginning of the spectrogram
         self.spectrogram = torch.cat(
-            (
-                torch.flip(self.spectrogram[:, : self.tile_overlap], dims=[-1]),
-                self.spectrogram,
-            ),
+            (torch.flip(self.spectrogram[:, : self.tile_overlap], dims=[-1]), self.spectrogram),
             dim=-1,
         )
 
     def create_spectrogram(self, waveform, sample_rate):
         if self.mel_transform:
             spectrogram = torchaudio.transforms.MelSpectrogram(
-                sample_rate=sample_rate, n_fft=self.n_fft, hop_length=self.hop_length
+                sample_rate=sample_rate,
+                n_fft=self.n_fft,
+                hop_length=self.hop_length
             )(waveform)
         else:
             spectrogram = torchaudio.transforms.Spectrogram(
@@ -550,7 +531,5 @@ class SpectrogramIterator(torch.nn.Module):
         center_idx = self.indices[idx]
         # we want to overlap-tile starting from the beginning
         # so that our predictions are seamless.
-        x = self.spectrogram[
-            :, center_idx - self.tile_size // 2: center_idx + self.tile_size // 2
-            ]
+        x = self.spectrogram[:, center_idx - self.tile_size // 2: center_idx + self.tile_size // 2]
         return x

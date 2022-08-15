@@ -5,7 +5,6 @@ import pandas as pd
 import pickle
 import os
 import logging
-import matplotlib.pyplot as plt
 
 from glob import glob
 from sklearn.model_selection import train_test_split
@@ -60,9 +59,7 @@ def create_label_to_spectrogram(
         i = 0
         while i < labels.shape[0] - 1:
             contig = [i]
-            while (
-                    labels.iloc[i + 1]["begin idx"] - labels.iloc[i]["end idx"]
-            ) <= neighbor_tolerance:
+            while (labels.iloc[i + 1]["begin idx"] - labels.iloc[i]["end idx"]) <= neighbor_tolerance:
                 contig.extend([i + 1])
                 i += 1
                 if i == labels.shape[0] - 1:
@@ -143,12 +140,15 @@ def process_wav_file(csv_filename, n_fft, mel_scale, config, hop_length=200):
     # creates a spectrogram with a log2 transform
     if mel_scale:
         spect = torchaudio.transforms.MelSpectrogram(
-            sample_rate=sample_rate, n_fft=n_fft, hop_length=hop_length
+            sample_rate=sample_rate,
+            n_fft=n_fft,
+            hop_length=hop_length
         )(waveform)
     else:
-        spect = torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length)(
-            waveform
-        )
+        spect = torchaudio.transforms.Spectrogram(
+            n_fft=n_fft,
+            hop_length=hop_length
+        )(waveform)
 
     # dictionary containing all pre-labeled chirps and their associated spectrograms
     spect = spect.squeeze()
@@ -206,9 +206,7 @@ def save_data(out_path, data_list, index_to_label):
             uniq = np.unique(lvec, return_counts=True)
             label = np.argmax(uniq[1])
 
-        out_fpath = os.path.join(
-            out_path, index_to_label[label] + "_" + str(i) + ".pkl"
-        )
+        out_fpath = os.path.join(out_path, index_to_label[label] + "_" + str(i) + ".pkl")
 
         with open(out_fpath, "wb") as dst:
             pickle.dump([features, label_vector], dst)
@@ -239,13 +237,15 @@ def extract_from_subdirectories(
 
     subdirectories = create_subdirectories(data_dir, excluded_directories)
 
-    extract(config,
-            random_seed=random_seed,
-            no_mel_scale=no_mel_scale,
-            n_fft=n_fft,
-            output_data_path=output_data_path,
-            train_pct=train_pct,
-            subdirectory_paths=subdirectories)
+    extract(
+        config,
+        random_seed=random_seed,
+        no_mel_scale=no_mel_scale,
+        n_fft=n_fft,
+        output_data_path=output_data_path,
+        train_pct=train_pct,
+        subdirectory_paths=subdirectories
+    )
 
 
 def create_subdirectories(data_directory, excluded_directories):
@@ -368,10 +368,16 @@ def process_files(config, random_seed, mel, n_fft, data_dir, output_data_path, t
     if (1 - train_pct) / 2 != 0:
 
         train_idx, test_idx, _, _ = train_test_split(
-            indices, indices, test_size=1 - train_pct, random_state=random_seed
+            indices,
+            indices,
+            test_size=1 - train_pct,
+            random_state=random_seed
         )
         test_idx, val_idx, _, _ = train_test_split(
-            test_idx, test_idx, test_size=(1 - train_pct) / 2, random_state=random_seed
+            test_idx,
+            test_idx,
+            test_size=(1 - train_pct) / 2,
+            random_state=random_seed
         )
 
         train_split = [out[idx] for idx in train_idx]

@@ -14,74 +14,105 @@ log = logging.getLogger(__name__)
 
 def parser():
     ap = ArgumentParser()
-    ap.add_argument("--version", action="version", version="0.0.1-alpha")
+    ap.add_argument("--version", action="version", version="2.0-alpha")
     subparsers = ap.add_subparsers(title="actions", dest="command")
 
     # INFER #
     infer_parser = subparsers.add_parser("infer", add_help=True)
-    infer_parser.add_argument("--saved_model_directory",
-                              required=False,
-                              default=Config().default_model_directory,
-                              type=str,
-                              help="where the ensemble of models is stored")
-    infer_parser.add_argument("--model_extension",
-                              default=".pt",
-                              type=str,
-                              help="filename extension of saved model files")
-    infer_parser.add_argument("wav_file", type=str, help=".wav file to predict")
-    infer_parser.add_argument("-o", "--output_csv_path",
-                              default=None,
-                              type=str,
-                              required=False,
-                              help="where to save the final predictions")
-    infer_parser.add_argument("--tile_overlap",
-                              default=128,
-                              type=int,
-                              help="how much to overlap consecutive predictions. Larger values will mean slower "
-                                   "performance as "
-                                   "there is more repeated computation")
-    infer_parser.add_argument("--tile_size", default=1024, type=int, help="length of input spectrogram")
-    infer_parser.add_argument("--batch_size", default=32, type=int, help="batch size")
-    infer_parser.add_argument("--input_channels",
-                              default=108,
-                              type=int,
-                              help="number of channels of input spectrogram")
-    infer_parser.add_argument("--hop_length",
-                              type=int,
-                              default=200,
-                              help="length of hops b/t subsequent spectrogram windows")
-    infer_parser.add_argument("--vertical_trim",
-                              type=int,
-                              default=20,
-                              help="how many rows to remove from the spectrogram ")
-    infer_parser.add_argument("--n_fft",
-                              type=int,
-                              default=1150,
-                              help="size of the fft to use when calculating spectrogram")
-    infer_parser.add_argument("-v", "--viz",
-                              action="store_true",
-                              help="save visualization statistics of the data for calling viz")
-    infer_parser.add_argument("--viz_path",
-                              type=str,
-                              default=None,
-                              help="where to save visualization data. if filepath exists, creates a directory inside "
-                                   "with default name. if filepath doesn't already exist, creates a directory with the "
-                                   "name provided. if argument is unused, creates a directory with default name inside "
-                                   "current directory")
-    infer_parser.add_argument("--num_threads",
-                              type=int,
-                              default=4,
-                              help="how many threads to use when evaluating on CPU")
-    infer_parser.add_argument("--noise_pct",
-                              type=float,
-                              default=0,
-                              help="how much gaussian noise to add to the spectrogram")
+    infer_parser.add_argument(
+        "--saved_model_directory",
+        required=False,
+        default=Config().default_model_directory,
+        type=str,
+        help="where the ensemble of models is stored")
+    infer_parser.add_argument(
+        "--model_extension",
+        default=".pt",
+        type=str,
+        help="filename extension of saved model files")
+    infer_parser.add_argument(
+        "wav_file",
+        type=str,
+        help=".wav file to predict")
+    infer_parser.add_argument(
+        "-o", "--output_csv_path",
+        default=None,
+        type=str,
+        required=False,
+        help="where to save the final predictions")
+    infer_parser.add_argument(
+        "--tile_overlap",
+        default=128,
+        type=int,
+        help="how much to overlap consecutive predictions. Larger values will mean slower "
+             "performance as "
+             "there is more repeated computation")
+    infer_parser.add_argument(
+        "--tile_size",
+        default=1024,
+        type=int,
+        help="length of input spectrogram")
+    infer_parser.add_argument(
+        "--batch_size",
+        default=32,
+        type=int,
+        help="batch size")
+    infer_parser.add_argument(
+        "--input_channels",
+        default=108,
+        type=int,
+        help="number of channels of input spectrogram")
+    infer_parser.add_argument(
+        "--hop_length",
+        type=int,
+        default=200,
+        help="length of hops b/t subsequent spectrogram windows")
+    infer_parser.add_argument(
+        "--vertical_trim",
+        type=int,
+        default=20,
+        help="how many rows to remove from the spectrogram ")
+    infer_parser.add_argument(
+        "--n_fft",
+        type=int,
+        default=1150,
+        help="size of the fft to use when calculating spectrogram")
+    infer_parser.add_argument(
+        "-v", "--viz",
+        action="store_true",
+        help="save visualization statistics of the data for calling viz")
+    infer_parser.add_argument(
+        "--viz_path",
+        type=str,
+        default=None,
+        help="where to save visualization data. if filepath exists, creates a directory inside "
+             "with default name. if filepath doesn't already exist, creates a directory with the "
+             "name provided. if argument is unused, creates a directory with default name inside "
+             "current directory")
+    infer_parser.add_argument(
+        "--num_threads",
+        type=int,
+        default=4,
+        help="how many threads to use when evaluating on CPU")
+    infer_parser.add_argument(
+        "--noise_pct",
+        type=float,
+        default=0,
+        help="how much gaussian noise to add to the spectrogram")
 
     # TRAIN #
     train_parser = subparsers.add_parser("train", add_help=True)
     tunable = train_parser.add_argument_group(title="tunable args", description="arguments in this group are tunable")
-    tunable.add_argument("--n_fft", type=int, default=1150, help="number of ffts used to create the spectrogram")
-    tunable.add_argument("--learning_rate", type=float, default=0.00040775, help="initial learning rate")
+    tunable.add_argument(
+        "--n_fft",
+        type=int,
+        default=1150,
+        help="number of ffts used to create the spectrogram")
+    tunable.add_argument(
+        "--learning_rate",
+        type=float,
+        default=0.00040775,
+        help="initial learning rate")
     tunable.add_argument(
         "--vertical_trim",
         type=int,
@@ -124,7 +155,11 @@ def parser():
         action="store_true",
         help="train a model with a sample of the training set" " (replace=True)",
     )
-    non_tunable.add_argument("--batch_size", type=int, default=128, help="batch size")
+    non_tunable.add_argument(
+        "--batch_size",
+        type=int,
+        default=128,
+        help="batch size")
     non_tunable.add_argument(
         "--tune_initial_lr",
         action="store_true",
@@ -143,7 +178,10 @@ def parser():
              " node",
     )
     non_tunable.add_argument(
-        "--epochs", type=int, default=300, help="max number of epochs to train"
+        "--epochs",
+        type=int,
+        default=300,
+        help="max number of epochs to train"
     )
     non_tunable.add_argument(
         "--check_val_every_n_epoch",
@@ -153,7 +191,10 @@ def parser():
              "logged "
              "and if it's lower than the previous best the current model is saved",
     )
-    non_tunable.add_argument("--data_path", type=str, help="where the data are saved")
+    non_tunable.add_argument(
+        "--data_path",
+        type=str,
+        help="where the data are saved")
     non_tunable.add_argument(
         "--log_dir",
         type=str,
@@ -194,7 +235,9 @@ def parser():
         help="parent directory where labels and .wav files are saved",
     )
     extract_parser.add_argument(
-        "output_data_path", type=str, help="where to save the data"
+        "output_data_path",
+        type=str,
+        help="where to save the data"
     )
     extract_parser.add_argument(
         "--random_seed",
@@ -211,45 +254,73 @@ def parser():
 
     # LABEL #
     label_parser = subparsers.add_parser("label", add_help=True)
-    label_parser.add_argument("wav_file", type=str, help="which .wav file to analyze")
-    label_parser.add_argument("output_csv_path", type=str, help="where to save the labels")
+    label_parser.add_argument(
+        "wav_file",
+        type=str,
+        help="which .wav file to analyze"
+    )
+    label_parser.add_argument(
+        "output_csv_path",
+        type=str,
+        help="where to save the labels"
+    )
 
     # VISUALIZE #
     viz_parser = subparsers.add_parser("viz", add_help=True)
-    viz_parser.add_argument("data_path",
-                            type=str,
-                            help="location of visualization data (directory, output of disco infer --viz)")
-    viz_parser.add_argument("--medians",
-                            action="store_true",
-                            help="display median ensemble predictions")
-    viz_parser.add_argument("--post_process",
-                            action="store_true",
-                            help="display post-processed ensemble predictions")
-    viz_parser.add_argument("--means",
-                            action="store_true",
-                            help="display mean ensemble predictions")
-    viz_parser.add_argument("--iqr",
-                            action="store_true",
-                            help="display average iqr across median predictions")
-    viz_parser.add_argument("--votes",
-                            action="store_true",
-                            help="display ensemble's voting for each label")
-    viz_parser.add_argument("--votes_line",
-                            action="store_true",
-                            help="display ensemble's voting for each label")
-    viz_parser.add_argument("--sample_rate",
-                            type=int,
-                            default=48000,
-                            help="sample rate of audio recording")
-    viz_parser.add_argument("--hop_length",
-                            type=int,
-                            default=200,
-                            help="length of hops b/t subsequent spectrogram windows")
-    viz_parser.add_argument("--second_data_path",
-                            type=str,
-                            default=None,
-                            help="location of visualization data for second model if comparing two"
-                                 "(directory output of disco infer --viz)")
+    viz_parser.add_argument(
+        "data_path",
+        type=str,
+        help="location of visualization data (directory, output of disco infer --viz)"
+    )
+    viz_parser.add_argument(
+        "--medians",
+        action="store_true",
+        help="display median ensemble predictions"
+    )
+    viz_parser.add_argument(
+        "--post_process",
+        action="store_true",
+        help="display post-processed ensemble predictions"
+    )
+    viz_parser.add_argument(
+        "--means",
+        action="store_true",
+        help="display mean ensemble predictions"
+    )
+    viz_parser.add_argument(
+        "--iqr",
+        action="store_true",
+        help="display average iqr across median predictions"
+    )
+    viz_parser.add_argument(
+        "--votes",
+        action="store_true",
+        help="display ensemble's voting for each label"
+    )
+    viz_parser.add_argument(
+        "--votes_line",
+        action="store_true",
+        help="display ensemble's voting for each label"
+    )
+    viz_parser.add_argument(
+        "--sample_rate",
+        type=int,
+        default=48000,
+        help="sample rate of audio recording"
+    )
+    viz_parser.add_argument(
+        "--hop_length",
+        type=int,
+        default=200,
+        help="length of hops b/t subsequent spectrogram windows"
+    )
+    viz_parser.add_argument(
+        "--second_data_path",
+        type=str,
+        default=None,
+        help="location of visualization data for second model if comparing two"
+             "(directory output of disco infer --viz)"
+    )
     return ap
 
 
