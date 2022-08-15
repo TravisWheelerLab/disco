@@ -42,7 +42,7 @@ hmm_emission_probabilities: [
 ]
 
 ## Inference: General ##
-aws_download_link: "https://beetles-cnn-models.s3.amazonaws.com/model_{}.pt"
+aws_download_link: "https://disco-models.s3.us-west-1.amazonaws.com/random_init_model_{}.ckpt"
 
 
 ## Labeling ##

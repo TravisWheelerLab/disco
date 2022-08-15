@@ -33,7 +33,7 @@ class Config:
         {0: 0.05, 1: 0.05, 2: 0.9},
     ]
 
-    aws_download_link = "https://beetles-cnn-models.s3.amazonaws.com/model_{}.pt"
+    aws_download_link = "https://disco-models.s3.us-west-1.amazonaws.com/random_init_model_{}.ckpt"
 
     vertical_cut = 20
     key_to_label = {"y": "A", "w": "B", "e": "BACKGROUND"}
