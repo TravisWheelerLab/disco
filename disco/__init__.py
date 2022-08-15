@@ -79,7 +79,6 @@ def parser():
 
     # TRAIN #
     train_parser = subparsers.add_parser("train", add_help=True)
-    train_parser.add_argument("--shoptimize", action="store_true", help="whether or not you're using shopty")
     tunable = train_parser.add_argument_group(title="tunable args", description="arguments in this group are tunable")
     tunable.add_argument("--n_fft", type=int, default=1150, help="number of ffts used to create the spectrogram")
     tunable.add_argument("--learning_rate", type=float, default=0.00040775, help="initial learning rate")
