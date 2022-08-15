@@ -58,7 +58,7 @@ def parser():
                               type=int,
                               default=1150,
                               help="size of the fft to use when calculating spectrogram")
-    infer_parser.add_argument("--viz",
+    infer_parser.add_argument("-v", "--viz",
                               action="store_true",
                               help="save visualization statistics of the data for calling viz")
     infer_parser.add_argument("--viz_path",
