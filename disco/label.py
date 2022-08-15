@@ -8,10 +8,10 @@ import os
 from argparse import ArgumentParser
 from matplotlib.widgets import SpanSelector
 
-np.random.seed(19680801)
+np.random.seed(0)
 
-import beetles.inference_utils as infer
-from beetles.config import Config
+import disco.inference_utils as infer
+from disco.config import Config
 
 log = logging.getLogger(__name__)
 
@@ -37,28 +37,28 @@ def add_example(
     :return:
     """
     begin_time = infer.convert_spectrogram_index_to_seconds(
-        begin_idx, hop_length=hop_length, sample_rate=sample_rate
+        begin_idx,
+        hop_length=hop_length,
+        sample_rate=sample_rate
     )
     end_time = infer.convert_spectrogram_index_to_seconds(
-        end_idx, hop_length=hop_length, sample_rate=sample_rate
+        end_idx,
+        hop_length=hop_length,
+        sample_rate=sample_rate
     )
-    label_list.append(
-        {
+    label_list.append({
             "Begin Time (s)": begin_time,
             "End Time (s)": end_time,
             "Sound_Type": sound_type.upper(),
             "Filename": wav_file,
-        }
-    )
+        })
 
 
 class SimpleLabeler:
     """
     This class uses matplotlib widgets to label a spectrogram.
-    Can be customized by a beetles.Config() object.
-
+    Can be customized by a disco.Config() object.
     """
-
     def __init__(self, wav_file, output_csv_path, config):
 
         self.wav_file = wav_file
@@ -66,7 +66,7 @@ class SimpleLabeler:
         self.config = config
         self.forbidden_keys = ("a", "t", "g", "j", "d", "c", "v", "q")
 
-        for key in self.config.label_keys:
+        for key in set(self.config.key_to_label.keys()):
             if key in self.forbidden_keys:
                 raise ValueError(
                     f"Cannot override default keypress {key}, change"
@@ -127,7 +127,7 @@ class SimpleLabeler:
             "The selected region will appear\n"
             "on the bottom plot. If it looks good,\n"
             "save it by pressing the keys "
-            f"{self.config.label_keys} (defined in config.py,"
+            f"{set(self.config.key_to_label.keys())} (defined in config.py,"
             f" or in your custom config.yaml)>.\n"
             "Closing the window will save the labels.\n "
             "key:\n"
@@ -169,16 +169,13 @@ class SimpleLabeler:
 
     def _redraw_ax2(self):
         self.ax2.imshow(
-            self.spectrogram[
-                self.vertical_cut :, self.n + self.xmin : self.n + self.xmax
-            ],
+            self.spectrogram[self.vertical_cut:, self.n + self.xmin: self.n + self.xmax],
             origin="upper",
         )
         self.ax2.set_title("selected region")
         self.fig.canvas.draw()
 
     def _redraw_ax1(self):
-        # could be
         self.ax1.clear()
         self.ax1.imshow(
             self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval],
@@ -188,9 +185,7 @@ class SimpleLabeler:
         self.ax1.set_title(
             "Press left mouse button and drag "
             "to select a region in the top graph "
-            "{:d} percent through spectrogram".format(
-                int(100 * self.n / self.spectrogram.shape[-1])
-            )
+            "{:d} percent through spectrogram".format(int(100 * self.n / self.spectrogram.shape[-1]))
         )
         self.fig.canvas.draw()
 
@@ -202,7 +197,7 @@ class SimpleLabeler:
 
     def process_keystroke(self, key):
 
-        if key.key in self.config.label_keys:
+        if key.key in set(self.config.key_to_label.keys()):
             log.info(f"saving {self.config.key_to_label[key.key]} chirp (r to delete)")
             add_example(
                 self.label_list,
@@ -257,12 +252,11 @@ class SimpleLabeler:
 def label(config, wav_file, output_csv_path):
     """
     Runner file to apply the SimpleLabeler to a .wav file.
-    :param config: beetles.Config() object.
+    :param config: disco.Config() object.
     :param wav_file: .wav file to label.
     :param output_csv_path:  Where to save the labels.
     :return: None.
     """
-
     labeler = SimpleLabeler(wav_file, output_csv_path, config=config)
     plt.show()
     labeler.show()

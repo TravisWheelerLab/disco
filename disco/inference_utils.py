@@ -1,5 +1,4 @@
 import os
-import pdb
 import torch
 import torchaudio
 import numpy as np
@@ -7,14 +6,12 @@ import pandas as pd
 import pickle
 import requests
 import tqdm
-import matplotlib.pyplot as plt
 import pomegranate as pom
 import logging
 from glob import glob
-from collections import defaultdict
 
-from beetles.models import UNet1D
-import beetles.heuristics as heuristics
+from disco.models import UNet1D
+import disco.heuristics as heuristics
 
 log = logging.getLogger(__name__)
 
@@ -62,9 +59,7 @@ def download_models(directory, aws_download_link):
                 with open(download_destination, "wb") as dst:
                     dst.write(f.content)
             else:
-                raise requests.RequestException(
-                    f"Couldn't download model with code {f.status_code}"
-                )
+                raise requests.RequestException(f"Couldn't download model with code {f.status_code}")
 
 
 def aggregate_predictions(predictions):
@@ -86,11 +81,7 @@ def aggregate_predictions(predictions):
 
     if len(idx) == 0:
         log.info("Only one class found after heuristics, csv will only contain one row")
-        dct = {
-            "class": current_class,
-            "start": current_idx,
-            "end": predictions.shape[-1],
-        }
+        dct = {"class": current_class, "start": current_idx, "end": predictions.shape[-1]}
         class_idx_to_prediction_start_and_end.append(dct)
 
     else:
@@ -106,10 +97,10 @@ def aggregate_predictions(predictions):
 def convert_spectrogram_index_to_seconds(spect_idx, hop_length, sample_rate):
     """
     Converts spectrogram index back to seconds.
-    :param spect_idx: Int.
-    :param hop_length: Int.
-    :param sample_rate: Int.
-    :return:
+    :param spect_idx: Int. of spectrogram index
+    :param hop_length: Int. of hop length
+    :param sample_rate: Int. of wav file sample rate
+    :return: int of converted seconds.
     """
     seconds_per_hop = hop_length / sample_rate
     return spect_idx * seconds_per_hop
@@ -143,7 +134,7 @@ def load_pickle(path):
 
 
 def save_csv_from_predictions(
-    output_csv_path, predictions, sample_rate, hop_length, name_to_class_code
+        output_csv_path, predictions, sample_rate, hop_length, name_to_class_code, noise_pct
 ):
     """
     Ingest a Nx1 np.array of point-wise predictions and save a .csv with
@@ -154,22 +145,21 @@ def save_csv_from_predictions(
     :param sample_rate: Sample rate of predicted .wav file.
     :param hop_length: Spectrogram hop length.
     :param name_to_class_code: mapping from class name to class code (ex {"A":1}).
+    :param noise_pct: Float of how much noise is added to the spectrogram.
     :return: pandas.DataFrame describing the saved csv.
     """
-    # We just need to get the beginning and end of each chirp and convert those
-    # to seconds.
-    class_idx_to_prediction_start_end = aggregate_predictions(predictions)
 
     class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(
-        predictions, None, name_to_class_code, return_preds=False
+        predictions,
+        None,
+        name_to_class_code,
+        return_preds=False
     )
     class_code_to_name = {v: k for k, v in name_to_class_code.items()}
-    # window size by default is n_fft. hop_length is interval b/t consecutive spectrograms
-    # i don't think padding is performed when the spectrogram is calculated
+
     list_of_dicts_for_dataframe = []
     i = 1
     for class_to_start_and_end in class_idx_to_prediction_start_end:
-        # TODO: handle the case where there's only one prediction per class
         end = class_to_start_and_end["end"]
         start = class_to_start_and_end["start"]
 
@@ -177,15 +167,13 @@ def save_csv_from_predictions(
             "Selection": i,
             "View": 0,
             "Channel": 0,
-            "Begin Time (s)": convert_spectrogram_index_to_seconds(
-                start, hop_length=hop_length, sample_rate=sample_rate
-            ),
-            "End Time (s)": convert_spectrogram_index_to_seconds(
-                end, hop_length=hop_length, sample_rate=sample_rate
-            ),
+            "Begin Time (s)": convert_spectrogram_index_to_seconds(start, hop_length=hop_length,
+                                                                   sample_rate=sample_rate),
+            "End Time (s)": convert_spectrogram_index_to_seconds(end, hop_length=hop_length,
+                                                                 sample_rate=sample_rate),
             "Low Freq (Hz)": 0,
             "High Freq (Hz)": 0,
-            "Sound_Type": class_code_to_name[class_to_start_and_end["class"]],
+            "Sound_Type": class_code_to_name[class_to_start_and_end["class"]]
         }
 
         list_of_dicts_for_dataframe.append(dataframe_dict)
@@ -197,6 +185,9 @@ def save_csv_from_predictions(
     if not os.path.isdir(dirname):
         os.makedirs(dirname, exist_ok=True)
 
+    if noise_pct > 0:
+        output_csv_path = output_csv_path + "_" + str(noise_pct) + "_pctnoise"
+
     df.to_csv(output_csv_path, index=False)
 
     return df
@@ -206,37 +197,20 @@ def smooth_predictions_with_hmm(unsmoothed_predictions, config):
     """
     Run the hmm defined by the config on the point-wise predictions.
     :param unsmoothed_predictions: np array of point-wise argmaxed predictions (size Nx1).
-    :param config: beetles.Config() object.
+    :param config: disco.Config() object.
     :return: smoothed predictions
     """
     if unsmoothed_predictions.ndim != 1:
-        raise ValueError(
-            "expected array of size N, got {}".format(unsmoothed_predictions.shape)
-        )
+        raise ValueError("expected array of size N, got {}".format(unsmoothed_predictions.shape))
 
     hmm = create_hmm(
         config.hmm_transition_probabilities,
         config.hmm_emission_probabilities,
         config.hmm_start_probabilities,
     )
-    # forget about the first element b/c it's the start state
-    smoothed_predictions = np.asarray(
-        hmm.predict(sequence=unsmoothed_predictions.copy(), algorithm="viterbi")[1:]
-    )
+    # forget about the first element because it's the start state
+    smoothed_predictions = np.asarray(hmm.predict(sequence=unsmoothed_predictions.copy(), algorithm="viterbi")[1:])
     return smoothed_predictions
-
-
-def convert_argmaxed_array_to_rgb(predictions):
-    """
-    Utility function for visualization. Converts categorical labels (0, 1, 2) to RGB vectors ([1, 0, 0], [0, 1, 0],
-    [0, 0, 1])
-    :param predictions: Nx1 np.array.
-    :return: Nx3 np.array.
-    """
-    rgb = np.zeros((1, predictions.shape[-1], 3))
-    for class_idx in CLASS_CODE_TO_NAME.keys():
-        rgb[:, np.where(predictions == class_idx), class_idx] = 1
-    return rgb
 
 
 def convert_time_to_spect_index(time, hop_length, sample_rate):
@@ -247,7 +221,6 @@ def convert_time_to_spect_index(time, hop_length, sample_rate):
     :param sample_rate: Sample rate of recording.
     :return: int. Spectrogram index of the time passed in.
     """
-
     return np.round(time * sample_rate).astype(np.int) // hop_length
 
 
@@ -257,17 +230,11 @@ def load_prediction_csv(csv_path, hop_length, sample_rate):
     :param csv_path: Path to the .csv containing predictions.
     :param hop_length:
     :param sample_rate:
-    :return:
+    :return: original dataframe but with new columns, "Begin Spect Index" and "End Spect Index".
     """
     df = pd.read_csv(csv_path)
-    df["Begin Spect Index"] = [
-        convert_time_to_spect_index(x, hop_length, sample_rate)
-        for x in df["Begin Time (s)"]
-    ]
-    df["End Spect Index"] = [
-        convert_time_to_spect_index(x, hop_length, sample_rate)
-        for x in df["End Time (s)"]
-    ]
+    df["Begin Spect Index"] = [convert_time_to_spect_index(x, hop_length, sample_rate) for x in df["Begin Time (s)"]]
+    df["End Spect Index"] = [convert_time_to_spect_index(x, hop_length, sample_rate) for x in df["End Time (s)"]]
     return df
 
 
@@ -278,7 +245,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
     :param model_extension: Glob extension to load the models.
     :param device: 'cuda' or 'cpu'. What device to place the models on.
     :param in_channels: How many channels the models accepts
-    :param config: beetles.Config() object.
+    :param config: disco.Config() object.
     :return: list of torch.Models().
     """
 
@@ -290,14 +257,13 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
         log.info("no models found, downloading to {}".format(model_directory))
 
         download_models(config.default_model_directory, config.aws_download_link)
-        model_paths = glob(
-            os.path.join(config.default_model_directory, "*" + model_extension)
-        )
+        model_paths = glob(os.path.join(config.default_model_directory, "*" + model_extension))
 
     models = []
     for model_path in model_paths:
         skeleton = UNet1D(
             in_channels,
+            out_channels=len(config.class_code_to_name.keys()),
             learning_rate=1e-2,
             mel=False,
             apply_log=False,
@@ -310,9 +276,14 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
             val_files=[1],
             mask_character=config.mask_flag,
         ).to(device)
-        skeleton.load_state_dict(
-            torch.load(model_path, map_location=torch.device(device))
-        )
+
+        if model_extension == ".ckpt":
+            skeleton = skeleton.load_from_checkpoint(model_path)
+        elif model_extension == ".pt":
+            skeleton.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
+        else:
+            raise RuntimeError("Unrecognized model extension.")
+
         models.append(skeleton.eval())
 
     return models
@@ -339,121 +310,180 @@ def predict_with_ensemble(ensemble, features):
     ensemble_preds = []
 
     for model in ensemble:
-        preds = torch.exp(model(features))
+        preds = torch.nn.functional.softmax((model(features)), dim=1)
         ensemble_preds.append(preds.to("cpu").numpy())
 
     return ensemble_preds
 
 
-def calculate_median_and_iqr(ensemble_preds):
+def calculate_ensemble_statistics(ensemble_preds):
     """
     Get the median prediction and iqr of softmax values of the predictions from each model in the ensemble.
     :param ensemble_preds: List of np.arrays, one for each model.
     :return: tuple (np.array, np.array) of iqrs and medians.
     """
 
-    iqrs = np.zeros(
-        (ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3])
-    )
-    medians = np.zeros(
-        (ensemble_preds.shape[1], ensemble_preds.shape[2], ensemble_preds.shape[3])
-    )
-    for class_idx in range(ensemble_preds.shape[2]):
-        q75 = np.percentile(ensemble_preds[:, :, class_idx, :], [60], axis=0)
-        median = np.median(ensemble_preds[:, :, class_idx, :], axis=0)
-        iqrs[:, class_idx] = q75
-        medians[:, class_idx] = median
+    number_of_models = ensemble_preds.shape[0]
+    number_of_spectrograms = ensemble_preds.shape[1]
+    number_of_classes = ensemble_preds.shape[2]
+    length_per_spectrogram = ensemble_preds.shape[3]
 
-    return iqrs, medians
+    iqrs = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+    medians = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+    means = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+    votes = np.zeros((number_of_spectrograms, number_of_classes, length_per_spectrogram))
+
+    for class_idx in range(number_of_classes):
+        q75, q25 = np.percentile(ensemble_preds[:, :, class_idx, :], [75, 25], axis=0)
+        median = np.median(ensemble_preds[:, :, class_idx, :], axis=0)
+        mean = np.mean(ensemble_preds[:, :, class_idx, :], axis=0)
+
+        iqrs[:, class_idx] = q75 - q25
+        medians[:, class_idx] = median
+        means[:, class_idx] = mean
+
+    for ensemble_member in range(number_of_models):
+        for spectrogram_number in range(number_of_spectrograms):
+            slice_to_analyze = ensemble_preds[ensemble_member, spectrogram_number, :, :]
+            class_votes = list(np.argmax(slice_to_analyze, axis=0))
+            for i in range(len(class_votes)):
+                votes[spectrogram_number, class_votes[i], i] += 1
+
+    return iqrs, medians, means, votes
 
 
 def evaluate_spectrogram(
-    spectrogram_dataset, models, tile_overlap, original_spectrogram_shape, device="cpu"
+        spectrogram_dataset, models, tile_overlap, original_spectrogram, original_spectrogram_shape, device="cpu"
 ):
     """
     Use the overlap-tile strategy to seamlessly evaluate a spectrogram.
     :param spectrogram_dataset: torch.data.DataLoader()
     :param models: list of model ensemble.
     :param tile_overlap: How much to overlap the tiles.
+    :param original_spectrogram: Original spectrogram.
     :param original_spectrogram_shape: Shape of original spectrogram.
     :param device: 'cuda' or 'cpu'
-    :return: medians and iqrs.
+    :return: medians, iqrs, means, and votes, each numpy arrays that have a shape of (classes, length).
     """
-    assert_accuracy = False
+    assert_accuracy = True
 
     with torch.no_grad():
-        medians_full_sequence = []
         iqrs_full_sequence = []
+        medians_full_sequence = []
+        means_full_sequence = []
+        votes_full_sequence = []
         if assert_accuracy:
             all_features = []
 
         for features in spectrogram_dataset:
-
             features = features.to(device)
             ensemble_preds = predict_with_ensemble(models, features)
-
             if assert_accuracy:
-                all_features.extend(
-                    np.stack(
-                        [
-                            seq[:, tile_overlap:-tile_overlap]
-                            for seq in features.to("cpu").numpy()
-                        ]
-                    )
-                )
+                all_features.extend(np.stack([seq[:, tile_overlap:-tile_overlap]
+                                              for seq in features.to("cpu").numpy()]))
 
-            ensemble_preds = np.stack(
-                [seq[:, :, tile_overlap:-tile_overlap] for seq in ensemble_preds]
-            )
-            iqrs, medians = calculate_median_and_iqr(ensemble_preds)
-            medians_full_sequence.extend(medians)
+            ensemble_preds = np.stack([seq[:, :, tile_overlap:-tile_overlap]
+                                       for seq in ensemble_preds])
+            iqrs, medians, means, votes = calculate_ensemble_statistics(ensemble_preds)
+
             iqrs_full_sequence.extend(iqrs)
+            medians_full_sequence.extend(medians)
+            means_full_sequence.extend(means)
+            votes_full_sequence.extend(votes)
 
     if assert_accuracy:
-        all_features = np.concatenate(all_features, axis=-1)[
-            :, : original_spectrogram_shape[-1]
-        ]
-        assert np.all(all_features == SpectrogramIterator.original_spectrogram.numpy())
+        all_features = np.concatenate(all_features, axis=-1)[:, : original_spectrogram_shape[-1]]
+        assert np.all(all_features == original_spectrogram.numpy())
 
-    medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[
-        :, : original_spectrogram_shape[-1]
-    ]
-    iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)[
-        :, : original_spectrogram_shape[-1]
-    ]
+    iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
+    medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
+    means_full_sequence = np.concatenate(means_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
+    votes_full_sequence = np.concatenate(votes_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
 
-    return medians_full_sequence, iqrs_full_sequence
+    return iqrs_full_sequence, medians_full_sequence, means_full_sequence, votes_full_sequence
+
+
+def make_viz_directory(wav_file, saved_model_directory, debug_path):
+    """
+    Creates a directory based on the parser's debug path and returns the updated debug path later used for saving the
+    statistics. If given debug path already exists, creates a directory inside with the default name. If debug path
+    doesn't already exist, creates a directory with the name provided. If there is no debug path provided, creates a
+    default-named directory within the current directory.
+    :param wav_file: String. filepath of the given .wav file.
+    :param saved_model_directory: String. filepath of the saved models.
+    :param debug_path: String. Path indicating where to save the visualization files.
+    :return: Updated debug path used
+    """
+    default_dirname = os.path.split(wav_file)[-1].split(".")[0] + "-" + os.path.split(saved_model_directory)[-1]
+    if debug_path is not None:
+        if os.path.exists(debug_path):
+            debug_path = os.path.join(debug_path, default_dirname)
+            os.makedirs(debug_path)
+        else:
+            os.makedirs(debug_path)
+    else:
+        debug_path = default_dirname
+        os.makedirs(debug_path)
+    print("Created visualizations directory: " + debug_path + ".")
+    return debug_path
+
+
+def add_gaussian_noise(spectrogram, noise_pct):
+    """
+    Adds gaussian noise to the spectrogram to experiment with out-of-distribution data. Find the standard deviation of
+    spectrogram values, multiplies by the percent provided, and multiplies onto a random number torch tensor. Finally,
+    adds these values to given spectrogram.
+    :param spectrogram: torch tensor of spectrogram
+    :param noise_pct: int. of desired noise percent of spectrogram standard deviation.
+    :return: Noised spectrogram
+    """
+    spect_sd = torch.std(spectrogram)
+    noise = .01 * noise_pct
+    spectrogram = spectrogram + noise * spect_sd * torch.randn(size=spectrogram.shape)
+    return spectrogram
 
 
 class SpectrogramIterator(torch.nn.Module):
-    # TODO: replace args in __init__ with sa.form_spectrogram_type
     def __init__(
-        self,
-        tile_size,
-        tile_overlap,
-        wav_file,
-        vertical_trim,
-        n_fft,
-        hop_length,
-        log_spect,
-        mel_transform,
+            self,
+            tile_size,
+            tile_overlap,
+            vertical_trim,
+            n_fft,
+            hop_length,
+            log_spect,
+            mel_transform,
+            noise_pct,
+            wav_file=None,
+            spectrogram=None,
     ):
-
+        super().__init__()
         self.tile_size = tile_size
         self.tile_overlap = tile_overlap
         if self.tile_size <= tile_overlap:
             raise ValueError()
         self.wav_file = wav_file
+        self.spectrogram = spectrogram
+        if self.spectrogram is None and self.wav_file is None:
+            raise ValueError()
         self.vertical_trim = vertical_trim
         self.n_fft = n_fft
         self.hop_length = hop_length
         self.log_spect = log_spect
         self.mel_transform = mel_transform
+        self.noise_pct = noise_pct
+        if self.spectrogram is None:
+            waveform, self.sample_rate = load_wav_file(self.wav_file)
+            self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)
+        self.spectrogram = self.spectrogram[vertical_trim:]
+        if not torch.is_tensor(self.spectrogram):
+            self.spectrogram = torch.tensor(self.spectrogram)
+        if self.noise_pct != 0:
+            self.spectrogram = add_gaussian_noise(self.spectrogram, self.noise_pct)
+        if self.log_spect:
+            self.spectrogram[self.spectrogram == 0] = 1
+            self.spectrogram = self.spectrogram.log2()
 
-        waveform, self.sample_rate = load_wav_file(self.wav_file)
-        self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)[
-            vertical_trim:
-        ]
         self.original_spectrogram = self.spectrogram.clone()
         self.original_shape = self.spectrogram.shape
 
@@ -461,45 +491,37 @@ class SpectrogramIterator(torch.nn.Module):
         leftover = self.spectrogram.shape[-1] % step_size
         # Since the length of our spectrogram % step_size isn't always 0, we will have a little
         # leftover at the end of spectrogram that we need to predict to get full coverage. There
-        # are multiple ways to do this but I decided to mirror pad the end of the spectrogram with
+        # are multiple ways to do this, but I decided to mirror pad the end of the spectrogram with
         # the correct amount of columns from the spectrogram so that padded_spectrogram % step_size == 0.
         # I cut off the predictions on the mirrored data after stitching the predictions together.
         to_pad = step_size - leftover + tile_size // 2
 
         if to_pad != 0:
             self.spectrogram = torch.cat(
-                (
-                    self.spectrogram,
-                    torch.flip(self.spectrogram[:, -to_pad:], dims=[-1]),
-                ),
-                dim=-1,
+                (self.spectrogram, torch.flip(self.spectrogram[:, -to_pad:], dims=[-1])),
+                dim=-1
             )
 
         self.indices = range(self.tile_size // 2, self.spectrogram.shape[-1], step_size)
 
         # mirror pad the beginning of the spectrogram
         self.spectrogram = torch.cat(
-            (
-                torch.flip(self.spectrogram[:, : self.tile_overlap], dims=[-1]),
-                self.spectrogram,
-            ),
+            (torch.flip(self.spectrogram[:, : self.tile_overlap], dims=[-1]), self.spectrogram),
             dim=-1,
         )
 
     def create_spectrogram(self, waveform, sample_rate):
         if self.mel_transform:
             spectrogram = torchaudio.transforms.MelSpectrogram(
-                sample_rate=sample_rate, n_fft=self.n_fft, hop_length=self.hop_length
+                sample_rate=sample_rate,
+                n_fft=self.n_fft,
+                hop_length=self.hop_length
             )(waveform)
         else:
             spectrogram = torchaudio.transforms.Spectrogram(
-                sample_rate=self.sample_rate,
                 n_fft=self.n_fft,
                 hop_length=self.hop_length,
             )(waveform)
-        if self.log_spect:
-            spectrogram = spectrogram.log2()
-
         return spectrogram.squeeze()
 
     def __len__(self):
@@ -509,7 +531,5 @@ class SpectrogramIterator(torch.nn.Module):
         center_idx = self.indices[idx]
         # we want to overlap-tile starting from the beginning
         # so that our predictions are seamless.
-        x = self.spectrogram[
-            :, center_idx - self.tile_size // 2 : center_idx + self.tile_size // 2
-        ]
+        x = self.spectrogram[:, center_idx - self.tile_size // 2: center_idx + self.tile_size // 2]
         return x
