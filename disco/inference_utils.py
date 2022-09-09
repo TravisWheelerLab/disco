@@ -148,7 +148,6 @@ def save_csv_from_predictions(
     :param noise_pct: Float of how much noise is added to the spectrogram.
     :return: pandas.DataFrame describing the saved csv.
     """
-
     class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(
         predictions,
         None,
@@ -156,7 +155,6 @@ def save_csv_from_predictions(
         return_preds=False
     )
     class_code_to_name = {v: k for k, v in name_to_class_code.items()}
-
     list_of_dicts_for_dataframe = []
     i = 1
     for class_to_start_and_end in class_idx_to_prediction_start_end:
@@ -167,10 +165,8 @@ def save_csv_from_predictions(
             "Selection": i,
             "View": 0,
             "Channel": 0,
-            "Begin Time (s)": convert_spectrogram_index_to_seconds(start, hop_length=hop_length,
-                                                                   sample_rate=sample_rate),
-            "End Time (s)": convert_spectrogram_index_to_seconds(end, hop_length=hop_length,
-                                                                 sample_rate=sample_rate),
+            "Begin Time (s)": convert_spectrogram_index_to_seconds(start, hop_length=hop_length, sample_rate=sample_rate),
+            "End Time (s)": convert_spectrogram_index_to_seconds(end, hop_length=hop_length, sample_rate=sample_rate),
             "Low Freq (Hz)": 0,
             "High Freq (Hz)": 0,
             "Sound_Type": class_code_to_name[class_to_start_and_end["class"]]
@@ -252,7 +248,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
     if model_directory is None:
         model_directory = config.default_model_directory
 
-    model_paths = glob(os.path.join(model_directory, "*" + model_extension))
+    model_paths = glob(os.path.join(model_directory, "*", "*", "*" + model_extension), recursive=True)
     if not len(model_paths):
         log.info("no models found, downloading to {}".format(model_directory))
 
@@ -376,6 +372,7 @@ def evaluate_spectrogram(
             all_features = []
 
         for features in spectrogram_dataset:
+            breakpoint()
             features = features.to(device)
             ensemble_preds = predict_with_ensemble(models, features)
             if assert_accuracy:
@@ -401,6 +398,48 @@ def evaluate_spectrogram(
     votes_full_sequence = np.concatenate(votes_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
 
     return iqrs_full_sequence, medians_full_sequence, means_full_sequence, votes_full_sequence
+
+
+def evaluate_pickles(
+        spectrogram_dataset, models, device="cpu"
+):
+    """
+    Use the overlap-tile strategy to seamlessly evaluate a spectrogram.
+    :param spectrogram_dataset: torch.data.DataLoader()
+    :param models: list of model ensemble.
+    :param device: 'cuda' or 'cpu'
+    :return: medians, iqrs, means, and votes, each numpy arrays that have a shape of (classes, length).
+    """
+    with torch.no_grad():
+        spectrograms_concat = []
+        labels_concat = []
+        iqrs_full_sequence = []
+        medians_full_sequence = []
+        means_full_sequence = []
+        votes_full_sequence = []
+
+        for features, labels in spectrogram_dataset:
+            features = features.to(device)
+            ensemble_preds = predict_with_ensemble(models, features)
+
+            ensemble_preds = np.stack(ensemble_preds)
+            iqrs, medians, means, votes = calculate_ensemble_statistics(ensemble_preds)
+
+            spectrograms_concat.extend(features)
+            labels_concat.extend(labels)
+            iqrs_full_sequence.extend(iqrs)
+            medians_full_sequence.extend(medians)
+            means_full_sequence.extend(means)
+            votes_full_sequence.extend(votes)
+
+    spectrograms_concat = np.concatenate(spectrograms_concat, axis=-1)
+    labels_concat = np.concatenate(labels_concat, axis=-1)
+    iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)
+    medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)
+    means_full_sequence = np.concatenate(means_full_sequence, axis=-1)
+    votes_full_sequence = np.concatenate(votes_full_sequence, axis=-1)
+
+    return spectrograms_concat, labels_concat, iqrs_full_sequence, medians_full_sequence, means_full_sequence, votes_full_sequence
 
 
 def make_viz_directory(wav_file, saved_model_directory, debug_path):
@@ -505,10 +544,9 @@ class SpectrogramIterator(torch.nn.Module):
         self.indices = range(self.tile_size // 2, self.spectrogram.shape[-1], step_size)
 
         # mirror pad the beginning of the spectrogram
-        self.spectrogram = torch.cat(
-            (torch.flip(self.spectrogram[:, : self.tile_overlap], dims=[-1]), self.spectrogram),
-            dim=-1,
-        )
+        self.spectrogram = torch.cat((torch.flip(self.spectrogram[:, : self.tile_overlap], dims=[-1]),
+                                      self.spectrogram),
+                                     dim=-1)
 
     def create_spectrogram(self, waveform, sample_rate):
         if self.mel_transform:

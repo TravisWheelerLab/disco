@@ -45,8 +45,7 @@ def parser():
         default=128,
         type=int,
         help="how much to overlap consecutive predictions. Larger values will mean slower "
-             "performance as "
-             "there is more repeated computation")
+             "performance as there is more repeated computation")
     infer_parser.add_argument(
         "--tile_size",
         default=1024,
@@ -89,6 +88,15 @@ def parser():
              "with default name. if filepath doesn't already exist, creates a directory with the "
              "name provided. if argument is unused, creates a directory with default name inside "
              "current directory")
+    infer_parser.add_argument(
+        "--accuracy_metrics",
+        action="store_true",
+        help="infer on test files to determine ensemble accuracy metrics")
+    infer_parser.add_argument(
+        "--accuracy_metrics_test_directory",
+        type=str,
+        default=None,
+        help="where the directory of test files are for accuracy metrics")
     infer_parser.add_argument(
         "--num_threads",
         type=int,
@@ -374,9 +382,11 @@ def main():
         from disco.infer import run_inference
         torch.manual_seed(0)
 
-        if not args.viz and args.output_csv_path is None:
+        if not args.viz and args.output_csv_path is None and not \
+                (args.accuracy_metrics and args.accuracy_metrics_test_directory):
             if args.output_csv_path is None:
-                raise ValueError("Must specify either --output_csv_path or --viz.")
+                raise ValueError("Must specify either --output_csv_path, --viz, or --accuracy_metrics with an "
+                                 "--accuracy_metrics_test_directory.")
             if args.viz_path is not None:
                 raise ValueError("Must call --viz if giving a statistics visualization path.")
 
@@ -395,6 +405,8 @@ def main():
             n_fft=args.n_fft,
             viz=args.viz,
             viz_path=args.viz_path,
+            accuracy_metrics=args.accuracy_metrics,
+            accuracy_metrics_test_directory=args.accuracy_metrics_test_directory,
             num_threads=args.num_threads,
             noise_pct=args.noise_pct
         )
