@@ -31,14 +31,14 @@ def train(config, hparams):
     max_iter = hparams.epochs
     min_training_unit = 1
 
-    checkpoint_callback = pl.callbacks.model_checkpoint.ModelCheckpoint(
-            dirpath=f"{os.environ['HOME']}/disco/disco/models/random_init_1150",
-            monitor="val_loss",
-            filename="random_init_1150-{epoch}-{val_loss:.3f}-{val_acc:.2f}",
-            save_top_k=1,
-        )
-
     logger = pl.loggers.TensorBoardLogger(hparams.log_dir)
+
+    checkpoint_callback = pl.callbacks.model_checkpoint.ModelCheckpoint(
+        dirpath=logger.experiment.log_dir,
+        monitor="val_loss",
+        filename="model-{epoch}-{val_loss:.3f}-{val_acc:.2f}",
+        save_top_k=1,
+    )
 
     if not len(glob(train_path)) or not len(glob(val_path)):
         raise ValueError("no files found in one of {}, {}".format(train_path, val_path))
@@ -126,7 +126,6 @@ def train(config, hparams):
         "accelerator": "ddp" if hparams.gpus else None,
         "plugins": DDPPlugin(find_unused_parameters=False) if hparams.gpus else None,
         "precision": 16 if hparams.gpus else 32,
-        "default_root_dir": hparams.log_dir,
         "log_every_n_steps": 1,
         "terminate_on_nan": True,
         "logger": logger,
