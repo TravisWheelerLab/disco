@@ -184,7 +184,8 @@ def run_inference(
         infer.pickle_tensor(votes, votes_path)
 
     if accuracy_metrics:
-        default_dirname = "test_files" + "-" + os.path.split(os.path.split(saved_model_directory)[0])[-1]
+
+        default_dirname = f"test_files-{os.path.basename(saved_model_directory)}"
         metrics_path = os.path.join("data", "accuracy_metrics", default_dirname)
         os.makedirs(metrics_path, exist_ok=True)
 

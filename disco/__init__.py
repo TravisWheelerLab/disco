@@ -229,7 +229,7 @@ def parser():
     extract_parser.add_argument(
         "--mel_scale",
         action="store_true",
-        help="whether or not to create a mel spectrogram. Default: create it",
+        help="whether or not to create a mel spectrogram. Default: don't create it",
     )
     extract_parser.add_argument(
         "--n_fft",
@@ -238,14 +238,19 @@ def parser():
         help="number of ffts used in spectrogram calculation",
     )
     extract_parser.add_argument(
-        "data_dir",
+        "csv_file",
         type=str,
-        help="parent directory where labels and .wav files are saved",
+        help=".csv file associated with .wav file",
     )
     extract_parser.add_argument(
-        "output_data_path",
+        "wav_file",
         type=str,
-        help="where to save the data"
+        help=".wav file associated with .csv file",
+    )
+    extract_parser.add_argument(
+        "data_dir",
+        type=str,
+        help="where to save the extracted data"
     )
     extract_parser.add_argument(
         "--random_seed",
@@ -254,11 +259,41 @@ def parser():
         help="what number to use as the random seed. Default: Deep Thought's answer",
     )
     extract_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Whether or not to overwrite the data already saved in data_dir.",
+    )
+    # SHUFFLE #
+    shuffle_parser = subparsers.add_parser("shuffle", add_help=True)
+    shuffle_parser.add_argument(
+        "data_dir",
+        type=str,
+        help="where to save the extracted data"
+    )
+    shuffle_parser.add_argument(
         "--train_pct",
         type=float,
         default=0.8,
         help="Percentage of labels to use as train. Test/val are allocated (1-train_pct)/2 percent of labels each",
     )
+    shuffle_parser.add_argument(
+        "--move",
+        action="store_true",
+        help="whether or not to move the data files into train/test/valid",
+    )
+    shuffle_parser.add_argument(
+        "--extension",
+        type=str,
+        default=".pkl",
+        help="extension of data files",
+    )
+    shuffle_parser.add_argument(
+        "--random_seed",
+        type=int,
+        default=42,
+        help="what number to use as the random seed. Default: Deep Thought's answer",
+    )
+    # we're going to create directories called train/test/valid
 
     # LABEL #
     label_parser = subparsers.add_parser("label", add_help=True)
@@ -352,15 +387,16 @@ def main():
         train(config, args)
 
     elif args.command == "extract":
-        from disco.extract_data import extract
-        extract(
+        from disco.extract_data import extract_single_file
+        extract_single_file(
             config,
+            csv_file=args.csv_file,
+            wav_file=args.wav_file,
             random_seed=args.random_seed,
-            no_mel_scale=args.no_mel_scale,
+            no_mel_scale=not args.mel_scale,
             n_fft=args.n_fft,
-            output_data_path=args.output_data_path,
-            train_pct=args.train_pct,
-            data_dir=args.data_dir,
+            output_data_path=args.data_dir,
+            overwrite=args.overwrite,
         )
 
     elif args.command == "viz":
@@ -410,6 +446,9 @@ def main():
             num_threads=args.num_threads,
             noise_pct=args.noise_pct
         )
-
+    elif args.command == "shuffle":
+        from disco.extract_data import shuffle_data
+        shuffle_data(args.data_dir, args.train_pct, args.extension, args.move,
+                     args.random_seed)
     else:
         ap.print_usage()

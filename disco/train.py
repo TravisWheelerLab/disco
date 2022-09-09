@@ -123,11 +123,9 @@ def train(config, hparams):
         "max_epochs": last_epoch + (max_iter * min_training_unit),
         "check_val_every_n_epoch": hparams.check_val_every_n_epoch,
         "callbacks": [checkpoint_callback, lr_monitor],
-        "accelerator": "ddp" if hparams.gpus else None,
-        "plugins": DDPPlugin(find_unused_parameters=False) if hparams.gpus else None,
         "precision": 16 if hparams.gpus else 32,
         "log_every_n_steps": 1,
-        "terminate_on_nan": True,
+        "detect_anomaly": True,
         "logger": logger,
     }
 
