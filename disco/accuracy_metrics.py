@@ -5,9 +5,18 @@ from extract_data import convert_time_to_index, w2s_idx
 import numpy as np
 import os
 from scipy import stats
+from argparse import ArgumentParser
+print("Please fix me.")
+import warnings
+warnings.filterwarnings("ignore")
 
-ensemble_members = 10
-ensemble_type = "random_init"
+ap = ArgumentParser()
+ap.add_argument("ensemble_members", type=int)
+ap.add_argument("ensemble_type", type=str)
+args = ap.parse_args()
+
+ensemble_members = args.ensemble_members
+ensemble_type = args.ensemble_type
 
 # tunable parameters
 hop_length = 200
@@ -18,7 +27,10 @@ name_to_class_code = {"A": 0, "B": 1, "X": 2, "BACKGROUND": 2}
 ground_truth_data_root = os.path.join(".", "data", "example.csv")
 ground_truth_pickle = True
 
-iqr_threshold_array = [0.2, 0.1, 0.08, 0.07, 0.06]
+# iqr_threshold_array = [0.2, 0.1, 0.08, 0.07, 0.06]
+
+iqr_threshold_array = [1, 0.05, 0.1, 0.2, 0.4]
+
 if ensemble_members == 2:
     min_votes_needed_array = [0, 1]
 elif ensemble_members == 10:
@@ -26,7 +38,7 @@ elif ensemble_members == 10:
 else:
     min_votes_needed_array = [0, 15, 20, 25, 28, 29]
 
-pointwise_accuracy_array = [False]
+pointwise_accuracy_array = [False, True]
 proportion_event_correct_array = [50, 70, 80, 90, 95]
 
 
@@ -44,7 +56,7 @@ class SoundEvent:
         self.normalized_accuracy = metrics.accuracy_score(
             y_true=self.ground_truth_span, y_pred=self.prediction_span, normalize=True
         )
-        if self.normalized_accuracy >= 0.01*proportion_event_correct:
+        if self.normalized_accuracy >= 0.01 * proportion_event_correct:
             self.correct = True
         else:
             self.correct = False
@@ -151,19 +163,27 @@ def get_accuracy_metrics(ground_truth, predictions, normalize_confmat=None):
     accuracy = metrics.accuracy_score(y_true=ground_truth, y_pred=predictions, normalize=True)
     recall = metrics.recall_score(y_true=ground_truth, y_pred=predictions, average=None)
     precision = metrics.precision_score(y_true=ground_truth, y_pred=predictions, average=None)
-    confusion_matrix = metrics.confusion_matrix(y_true=ground_truth, y_pred=predictions, normalize=normalize_confmat).round(3)
-    confusion_matrix_nonnorm = metrics.confusion_matrix(y_true=ground_truth, y_pred=predictions).round(4)
+    confusion_matrix = metrics.confusion_matrix(y_true=ground_truth, y_pred=predictions,
+                                                normalize=normalize_confmat, labels=[0, 1, 2, 3]).round(3)
+    confusion_matrix_nonnorm = metrics.confusion_matrix(y_true=ground_truth, y_pred=predictions,
+                                                        labels=[0, 1, 2, 3]).round(4)
     IoU = metrics.jaccard_score(y_true=ground_truth, y_pred=predictions, average=None)
     return accuracy, recall, precision, confusion_matrix, confusion_matrix_nonnorm, IoU
 
+
+from collections import defaultdict
+
+event_wise = {}
+point_wise = {}
 
 for pointwise_accuracy in pointwise_accuracy_array:
     for iqr_threshold in iqr_threshold_array:
         for min_votes_needed in min_votes_needed_array:
             if iqr_threshold == 1.0 or min_votes_needed == 0:
                 # load in predictions
-                ground_truth, median_argmax, post_hmm, average_iqr, votes = load_accuracy_metric_pickles(infer_data_root,
-                                                                                                         ground_truth_pickle)
+                ground_truth, median_argmax, post_hmm, average_iqr, votes = load_accuracy_metric_pickles(
+                    infer_data_root,
+                    ground_truth_pickle)
                 # load in ground truth, raven-format labels and create columns with more helpful indexing
                 if not ground_truth_pickle:
                     ground_truth = get_ground_truth_np_array(ground_truth_data_root, median_argmax.shape[0])
@@ -178,26 +198,44 @@ for pointwise_accuracy in pointwise_accuracy_array:
                     accuracy, recall, precision, confusion_matrix, confmat_nonnorm, IoU = get_accuracy_metrics(
                         ground_truth,
                         final_adjusted_preds,
-                        normalize_confmat = "true",
+                        normalize_confmat="true",
                     )
-                    print("-----------------------------------------------------------------------------------")
-                    print("iqr threshold:", iqr_threshold)
-                    print("min votes needed:", min_votes_needed)
-                    print("using pointwise accuracy:", pointwise_accuracy)
-                    print("accuracy:", accuracy)
-                    print("precision:", precision)
-                    print("recall:", recall)
-                    print("intersection over union:", IoU)
-                    print("confusion matrix:")
-                    print(confmat_nonnorm)
-                    print()
-                    print(confusion_matrix)
+                    # print("-----------------------------------------------------------------------------------")
+                    # print("iqr threshold:", iqr_threshold)
+                    # print("min votes needed:", min_votes_needed)
+                    # print("using pointwise accuracy:", pointwise_accuracy)
+                    # print("accuracy:", accuracy)
+                    # print("precision:", precision)
+                    # print("recall:", recall)
+                    # print("intersection over union:", IoU)
+                    # print("confusion matrix:")
+                    # print(confmat_nonnorm)
+                    # print()
+                    # print(confusion_matrix)
+                    large_dict = defaultdict(dict)
+                    category_string = f"{iqr_threshold}/{min_votes_needed}"
+                    print("pointwise", category_string)
+
+                    large_dict["accuracy"] = accuracy
+                    large_dict["recall, A chirp"] = recall[0]
+                    large_dict["recall, B chirp"] = recall[1]
+                    large_dict["precision, A chirp"] = precision[0]
+                    large_dict["precision, B chirp"] = precision[1]
+                    large_dict["IoU, A chirp"] = IoU[0]
+                    large_dict["IoU, B chirp"] = IoU[1]
+
+                    large_dict["confusion_matrix"] = confusion_matrix
+                    large_dict["confusion_matrix_nonnorm"] = confmat_nonnorm
+                    point_wise[category_string] = large_dict
+
                 else:
                     for proportion_event_correct in proportion_event_correct_array:
-                        sound_events = make_sound_events_array(ground_truth, median_argmax, average_iqr, winning_vote_count)
+                        sound_events = make_sound_events_array(ground_truth, median_argmax, average_iqr,
+                                                               winning_vote_count)
 
                         event_ground_truth = [sound_event.ground_truth_label for sound_event in sound_events]
-                        event_preds_uncertainty_adjusted = [sound_event.adjusted_preds_label for sound_event in sound_events]
+                        event_preds_uncertainty_adjusted = [sound_event.adjusted_preds_label for sound_event in
+                                                            sound_events]
                         event_preds_unadjusted = [sound_event.predictions_mode for sound_event in sound_events]
 
                         accuracy, recall, precision, confusion_matrix, confmat_nonnorm, IoU = get_accuracy_metrics(
@@ -205,19 +243,40 @@ for pointwise_accuracy in pointwise_accuracy_array:
                             event_preds_uncertainty_adjusted,
                             normalize_confmat="true"
                         )
-                        print("-----------------------------------------------------------------------------------")
-                        print("iqr threshold:", iqr_threshold)
-                        print("min votes needed:", min_votes_needed)
-                        print("using pointwise accuracy:", pointwise_accuracy)
-                        print("proportion event correct needed:", proportion_event_correct)
-                        print("accuracy:", accuracy)
-                        print("precision:", precision)
-                        print("recall:", recall)
-                        print("intersection over union:", IoU)
-                        print("confusion matrix:")
-                        print(confmat_nonnorm)
-                        print()
-                        print(confusion_matrix)
+                        # print("-----------------------------------------------------------------------------------")
+                        # print("iqr threshold:", iqr_threshold)
+                        # print("min votes needed:", min_votes_needed)
+                        # print("using pointwise accuracy:", pointwise_accuracy)
+                        # print("proportion event correct needed:", proportion_event_correct)
+                        # print("accuracy:", accuracy)
+                        # print("precision:", precision)
+                        # print("recall:", recall)
+                        # print("intersection over union:", IoU)
+                        # print("confusion matrix:")
+                        # print(confmat_nonnorm)
+                        # print()
+                        # print(confusion_matrix)
+
+                        large_dict = defaultdict(dict)
+                        large_dict["accuracy"] = accuracy
+                        large_dict["recall, A chirp"] = recall[0]
+                        large_dict["recall, B chirp"] = recall[1]
+
+                        large_dict["A chirp correct"] = confmat_nonnorm[0, 0]
+                        large_dict["A chirp incorrect"] = np.sum(confmat_nonnorm[0, 1:])
+                        large_dict["B chirp correct"] = confmat_nonnorm[1, 1]
+
+                        large_dict["B chirp incorrect"] = confmat_nonnorm[0, 3] + confmat_nonnorm[0, 0] + confmat_nonnorm[0, 2]
+
+                        large_dict["confusion_matrix"] = confusion_matrix
+                        large_dict["confusion_matrix_nonnorm"] = confmat_nonnorm
+                        category_string = f"{iqr_threshold}/{min_votes_needed}/{proportion_event_correct}"
+                        print("event_wise", category_string)
+                        event_wise[f"{iqr_threshold}/{min_votes_needed}/{proportion_event_correct}"] = large_dict
 
 
-
+print("Saving dataframe.")
+pointwise_dataframe = pd.DataFrame.from_dict(point_wise)
+eventwise_dataframe = pd.DataFrame.from_dict(event_wise)
+pointwise_dataframe.to_csv(f"point_wise_{ensemble_members}_{ensemble_type}.csv")
+eventwise_dataframe.to_csv(f"event_wise_{ensemble_members}_{ensemble_type}.csv")

@@ -1,4 +1,6 @@
 import random
+import pdb
+from shutil import copy2
 import torchaudio
 import numpy as np
 import pandas as pd
@@ -107,10 +109,12 @@ def convert_time_to_index(time, sample_rate):
     return np.round(time * sample_rate).astype(np.int)
 
 
-def process_wav_file(csv_filename, n_fft, mel_scale, config, hop_length=200):
+def extract_wav_and_csv_pair(csv_filename, wav_filename,
+                             n_fft, mel_scale, config, hop_length=200):
     """
     Applies the labels contained in csv_filename to the .wav file and extracts the labeled regions.
     :param csv_filename: .csv file containing the labels.
+    :param wav_filename: .wav file containing the data.
     :param n_fft: int. Number of ffts to use when calculating the spectrogram.
     :param mel_scale: bool. Whether to calculate a MelSpectrogram.
     :param config: disco.Config object. Controls the mapping from class name to class code and the classes to exclude
@@ -120,8 +124,7 @@ def process_wav_file(csv_filename, n_fft, mel_scale, config, hop_length=200):
     """
 
     labels = pd.read_csv(csv_filename)
-
-    wav_filename = os.path.splitext(csv_filename)[0] + ".wav"
+    log.info(f"File {os.path.basename(csv_filename)} has {labels.shape} labels.")
 
     if not os.path.isfile(wav_filename):
         wav_filename = os.path.splitext(csv_filename)[0] + ".WAV"
@@ -163,35 +166,21 @@ def process_wav_file(csv_filename, n_fft, mel_scale, config, hop_length=200):
     return features_and_labels
 
 
-def load_csvs(data_dir):
-    """
-    Loads .csv files from data_dir. Assumes a flat structure.
-    Each .csv file should have the following header:
-    Begin Time (s),End Time (s),Sound_Type,Filename
-
-    :param data_dir: String. Parent directory of subdirectories containing the .wav and .csv pairs.
-    :return: list. Contains .csv files of labels.
-    """
-    if os.path.isdir(os.path.join(data_dir)):
-        labels = glob(os.path.join(data_dir, "*.csv"))
-    else:
-        raise ValueError(f"{data_dir} is not a directory.")
-
-    return labels
-
-
-def save_data(out_path, data_list, index_to_label):
+def save_data(out_path, data_list, filename_prefix, index_to_label, overwrite):
     """
     Saves features and labels as pickled numpy arrays.
     Throws away labels > 10000 records. Each pickled array is assigned a filename based on the maximum number of
     class labels in the label vector.
     :param out_path: str. Where to save the pickled data.
+    :param overwrite: str. Where to save the pickled data.
+    :param filename_prefix: str. What to prefix the pickle files with.
     :param data_list: List of 2-element lists, where the first element are the features and the second the point-wise
     label vector.
     :param index_to_label: Mapping from class index to class name.
     :return: None.
     """
     os.makedirs(out_path, exist_ok=True)
+    fcount = 0
 
     for i, (features, label_vector) in enumerate(data_list):
 
@@ -199,200 +188,97 @@ def save_data(out_path, data_list, index_to_label):
             # TODO: fix this error in create_label_to_spectrogram
             # way too big - indicates error in label assign
             continue
+
         uniq = np.unique(label_vector, return_counts=True)
         label = np.argmax(uniq[1])
+
         if index_to_label[label] == "X" and len(uniq[0]) != 1:
             lvec = label_vector[label_vector != index_to_label["BACKGROUND"]]
             uniq = np.unique(lvec, return_counts=True)
             label = np.argmax(uniq[1])
 
-        out_fpath = os.path.join(out_path, index_to_label[label] + "_" + str(i) + ".pkl")
+        out_fpath = os.path.join(out_path, f"{filename_prefix}_{index_to_label[label]}_{fcount}.pkl")
 
-        with open(out_fpath, "wb") as dst:
-            pickle.dump([features, label_vector], dst)
+        if os.path.isfile(out_fpath) and not overwrite:
+            log.info(f"Found file already at {out_fpath}. Skipping re-saving."
+                     f" Specify --overwrite to overwrite.")
+        else:
+            log.info(f"Saving {out_fpath}.")
+            with open(out_fpath, "wb") as dst:
+                pickle.dump([features, label_vector], dst)
+
+        fcount += 1
 
 
-def extract_from_subdirectories(
-        config,
-        random_seed,
-        no_mel_scale,
-        n_fft,
-        data_dir,
-        output_data_path,
-        train_pct,
-        excluded_directories=None):
+def extract_single_file(config,
+                        csv_file,
+                        wav_file,
+                        random_seed,
+                        no_mel_scale,
+                        n_fft,
+                        output_data_path,
+                        overwrite):
     """
-    Takes a large directory and calls extract() for non-excluded subdirectories.
-    :param config: disco.Config() object.
-    :param random_seed: int. What to seed RNGs with for reproducibility.
-    :param no_mel_scale: Whether or not to use the mel scale.
-    :param n_fft: How many ffts to use when calculating the spectrogram.
-    :param data_dir: Where the .wav and .csv files are stored.
-    :param output_data_path: Where to save the extracted data.
-    :param train_pct: float. Percentage of labels to use as the train set. Test/val are allocated
-    (1-train_pct)/2 percent of labels each.
-    :param excluded_directories: List of strings of directories to not extract from (e.g. non-human-labeled files)
-    :return: None.
-    """
-
-    subdirectories = create_subdirectories(data_dir, excluded_directories)
-
-    extract(
-        config,
-        random_seed=random_seed,
-        no_mel_scale=no_mel_scale,
-        n_fft=n_fft,
-        output_data_path=output_data_path,
-        train_pct=train_pct,
-        subdirectory_paths=subdirectories
-    )
-
-
-def create_subdirectories(data_directory, excluded_directories):
-    """
-    Takes in parent directory and returns list of subdirectories.
-    :param data_directory: String. The parent directory of the subdirectories containing the .wav and .csv files.
-    :param excluded_directories: List of Strings of directories to not extract from (e.g. non-human-labeled files)
-    :return: subdirectories.
-    """
-    subdirectories = []
-    if os.path.isdir(os.path.join(data_directory)):
-        for file in os.scandir(data_directory):
-            if file.is_dir():
-                subdirectories.append(file.path)
-    else:
-        raise ValueError(f"{data_directory} is not a directory.")
-
-    if excluded_directories is not None:
-        subdirectories = filter_subdirectories(subdirectories, excluded_directories)
-
-    return subdirectories
-
-
-def filter_subdirectories(subdirectories, excluded_directories):
-    """
-    Filters any subdirectories out that should be excluded from training.
-    :param subdirectories: List of Strings of subdirectories.
-    :param excluded_directories: List of Strings of directories to not extract from (e.g. non-human-labeled files)
-    :return: filtered subdirectories list.
-    """
-    filtered_subdirectories = subdirectories
-
-    for excluded_dir_name in excluded_directories:
-        for directory in subdirectories:
-            if excluded_dir_name in directory:
-                filtered_subdirectories.remove(directory)
-    return filtered_subdirectories
-
-
-def extract(config,
-            random_seed,
-            no_mel_scale,
-            n_fft,
-            output_data_path,
-            train_pct,
-            data_dir=None,
-            subdirectory_paths=None):
-    """
-    Function to wrap the data loading, extraction, and saving routine.
+    TODO: fix docstring
+    Function to wrap the single data loading, extraction, and saving routine.
     Loads data from data_dir, calculates spectrogram, extracts labeled regions based on the .csv
     file, and saves the regions to disk after shuffling and splitting into train/test/validation splits randomly.
 
     :param config: disco.Config() object.
+    :param csv_file: csv file containing labels
+    :param wav_file: wav file containing recording
     :param random_seed: int. What to seed RNGs with for reproducibility.
     :param no_mel_scale: Whether or not to use the mel scale.
     :param n_fft: How many ffts to use when calculating the spectrogram.
     :param output_data_path: Where to save the extracted data.
-    :param train_pct: float. Percentage of labels to use as the train set. Test/val are allocated
-    (1-train_pct)/2 percent of labels each.
-    :param data_dir: Where the .wav and .csv files are stored.
-    :param subdirectory_paths: all subdirectory paths where the csvs can be found.
+    :param overwrite: Whether or not to overwrite the data.
     :return: None.
     """
     random.seed(random_seed)
     np.random.seed(random_seed)
 
     mel = not no_mel_scale
-
-    if subdirectory_paths is None:
-        csv = load_csvs(data_dir)
-    else:
-        csv = load_csvs_from_subdirectories(subdirectory_paths)
-
-    process_files(config, random_seed, mel, n_fft, data_dir, output_data_path, train_pct, csv)
+    features_and_labels = extract_wav_and_csv_pair(csv_file, wav_file, n_fft, mel, config)
+    save_data(output_data_path, features_and_labels, filename_prefix=os.path.basename(os.path.splitext(csv_file)[0]),
+              index_to_label=config.class_code_to_name, overwrite=overwrite)
 
 
-def load_csvs_from_subdirectories(subdirectory_paths):
-    """
-    Goes through each provided subdirectory and finds their csv.
-    :param subdirectory_paths: list of Strings of the subdirectory filepaths.
-    :return: list of .csvs.
-    """
-    csvs = []
-    # TODO: Create functionality to retrieve .xlsx files.
-    for subdirectory in subdirectory_paths:
-        subdirectory_csvs = glob(os.path.join(subdirectory, "*.csv"))
-        if subdirectory_csvs:
-            csvs.append(subdirectory_csvs[0])
-    return csvs
+def shuffle_data(data_directory, train_pct, extension, move, random_seed):
+    data_files = glob(os.path.join(data_directory, f"*{extension}"))
+
+    log.info(f"Setting seed for shuffling to {random_seed}.")
+
+    np.random.seed(random_seed)
+    indices = np.random.permutation(len(data_files))
+    train_idx = indices[:int(len(indices)*train_pct)]
+    the_rest = indices[int(len(indices)*train_pct):]
+    test_idx = the_rest[:len(the_rest) // 2]
+    val_idx = the_rest[len(the_rest) // 2:]
+    assert np.all(train_idx != test_idx)
+    assert np.all(train_idx != val_idx)
+    assert np.all(test_idx != val_idx)
+
+    train_split = [data_files[idx] for idx in train_idx]
+    test_split = [data_files[idx] for idx in test_idx]
+    val_split = [data_files[idx] for idx in val_idx]
+
+    train_path = os.path.join(data_directory, "train")
+
+    validation_path = os.path.join(data_directory, "validation")
+    test_path = os.path.join(data_directory, "test")
+
+    log.info(f"Saving train files to {train_path}.")
+    copy_or_move_files(train_path, train_split, move)
+    log.info(f"Saving validation files to {validation_path}.")
+    copy_or_move_files(validation_path, val_split, move)
+    log.info(f"Saving test files to {test_path}.")
+    copy_or_move_files(test_path, test_split, move)
 
 
-def process_files(config, random_seed, mel, n_fft, data_dir, output_data_path, train_pct, csv):
-    """
-    Function to wrap the data loading, extraction, and saving routine.
-    Loads data from data_dir, calculates spectrogram, extracts labeled regions based on the .csv
-    file, and saves the regions to disk after shuffling and splitting into train/test/validation splits randomly.
-
-    :param config: disco.Config() object.
-    :param random_seed: int. What to seed RNGs with for reproducibility.
-    :param mel: bool. whether to  use mel scale.
-    :param n_fft: int. ffts used to create spectrogram
-    :param data_dir: Where the .wav and .csv files are stored.
-    :param output_data_path: Where to save the extracted data.
-    :param train_pct: float. Percentage of labels to use as the train set.
-    :param csv: list of strings of csv file locations
-    :return: None.
-    """
-    out = []
-
-    for filename in csv:
-        features_and_labels = process_wav_file(filename, n_fft, mel, config)
-        out.extend(features_and_labels)
-
-    if len(out) == 0:
-        raise ValueError(f"couldn't find data at {data_dir}")
-
-    random.shuffle(out)
-    indices = np.arange(len(out))
-
-    if (1 - train_pct) / 2 != 0:
-
-        train_idx, test_idx, _, _ = train_test_split(
-            indices,
-            indices,
-            test_size=1 - train_pct,
-            random_state=random_seed
-        )
-        test_idx, val_idx, _, _ = train_test_split(
-            test_idx,
-            test_idx,
-            test_size=(1 - train_pct) / 2,
-            random_state=random_seed
-        )
-
-        train_split = [out[idx] for idx in train_idx]
-        test_split = [out[idx] for idx in test_idx]
-        val_split = [out[idx] for idx in val_idx]
-
-        train_path = os.path.join(output_data_path, "train")
-        validation_path = os.path.join(output_data_path, "validation")
-        test_path = os.path.join(output_data_path, "test")
-
-        save_data(train_path, train_split, config.class_code_to_name)
-        save_data(validation_path, val_split, config.class_code_to_name)
-        save_data(test_path, test_split, config.class_code_to_name)
-
-    else:
-        log.info("Got train_pct == 1. Saving all labels to train.")
-        train_path = os.path.join(output_data_path, "train")
-        save_data(train_path, out, config.class_code_to_name)
+def copy_or_move_files(out_path, files, move):
+    os.makedirs(out_path, exist_ok=True)
+    # instead of a conditional
+    func = os.rename if move else copy2
+    for filename in files:
+        log.debug(f"Copying {filename} to {out_path}")
+        func(filename, os.path.join(out_path, os.path.basename(filename)))

@@ -294,7 +294,7 @@ def load_wav_file(wav_filename):
     waveform, sample_rate = torchaudio.load(wav_filename)
     return waveform, sample_rate
 
-
+@torch.no_grad()
 def predict_with_ensemble(ensemble, features):
     """
     Predict an array of features with a model ensemble.
@@ -303,10 +303,16 @@ def predict_with_ensemble(ensemble, features):
     :return: List of np.arrays. One for each model in the ensemble.
     """
 
+    if torch.cuda.is_available():
+        dev = "cuda"
+    else:
+        dev = "cpu"
+
     ensemble_preds = []
 
     for model in ensemble:
-        preds = torch.nn.functional.softmax((model(features)), dim=1)
+        model = model.to(dev)
+        preds = torch.nn.functional.softmax((model(features.to(dev))), dim=1)
         ensemble_preds.append(preds.to("cpu").numpy())
 
     return ensemble_preds
@@ -425,8 +431,8 @@ def evaluate_pickles(
             ensemble_preds = np.stack(ensemble_preds)
             iqrs, medians, means, votes = calculate_ensemble_statistics(ensemble_preds)
 
-            spectrograms_concat.extend(features)
-            labels_concat.extend(labels)
+            spectrograms_concat.extend(features.to("cpu"))
+            labels_concat.extend(labels.to("cpu"))
             iqrs_full_sequence.extend(iqrs)
             medians_full_sequence.extend(medians)
             means_full_sequence.extend(means)
