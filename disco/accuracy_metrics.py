@@ -6,9 +6,6 @@ import numpy as np
 import os
 from scipy import stats
 from argparse import ArgumentParser
-print("Please fix me.")
-import warnings
-warnings.filterwarnings("ignore")
 
 ap = ArgumentParser()
 ap.add_argument("ensemble_members", type=int)
@@ -29,7 +26,7 @@ ground_truth_pickle = True
 
 # iqr_threshold_array = [0.2, 0.1, 0.08, 0.07, 0.06]
 
-iqr_threshold_array = [1, 0.05, 0.1, 0.2, 0.4]
+iqr_threshold_array = [0.05, 0.1, 0.2, 0.4, 1][::-1]
 
 if ensemble_members == 2:
     min_votes_needed_array = [0, 1]
@@ -266,7 +263,7 @@ for pointwise_accuracy in pointwise_accuracy_array:
                         large_dict["A chirp incorrect"] = np.sum(confmat_nonnorm[0, 1:])
                         large_dict["B chirp correct"] = confmat_nonnorm[1, 1]
 
-                        large_dict["B chirp incorrect"] = confmat_nonnorm[0, 3] + confmat_nonnorm[0, 0] + confmat_nonnorm[0, 2]
+                        large_dict["B chirp incorrect"] = confmat_nonnorm[1, 0] + confmat_nonnorm[1, 2] + confmat_nonnorm[1, 3]
 
                         large_dict["confusion_matrix"] = confusion_matrix
                         large_dict["confusion_matrix_nonnorm"] = confmat_nonnorm
