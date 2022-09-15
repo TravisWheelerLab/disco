@@ -53,6 +53,9 @@ def create_label_to_spectrogram(
     labels["begin spect idx"] = [w2s_idx(x, hop_length) for x in labels["begin idx"]]
     labels["end spect idx"] = [w2s_idx(x, hop_length) for x in labels["end idx"]]
 
+    for cls in excluded_classes:
+        labels = labels.loc[labels["Sound_Type"] != cls]
+
     contiguous_indices = []
     if labels.shape[0] == 1:
         contiguous_indices.append([0])
@@ -73,19 +76,19 @@ def create_label_to_spectrogram(
 
     features_and_labels = []
     for contig in contiguous_indices:
+
         contiguous_labels = labels.iloc[contig, :]
         begin = contiguous_labels.iloc[0]["begin spect idx"]
         end = contiguous_labels.iloc[-1]["end spect idx"]
+
         spect_slice = spect[:, begin:end]
         if end - begin == 0:
             continue
 
         label_vector = np.zeros((spect_slice.shape[1]))
         first = True
-
         for _, row in contiguous_labels.iterrows():
-            if row["Sound_Type"] in excluded_classes:
-                continue
+
             if first:
                 overall_begin = row["begin spect idx"]
                 first = False
@@ -250,8 +253,8 @@ def shuffle_data(data_directory, train_pct, extension, move, random_seed):
 
     np.random.seed(random_seed)
     indices = np.random.permutation(len(data_files))
-    train_idx = indices[:int(len(indices)*train_pct)]
-    the_rest = indices[int(len(indices)*train_pct):]
+    train_idx = indices[:int(len(indices) * train_pct)]
+    the_rest = indices[int(len(indices) * train_pct):]
     test_idx = the_rest[:len(the_rest) // 2]
     val_idx = the_rest[len(the_rest) // 2:]
     assert np.all(train_idx != test_idx)
