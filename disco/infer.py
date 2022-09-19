@@ -136,7 +136,22 @@ def run_inference(
             log.info(f"applying heuristic function {heuristic.__name__}")
             predictions = heuristic(predictions, iqr, config.name_to_class_code)
 
+    blackout_unconfident = True
+    background_unconfident = True
+    threshold_type = "iqr"
+    if threshold_type == "iqr":
+        thresholder = iqr
+    threshold = 0.05
+
+    # regular use case of confidence heuristics!
+    if background_unconfident:
+        predictions = infer.map_unconfident(predictions, to="BACKGROUND", threshold_type=threshold_type, threshold=threshold, thresholder=thresholder, config=config)
+
     hmm_predictions = infer.smooth_predictions_with_hmm(predictions, config)
+
+    # only used when evaluating accuracy metrics visually!
+    if blackout_unconfident:
+        predictions = infer.map_unconfident(predictions, to="dummy_class", threshold_type=threshold_type, threshold=threshold, thresholder=thresholder, config=config)
 
     if output_csv_path is not None:
         _, ext = os.path.splitext(output_csv_path)
@@ -154,7 +169,7 @@ def run_inference(
         )
 
     if viz:
-        debug_path = infer.make_viz_directory(wav_file, saved_model_directory, viz_path)
+        debug_path = infer.make_viz_directory(wav_file, saved_model_directory, viz_path, accuracy_metrics)
 
         spectrogram_path = os.path.join(debug_path, "raw_spectrogram.pkl")
         hmm_prediction_path = os.path.join(debug_path, "hmm_predictions.pkl")
@@ -178,13 +193,12 @@ def run_inference(
             infer.pickle_tensor(spect, spectrogram_path)
 
         infer.pickle_tensor(hmm_predictions, hmm_prediction_path)
-        infer.pickle_tensor(medians, median_prediction_path)
+        infer.pickle_tensor(predictions, median_prediction_path)
         infer.pickle_tensor(iqr, iqr_path)
         infer.pickle_tensor(means, mean_prediction_path)
         infer.pickle_tensor(votes, votes_path)
 
     if accuracy_metrics:
-
         default_dirname = f"test_files-{os.path.basename(saved_model_directory)}"
         metrics_path = os.path.join("data", "accuracy_metrics", default_dirname)
         os.makedirs(metrics_path, exist_ok=True)
