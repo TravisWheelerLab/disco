@@ -9,6 +9,8 @@ import tqdm
 import pomegranate as pom
 import logging
 from glob import glob
+from disco.accuracy_metrics import adjust_preds_by_confidence
+import pdb
 
 from disco.models import UNet1D
 import disco.heuristics as heuristics
@@ -247,7 +249,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
 
     if model_directory is None:
         model_directory = config.default_model_directory
-
+    print("Put disco back before model directory")
     model_paths = glob(os.path.join(model_directory, "*", "*", "*" + model_extension), recursive=True)
     if not len(model_paths):
         log.info("no models found, downloading to {}".format(model_directory))
@@ -378,7 +380,6 @@ def evaluate_spectrogram(
             all_features = []
 
         for features in spectrogram_dataset:
-            breakpoint()
             features = features.to(device)
             ensemble_preds = predict_with_ensemble(models, features)
             if assert_accuracy:
@@ -404,6 +405,20 @@ def evaluate_spectrogram(
     votes_full_sequence = np.concatenate(votes_full_sequence, axis=-1)[:, :original_spectrogram_shape[-1]]
 
     return iqrs_full_sequence, medians_full_sequence, means_full_sequence, votes_full_sequence
+
+
+def map_unconfident(predictions, to, threshold_type, threshold, thresholder, config):
+    if threshold_type == "iqr":
+        thresholder = np.mean(thresholder, axis=0)
+    else:
+        "Not currently set up to do any unconfidence mappings other than iqr."
+    if to == "dummy_class":
+        unconfident_class = max(config.class_code_to_name.keys()) + 1
+    elif to == "BACKGROUND":
+        unconfident_class = max(config.class_code_to_name.keys())
+
+    predictions = adjust_preds_by_confidence(average_iqr=thresholder, iqr_threshold=threshold, winning_vote_count=thresholder, min_votes_needed=-1, median_argmax=predictions, map_to=unconfident_class)
+    return predictions
 
 
 def evaluate_pickles(
@@ -448,7 +463,7 @@ def evaluate_pickles(
     return spectrograms_concat, labels_concat, iqrs_full_sequence, medians_full_sequence, means_full_sequence, votes_full_sequence
 
 
-def make_viz_directory(wav_file, saved_model_directory, debug_path):
+def make_viz_directory(wav_file, saved_model_directory, debug_path, accuracy_metrics):
     """
     Creates a directory based on the parser's debug path and returns the updated debug path later used for saving the
     statistics. If given debug path already exists, creates a directory inside with the default name. If debug path
@@ -457,18 +472,23 @@ def make_viz_directory(wav_file, saved_model_directory, debug_path):
     :param wav_file: String. filepath of the given .wav file.
     :param saved_model_directory: String. filepath of the saved models.
     :param debug_path: String. Path indicating where to save the visualization files.
+    :param accuracy_metrics: bool. Whether the input files are accuracy metric (test) files.
     :return: Updated debug path used
     """
-    default_dirname = os.path.split(wav_file)[-1].split(".")[0] + "-" + os.path.split(saved_model_directory)[-1]
+    if not accuracy_metrics:
+        default_dirname = os.path.split(wav_file)[-1].split(".")[0] + "-" + os.path.split(saved_model_directory)[-1]
+    else:
+        default_dirname = os.path.basename(saved_model_directory) + "_test_files_visualization"
+
     if debug_path is not None:
         if os.path.exists(debug_path):
             debug_path = os.path.join(debug_path, default_dirname)
-            os.makedirs(debug_path)
+            os.makedirs(debug_path, exist_ok=True)
         else:
-            os.makedirs(debug_path)
+            os.makedirs(debug_path, exist_ok=True)
     else:
         debug_path = default_dirname
-        os.makedirs(debug_path)
+        os.makedirs(debug_path, exist_ok=True)
     print("Created visualizations directory: " + debug_path + ".")
     return debug_path
 
