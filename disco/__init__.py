@@ -120,11 +120,11 @@ def parser():
         type=str,
         default=None,
         help="Which label the unconfident labels should be mapped to. This is a key in the config's name_to_class_code "
-             "dictionary, e.g. BACKGROUND. Default: maps to the max value in the config's class_code_to_name "
+             "dictionary, e.g. \"BACKGROUND\". Default: maps to the max value in the config's class_code_to_name "
              "dictionary")
     infer_parser.add_argument(
         "--unconfidence_mapper_iqr_threshold",
-        type=str,
+        type=float,
         default=None,
         help="Threshold for how small the ensemble prediction's IQR needs to be in order to stay as its original label."
              "If the ensemble IQR is larger than this number, the label will be mapped to map_to if map_unconfident is "
