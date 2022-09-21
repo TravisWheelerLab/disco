@@ -9,7 +9,6 @@ import disco.inference_utils as infer
 
 # todo: Instead of passing in just config, give functions the specific things config uses for better functionality
 #  elsewhere.
-# todo: put argmax into create_statistics_array function
 
 
 class Visualizer:
@@ -31,6 +30,9 @@ class Visualizer:
         :return: None.
         """
         self.config = config
+        self.config.class_code_to_name[3] = "DROPPED, TOO UNCONFIDENT"
+        self.config.name_to_rgb_code["DROPPED, TOO UNCONFIDENT"] = "#282B30"
+
         self.votes_line = votes_line
         self.spectrogram, self.median_argmax, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
         self.spectrogram = np.flip(self.spectrogram, axis=0)
