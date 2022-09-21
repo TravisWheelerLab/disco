@@ -15,7 +15,7 @@ class Config:
 
     name_to_rgb_code = {"A": "#B65B47", "B": "#A36DE9", "BACKGROUND": "#AAAAAA"}
     visualization_n_fft = 1150
-    visualization_columns = 1000
+    visualization_columns = 600
 
     excluded_classes = ("Y", "C")
 
