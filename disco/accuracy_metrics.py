@@ -35,7 +35,7 @@ if __name__ == "__main__":
         min_votes_needed_array = [0, 15, 20, 25, 28, 29]
 
     pointwise_accuracy_array = [False, True]
-    proportion_event_correct_array = [50, 70, 80, 90, 95]
+    proportion_event_correct_array = [30, 40, 50, 70, 80, 90, 95]
 
 
 class SoundEvent:
@@ -54,6 +54,7 @@ class SoundEvent:
         )
         if self.normalized_accuracy >= 0.01 * proportion_event_correct:
             self.correct = True
+            self.predictions_mode = self.ground_truth_label
         else:
             self.correct = False
             if self.predictions_mode == self.ground_truth_label:
