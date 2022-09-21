@@ -7,36 +7,11 @@ import os
 from scipy import stats
 from argparse import ArgumentParser
 
-if __name__ == "__main__":
-    ap = ArgumentParser()
-    ap.add_argument("ensemble_members", type=int)
-    ap.add_argument("ensemble_type", type=str)
-    args = ap.parse_args()
-
-    ensemble_members = args.ensemble_members
-    ensemble_type = args.ensemble_type
-
-    # tunable parameters
-    hop_length = 200
-    sample_rate = 48000
-    ensemble_name = str(ensemble_members) + "_" + ensemble_type
-    infer_data_root = os.path.join(".", "data", "accuracy_metrics", "test_files-ensemble_" + ensemble_name)
-    name_to_class_code = {"A": 0, "B": 1, "X": 2, "BACKGROUND": 2}
-    ground_truth_data_root = os.path.join(".", "data", "example.csv")
-    ground_truth_pickle = True
-
-    iqr_threshold_array = [0.05, 0.1, 0.2, 0.4, 1][::-1]
-
-    if ensemble_members == 2:
-        min_votes_needed_array = [0, 1]
-    elif ensemble_members == 10:
-        min_votes_needed_array = [0, 6, 7, 8, 9]
-    else:
-        min_votes_needed_array = [0, 15, 20, 25, 28, 29]
-
-    pointwise_accuracy_array = [False, True]
-    proportion_event_correct_array = [30, 40, 50, 70, 80, 90, 95]
-
+hop_length = 200
+sample_rate = 48000
+name_to_class_code = {"A": 0, "B": 1, "X": 2, "BACKGROUND": 2}
+ground_truth_data_root = os.path.join(".", "data", "example.csv")
+ground_truth_pickle = True
 
 class SoundEvent:
     def __init__(self, start, end, ground_truth_array, predictions_array, avg_iqr_array, votes_array):
@@ -176,6 +151,29 @@ def get_accuracy_metrics(ground_truth, predictions, normalize_confmat=None):
 from collections import defaultdict
 
 if __name__ == "__main__":
+    ap = ArgumentParser()
+    ap.add_argument("ensemble_members", type=int)
+    ap.add_argument("ensemble_type", type=str)
+    args = ap.parse_args()
+
+    ensemble_members = args.ensemble_members
+    ensemble_type = args.ensemble_type
+
+    iqr_threshold_array = [0.05, 0.1, 0.2, 0.4, 1][::-1]
+
+    if ensemble_members == 2:
+        min_votes_needed_array = [0, 1]
+    elif ensemble_members == 10:
+        min_votes_needed_array = [0, 6, 7, 8, 9]
+    else:
+        min_votes_needed_array = [0, 15, 20, 25, 28, 29]
+
+    pointwise_accuracy_array = [False, True]
+    proportion_event_correct_array = [30, 40, 50, 70, 80, 90, 95]
+
+    ensemble_name = str(ensemble_members) + "_" + ensemble_type
+    infer_data_root = os.path.join(".", "data", "accuracy_metrics", "test_files-ensemble_" + ensemble_name)
+
     event_wise = {}
     point_wise = {}
 
@@ -252,10 +250,9 @@ if __name__ == "__main__":
                             print("event_wise", category_string)
                             event_wise[f"{iqr_threshold}/{min_votes_needed}/{proportion_event_correct}"] = large_dict
 
-
-    print("Saving dataframe.")
+    print("Saving dataframe to " + os.path.join("disco", "plots", "final_data_csvs", f"~~point OR event~~_wise_{ensemble_members}_{ensemble_type}.csv"))
     pointwise_dataframe = pd.DataFrame.from_dict(point_wise)
     eventwise_dataframe = pd.DataFrame.from_dict(event_wise)
     os.makedirs(os.path.join("plots", "final_data_csvs"), exist_ok=True)
-    pointwise_dataframe.to_csv(os.path.join("plots", "final_data_csvs", f"point_wise_{ensemble_members}_{ensemble_type}.csv"))
-    pointwise_dataframe.to_csv(os.path.join("plots", "final_data_csvs", f"event_wise_{ensemble_members}_{ensemble_type}.csv"))
+    pointwise_dataframe.to_csv(os.path.join("disco", "plots", "final_data_csvs", f"point_wise_{ensemble_members}_{ensemble_type}.csv"))
+    eventwise_dataframe.to_csv(os.path.join("disco", "plots", "final_data_csvs", f"event_wise_{ensemble_members}_{ensemble_type}.csv"))
