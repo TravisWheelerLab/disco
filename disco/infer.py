@@ -17,24 +17,28 @@ log = logging.getLogger(__name__)
 
 
 def run_inference(
-    config,
-    wav_file=None,
-    output_csv_path=None,
-    saved_model_directory=None,
-    model_extension=".pt",
-    tile_overlap=128,
-    tile_size=1024,
-    batch_size=32,
-    input_channels=108,
-    hop_length=200,
-    vertical_trim=20,
-    n_fft=1150,
-    viz=None,
-    viz_path=None,
-    accuracy_metrics=None,
-    accuracy_metrics_test_directory=None,
-    num_threads=4,
-    noise_pct=0,
+        config,
+        wav_file=None,
+        output_csv_path=None,
+        saved_model_directory=None,
+        model_extension=".pt",
+        tile_overlap=128,
+        tile_size=1024,
+        batch_size=32,
+        input_channels=108,
+        hop_length=200,
+        vertical_trim=20,
+        n_fft=1150,
+        viz=None,
+        viz_path=None,
+        accuracy_metrics=None,
+        accuracy_metrics_test_directory=None,
+        num_threads=4,
+        noise_pct=0,
+        map_unconfident=False,
+        map_to=None,
+        unconfidence_mapper_iqr_threshold=1.0,
+        blackout_unconfident_in_viz=False,
 ):
     """
     Script to run the inference routine. Briefly: Model ensemble is loaded in, used to evaluate the spectrogram, and
@@ -48,12 +52,13 @@ def run_inference(
     :param output_csv_path: str. Where to save predictions.
     :param saved_model_directory: str. Where models are saved.
     :param model_extension: str. Model file suffix. Default ".pt".
-    :param tile_overlap: How much to overlap subsequent evaluation windows.
+    :param tile_overlap: int. How much to overlap subsequent evaluation windows.
     :param tile_size: Size of tiles ingested into ensemble.
-    :param batch_size: How many tiles to evaluate in parallel.
+    :param batch_size: int. How many tiles to evaluate in parallel.
     :param input_channels: Number of input channels for the model ensemble.
     :param hop_length: Used in spectrogram calculation.
-    :param vertical_trim: How many rows to chop off from the beginning of the spectrogram (in effect, a high-pass filter).
+    :param vertical_trim: How many rows to chop off from the beginning of the spectrogram (in effect, a high-pass
+    filter).
     :param n_fft: N ffts to use when calulating the spectrogram.
     :param viz: bool. Whether to save statistics of the output predictions.
     :param viz_path: str. Where to save the visualization data.  If debug path already exists, create a directory inside
@@ -61,8 +66,16 @@ def run_inference(
     creates a default-named directory within the current directory.
     :param accuracy_metrics: bool. whether to save a directory containing needed files to determine ensemble accuracy
     :param accuracy_metrics_test_directory: str. where test files are located.
-    :param num_threads: How many threads to use when loading data.
-    :param noise_pct: How much noise to add to the data.
+    :param num_threads: int. How many threads to use when loading data.
+    :param noise_pct: float. How much noise to add to the data.
+    :param map_unconfident: bool. whether to map any singular label in the horizontal index of the spectrogram to
+    a different class (for example, mapping all unconfident labels to a background class).
+    :param map_to: str. A class label. i.e., a key in config.py's "name_to_class_code" dictionary, e.g. "BACKGROUND".
+    :param unconfidence_mapper_iqr_threshold: float. Threshold for how small the ensemble prediction's IQR needs to be
+    in order to stay as its original label. If the ensemble IQR is larger than this number, the label will be mapped to
+    map_to if map_unconfident=True.
+    :param blackout_unconfident_in_viz: Show which indices were mapped to the background class in the visualizer.
+    They will show up in black.
     :return: None. Everything relevant is saved to disk.
     """
 
@@ -77,7 +90,7 @@ def run_inference(
     models = infer.assemble_ensemble(saved_model_directory, model_extension, device, input_channels, config)
     if len(models) < 1:
         raise ValueError("expected 1 or more models, found {}. Is model directory and extension correct?".format(
-                len(models)
+            len(models)
         ))
     if accuracy_metrics:
         test_files = glob(os.path.join(accuracy_metrics_test_directory, "*.pkl"))
@@ -136,22 +149,27 @@ def run_inference(
             log.info(f"applying heuristic function {heuristic.__name__}")
             predictions = heuristic(predictions, iqr, config.name_to_class_code)
 
-    blackout_unconfident = True
-    background_unconfident = True
-    threshold_type = "iqr"
-    if threshold_type == "iqr":
-        thresholder = iqr
-    threshold = 0.05
-
-    # regular use case of confidence heuristics!
-    if background_unconfident:
-        predictions = infer.map_unconfident(predictions, to="BACKGROUND", threshold_type=threshold_type, threshold=threshold, thresholder=thresholder, config=config)
+    if map_unconfident:
+        predictions = infer.map_unconfident(
+            predictions,
+            to=map_to,
+            threshold_type="iqr",
+            threshold=unconfidence_mapper_iqr_threshold,
+            thresholder=iqr,
+            config=config,
+        )
 
     hmm_predictions = infer.smooth_predictions_with_hmm(predictions, config)
 
-    # only used when evaluating accuracy metrics visually!
-    if blackout_unconfident:
-        predictions = infer.map_unconfident(predictions, to="dummy_class", threshold_type=threshold_type, threshold=threshold, thresholder=thresholder, config=config)
+    if blackout_unconfident_in_viz:
+        predictions = infer.map_unconfident(
+            predictions,
+            to="dummy_class",
+            threshold_type="iqr",
+            threshold=unconfidence_mapper_iqr_threshold,
+            thresholder=iqr,
+            config=config,
+        )
 
     if output_csv_path is not None:
         _, ext = os.path.splitext(output_csv_path)

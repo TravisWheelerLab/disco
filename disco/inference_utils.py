@@ -415,6 +415,8 @@ def map_unconfident(predictions, to, threshold_type, threshold, thresholder, con
     if to == "dummy_class":
         unconfident_class = max(config.class_code_to_name.keys()) + 1
     elif to == "BACKGROUND":
+        unconfident_class = config.name_to_class_code["BACKGROUND"]
+    elif to is None:
         unconfident_class = max(config.class_code_to_name.keys())
 
     predictions = adjust_preds_by_confidence(average_iqr=thresholder, iqr_threshold=threshold, winning_vote_count=thresholder, min_votes_needed=-1, median_argmax=predictions, map_to=unconfident_class)
@@ -499,7 +501,8 @@ def add_gaussian_noise(spectrogram, noise_pct):
     spectrogram values, multiplies by the percent provided, and multiplies onto a random number torch tensor. Finally,
     adds these values to given spectrogram.
     :param spectrogram: torch tensor of spectrogram
-    :param noise_pct: int. of desired noise percent of spectrogram standard deviation.
+    :param noise_pct: int. of desired noise percent of spectrogram standard deviation. This is multiplied by a random
+    variable distributed as a Normal(0,1) for each pixel of the spectrogram.
     :return: Noised spectrogram
     """
     spect_sd = torch.std(spectrogram)

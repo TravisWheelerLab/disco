@@ -106,7 +106,33 @@ def parser():
         "--noise_pct",
         type=float,
         default=0,
-        help="how much gaussian noise to add to the spectrogram")
+        help="how much gaussian noise to add to the spectrogram. the noise is calculated by first taking the desired "
+             "noise percent of spectrogram standard deviation. This is multiplied by a random "
+             "variable distributed as a Normal(0,1) for each pixel of the spectrogram. Used for experimentation"
+             "and not intended for true inference.")
+    infer_parser.add_argument(
+        "--map_unconfident",
+        action="store_true",
+        help="map any singular label in the horizontal index of the recording to a different class "
+             "(for example, map all unconfident labels to a background class).")
+    infer_parser.add_argument(
+        "--map_to",
+        type=str,
+        default=None,
+        help="Which label the unconfident labels should be mapped to. This is a key in the config's name_to_class_code "
+             "dictionary, e.g. BACKGROUND. Default: maps to the max value in the config's class_code_to_name "
+             "dictionary")
+    infer_parser.add_argument(
+        "--unconfidence_mapper_iqr_threshold",
+        type=str,
+        default=None,
+        help="Threshold for how small the ensemble prediction's IQR needs to be in order to stay as its original label."
+             "If the ensemble IQR is larger than this number, the label will be mapped to map_to if map_unconfident is "
+             "added as an argument in this parser.")
+    infer_parser.add_argument(
+        "--blackout_unconfident_in_viz",
+        action="store_true",
+        help="Show which indices were mapped to the background class in the visualizer. They will show up in black.")
 
     # TRAIN #
     train_parser = subparsers.add_parser("train", add_help=True)
@@ -263,6 +289,7 @@ def parser():
         action="store_true",
         help="Whether or not to overwrite the data already saved in data_dir.",
     )
+
     # SHUFFLE #
     shuffle_parser = subparsers.add_parser("shuffle", add_help=True)
     shuffle_parser.add_argument(
@@ -293,7 +320,6 @@ def parser():
         default=42,
         help="what number to use as the random seed. Default: Deep Thought's answer",
     )
-    # we're going to create directories called train/test/valid
 
     # LABEL #
     label_parser = subparsers.add_parser("label", add_help=True)
@@ -444,7 +470,11 @@ def main():
             accuracy_metrics=args.accuracy_metrics,
             accuracy_metrics_test_directory=args.accuracy_metrics_test_directory,
             num_threads=args.num_threads,
-            noise_pct=args.noise_pct
+            noise_pct=args.noise_pct,
+            map_unconfident=args.map_unconfident,
+            map_to=args.map_to,
+            unconfidence_mapper_iqr_threshold=args.unconfidence_mapper_iqr_threshold,
+            blackout_unconfident_in_viz=args.blackout_unconfident_in_viz,
         )
     elif args.command == "shuffle":
         from disco.extract_data import shuffle_data
