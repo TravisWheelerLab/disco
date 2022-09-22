@@ -20,6 +20,7 @@ def run_inference(
         config,
         wav_file=None,
         output_csv_path=None,
+        filter_csv_label=None,
         saved_model_directory=None,
         model_extension=".pt",
         tile_overlap=128,
@@ -50,6 +51,7 @@ def run_inference(
     :param config: disco.Config() object.
     :param wav_file: str. .wav file to analyze.
     :param output_csv_path: str. Where to save predictions.
+    :param filter_csv_label: str. Which (if any) of the labels to remove from the final inference .csv
     :param saved_model_directory: str. Where models are saved.
     :param model_extension: str. Model file suffix. Default ".pt".
     :param tile_overlap: int. How much to overlap subsequent evaluation windows.
@@ -184,6 +186,7 @@ def run_inference(
             hop_length=hop_length,
             name_to_class_code=config.name_to_class_code,
             noise_pct=noise_pct,
+            filter_csv_label=filter_csv_label,
         )
 
     if viz:

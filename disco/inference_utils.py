@@ -136,7 +136,7 @@ def load_pickle(path):
 
 
 def save_csv_from_predictions(
-        output_csv_path, predictions, sample_rate, hop_length, name_to_class_code, noise_pct
+        output_csv_path, predictions, sample_rate, hop_length, name_to_class_code, noise_pct, filter_csv_label,
 ):
     """
     Ingest a Nx1 np.array of point-wise predictions and save a .csv with
@@ -148,6 +148,7 @@ def save_csv_from_predictions(
     :param hop_length: Spectrogram hop length.
     :param name_to_class_code: mapping from class name to class code (ex {"A":1}).
     :param noise_pct: Float of how much noise is added to the spectrogram.
+    :param filter_csv_label: str. remove a class from final csv.
     :return: pandas.DataFrame describing the saved csv.
     """
     class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(
@@ -178,6 +179,10 @@ def save_csv_from_predictions(
         i += 1
 
     df = pd.DataFrame.from_dict(list_of_dicts_for_dataframe)
+
+    if filter_csv_label:
+        df = df[df['Sound_Type'] != filter_csv_label]
+
     dirname = os.path.dirname(output_csv_path)
 
     if not os.path.isdir(dirname):
@@ -249,13 +254,13 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
 
     if model_directory is None:
         model_directory = config.default_model_directory
-    print("Put disco back before model directory")
-    model_paths = glob(os.path.join(model_directory, "*", "*", "*" + model_extension), recursive=True)
+    else:
+        model_paths = glob(os.path.join("disco", model_directory, "*", "*", "*" + model_extension), recursive=True)
     if not len(model_paths):
         log.info("no models found, downloading to {}".format(model_directory))
 
         download_models(config.default_model_directory, config.aws_download_link)
-        model_paths = glob(os.path.join(config.default_model_directory, "*" + model_extension))
+        model_paths = glob(os.path.join(model_directory, "*"))
 
     models = []
     for model_path in model_paths:

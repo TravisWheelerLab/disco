@@ -41,6 +41,11 @@ def parser():
         required=False,
         help="where to save the final predictions")
     infer_parser.add_argument(
+        "--filter_output_csv_label",
+        type=str,
+        default=None,
+        help="Remove a particular label from the final csv output")
+    infer_parser.add_argument(
         "--tile_overlap",
         default=128,
         type=int,
@@ -456,6 +461,7 @@ def main():
             config,
             wav_file=args.wav_file,
             output_csv_path=args.output_csv_path,
+            filter_csv_label=args.filter_output_csv_label,
             saved_model_directory=args.saved_model_directory,
             model_extension=args.model_extension,
             tile_overlap=args.tile_overlap,
