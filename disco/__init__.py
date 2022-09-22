@@ -121,7 +121,7 @@ def parser():
         help="map any singular label in the horizontal index of the recording to a different class "
              "(for example, map all unconfident labels to a background class).")
     infer_parser.add_argument(
-        "--low_confidence_mapper_iqr_threshold",
+        "--low_confidence_iqr_threshold",
         type=float,
         default=0.3,
         help="Threshold for how small the ensemble prediction's IQR needs to be in order to stay as its original label."
@@ -479,7 +479,7 @@ def main():
             noise_pct=args.noise_pct,
             map_unconfident=args.map_unconfident,
             map_to=args.map_to,
-            unconfidence_mapper_iqr_threshold=args.low_confidence_mapper_iqr_threshold,
+            unconfidence_mapper_iqr_threshold=args.low_confidence_iqr_threshold,
             blackout_unconfident_in_viz=args.blackout_unconfident_in_viz,
         )
     elif args.command == "shuffle":
