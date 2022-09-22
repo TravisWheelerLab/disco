@@ -30,12 +30,14 @@ class Visualizer:
         :return: None.
         """
         self.config = config
-        self.config.class_code_to_name[3] = "DROPPED, TOO UNCONFIDENT"
-        self.config.name_to_rgb_code["DROPPED, TOO UNCONFIDENT"] = "#282B30"
 
         self.votes_line = votes_line
         self.spectrogram, self.median_argmax, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
         self.spectrogram = np.flip(self.spectrogram, axis=0)
+
+        if self.median_argmax.max() > max(config.class_code_to_name.keys()):
+            self.config.class_code_to_name[self.median_argmax.max()] = "DROPPED, HIGH UNCERTAINTY"
+            self.config.name_to_rgb_code["DROPPED, HIGH UNCERTAINTY"] = "#282B30"
 
         first_data_path_name = os.path.split(data_path)[-1].split("-")[-1].split("_")[0]
 
