@@ -6,11 +6,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import os
-import torch
 from glob import glob
-from scipy import stats
 import disco.inference_utils as infer
-from disco.dataset import SpectrogramDatasetMultiLabel
 class_code_to_name = {0: "A", 1: "B", 2: "BACKGROUND"}
 
 
