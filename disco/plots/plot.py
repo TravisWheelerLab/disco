@@ -44,7 +44,7 @@ class Plotter:
                                                                               ascending=False).sort_values(
             by=["type", "members"])
 
-    def plot_event_wise(self, type, outcome_variable, ylims=(0, 1), palette="crest"):
+    def plot_event_wise(self, type, outcome_variable, ylims=(0, 1), palette="crest", title=None):
         if type == "both":
             base_df = self.merged_event_wise_dfs
         else:
@@ -77,10 +77,15 @@ class Plotter:
                                      hue="members",
                                      palette=palette,
                                      marker="o")
-            line_plot.set(title=type)
+        if title is None:
+            title = outcome_variable
+        if "chirp" in title:
+            plt.legend([], [], frameon=False)
 
         line_plot.set(ylim=ylims,
-                      xlabel="minimum proportion event correct")
+                      xlabel="minimum proportion event correct",
+                      title=title)
+
         sns.set(rc={'figure.figsize': (5, 6)})
         plt.show(line_plot)
 
@@ -89,10 +94,11 @@ class Plotter:
             base_df = self.merged_point_wise_dfs
         else:
             base_df = self.merged_point_wise_dfs[self.merged_point_wise_dfs["type"] == type]
+
         if predictive_variable == "iqr threshold":
             base_df = base_df[base_df["voting threshold"] == 0]
         else:
-            print("No graphs for other predictive variables yet.")
+            print("No graphs available for non-iqr predictive variables.")
             pass
 
         if type == "both":
@@ -128,50 +134,32 @@ class Plotter:
         sns.set(rc={'figure.figsize': (5, 6)})
         plt.show(line_plot)
 
-    def plot_voting(self, type, outcome_variable, members, ylims=(0, 1), palette="crest"):
-        if type == "both":
-            base_df = self.merged_point_wise_dfs
-        else:
-            base_df = self.merged_point_wise_dfs[self.merged_point_wise_dfs["type"] == type]
-        base_df = base_df[base_df["iqr threshold"] == 1]
+    def plot_iqr_thresholding(self, type, members, palette='crest'):
+        base_df = self.merged_point_wise_dfs[self.merged_point_wise_dfs["type"] == type]
+        base_df = base_df[base_df["voting threshold"] == 0]
         base_df = base_df[base_df["members"] == members]
-
-        if type == "both":
-            line_plot = sns.relplot(data=base_df,
-                                    x="voting threshold",
-                                    y=outcome_variable,
-                                    col="type",
-                                    palette=palette,
-                                    marker="o",
-                                    legend="full",
-                                    kind="line")
-
-            models = base_df["type"].unique()
-            for i, ax in enumerate(line_plot.axes.flat):
-                ax.set_title(models[i])
-            line_plot.figure.suptitle(
-                "pointwise " + outcome_variable + " by voting threshold, " + str(members) + " members",
-                size=15)
-            line_plot.figure.subplots_adjust(top=0.87)
-
-        else:
-            line_plot = sns.lineplot(data=base_df,
-                                     x="voting threshold",
-                                     y=outcome_variable,
-                                     palette=palette,
-                                     marker="o")
-            line_plot.set(title=type)
-            line_plot.set_xlim(line_plot.get_xlim()[::-1])
-
-        line_plot.set(ylim=ylims,
-                      xlabel="voting threshold")
-        sns.set(rc={'figure.figsize': (5, 6)})
-        plt.show(line_plot)
+        # base_df = base_df.rename({'accuracy': 'accuracy, all classes'}, axis=1)
+        base_df = base_df.drop(
+            ['accuracy', 'IoU, A chirp', 'IoU, B chirp', 'confusion_matrix', 'confusion_matrix_nonnorm',
+             'voting threshold', 'members', 'type'], axis=1)
+        base_df = base_df.melt(id_vars=["iqr threshold"], var_name="metric")
+        line_plot = sns.lineplot(data=base_df,
+                                 x="iqr threshold",
+                                 y="value",
+                                 hue="metric",
+                                 palette=palette,
+                                 marker="o")
+        line_plot.set_xlim(line_plot.get_xlim()[::-1])
+        line_plot.set(ylim=(0.5, 1.01),
+                      title="pointwise accuracy metrics by IQR threshold")
 
 
 plotter = Plotter(csv_dirpath="./")
+plotter.merged_event_wise_dfs = plotter.merged_event_wise_dfs[plotter.merged_event_wise_dfs["event proportion"] != 95]
 
 outcome_variables = ["accuracy", "recall, A chirp", "recall, B chirp", "precision, A chirp", "precision, B chirp",
                      "IoU, A chirp", "IoU, B chirp"]
-outcome = 4
-plotter.plot_voting(type="both", outcome_variable=outcome_variables[outcome], members=10, ylims=(0.9, 1.001))
+
+outcome = 2
+# plotter.plot_point_wise(type="random init", outcome_variable=outcome_variables[outcome], ylims=(0.3, 1.01), predictive_variable="iqr threshold")
+plotter.plot_iqr_thresholding(type="random init", members=10, palette='colorblind')
