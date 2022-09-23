@@ -208,6 +208,7 @@ def run_inference(
                 hop_length=hop_length,
                 name_to_class_code=config.name_to_class_code,
                 noise_pct=noise_pct,
+                filter_csv_label=filter_csv_label,
             )
             infer.pickle_tensor(spectrogram_iterator.original_spectrogram, spectrogram_path)
         else:
