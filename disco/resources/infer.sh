@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 time disco infer "./data/example.wav" \
-     -o ./data/example.csv \
      --tile_overlap 300 \
      --tile_size 1000 \
      --batch_size 32 \
