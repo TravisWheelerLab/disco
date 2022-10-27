@@ -1,18 +1,30 @@
 import os
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.lines as mlines
-from matplotlib.widgets import Slider
-from matplotlib.colors import to_rgb
-import disco.inference_utils as infer
 
+import matplotlib.lines as mlines
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import to_rgb
+from matplotlib.widgets import Slider
+
+import disco.inference_utils as infer
 
 # todo: Instead of passing in just config, give functions the specific things config uses for better functionality
 #  elsewhere.
 
 
 class Visualizer:
-    def __init__(self, data_path, medians, post_process, means, iqr, votes, votes_line, second_data_path, config):
+    def __init__(
+        self,
+        data_path,
+        medians,
+        post_process,
+        means,
+        iqr,
+        votes,
+        votes_line,
+        second_data_path,
+        config,
+    ):
         """
         Class containing most information needed to perform visualization.
         :param data_path: String. data path to the directory containing the csv of predictions and pkls of statistics.
@@ -32,50 +44,82 @@ class Visualizer:
         self.config = config
 
         self.votes_line = votes_line
-        self.spectrogram, self.median_argmax, self.post_hmm, self.iqr, self.means, self.votes = load_arrays(data_path)
+        (
+            self.spectrogram,
+            self.median_argmax,
+            self.post_hmm,
+            self.iqr,
+            self.means,
+            self.votes,
+        ) = load_arrays(data_path)
         self.spectrogram = np.flip(self.spectrogram, axis=0)
 
         if self.median_argmax.max() > max(config.class_code_to_name.keys()):
-            self.config.class_code_to_name[self.median_argmax.max()] = "DROPPED, HIGH UNCERTAINTY"
+            self.config.class_code_to_name[
+                self.median_argmax.max()
+            ] = "DROPPED, HIGH UNCERTAINTY"
             self.config.name_to_rgb_code["DROPPED, HIGH UNCERTAINTY"] = "#282B30"
 
         first_data_path_name = os.path.split(data_path)[-1].split("-")[-1].split("_")[0]
 
         self.mean_argmax = np.argmax(self.means, axis=0)
         self.statistics, self.show_legend = create_statistics_array(
-            medians, self.median_argmax,
-            post_process, self.post_hmm,
-            means, self.mean_argmax,
-            iqr, self.iqr,
-            votes, self.votes,
+            medians,
+            self.median_argmax,
+            post_process,
+            self.post_hmm,
+            means,
+            self.mean_argmax,
+            iqr,
+            self.iqr,
+            votes,
+            self.votes,
             config.class_code_to_name,
-            first_data_path_name + ":"
+            first_data_path_name + ":",
         )
-
         if second_data_path:
-            _, self.median_argmax_2, self.post_hmm_2, self.iqr_2, self.means_2, self.votes_2 = load_arrays(second_data_path)
-            second_data_path_name = os.path.split(second_data_path)[-1].split("-")[1].split("_")[0]
+            (
+                _,
+                self.median_argmax_2,
+                self.post_hmm_2,
+                self.iqr_2,
+                self.means_2,
+                self.votes_2,
+            ) = load_arrays(second_data_path)
+            second_data_path_name = (
+                os.path.split(second_data_path)[-1].split("-")[1].split("_")[0]
+            )
             self.mean_argmax_2 = np.argmax(self.means_2, axis=0)
             # todo: make sure _ and self.spectrogram are the same, throw an error if they are not.
             self.statistics_2, _ = create_statistics_array(
-                medians, self.median_argmax_2,
-                post_process, self.post_hmm_2,
-                means, self.mean_argmax_2,
-                iqr, self.iqr_2,
-                votes, self.votes_2,
+                medians,
+                self.median_argmax_2,
+                post_process,
+                self.post_hmm_2,
+                means,
+                self.mean_argmax_2,
+                iqr,
+                self.iqr_2,
+                votes,
+                self.votes_2,
                 config.class_code_to_name,
-                second_data_path_name + ":"
+                second_data_path_name + ":",
             )
             self.statistics += self.statistics_2
 
         # Build the figure height based on the height of the spectrogram and the amount of statistics to display.
         self.num_statistics_plus_slider = len(self.statistics) + 1
         self.spect_ht = 2.5
-        statistics_ht = (0.5 + (self.num_statistics_plus_slider - 1) + (
-                    self.num_statistics_plus_slider - 2) * 0.1) * 0.22
+        statistics_ht = (
+            0.5
+            + (self.num_statistics_plus_slider - 1)
+            + (self.num_statistics_plus_slider - 2) * 0.1
+        ) * 0.22
         self.fig_ht = self.spect_ht + statistics_ht
 
-        self.height_ratios = get_subplot_ht_ratios(statistics_ht, self.num_statistics_plus_slider, self.spect_ht)
+        self.height_ratios = get_subplot_ht_ratios(
+            statistics_ht, self.num_statistics_plus_slider, self.spect_ht
+        )
 
 
 def load_arrays(data_root):
@@ -93,18 +137,19 @@ def load_arrays(data_root):
 
 
 def create_statistics_array(
-        show_medians,
-        median_argmax,
-        show_post_process,
-        post_hmm,
-        show_means,
-        mean_argmax,
-        show_iqr,
-        iqr,
-        show_votes,
-        votes,
-        class_code_to_name,
-        dataset_name):
+    show_medians,
+    median_argmax,
+    show_post_process,
+    post_hmm,
+    show_means,
+    mean_argmax,
+    show_iqr,
+    iqr,
+    show_votes,
+    votes,
+    class_code_to_name,
+    dataset_name,
+):
     """
     Get numpy arrays of each statistic saved in the provided visualization data directory.
     :param show_medians: bool. Whether to add the medians-based predictions to the visualizer.
@@ -145,7 +190,9 @@ def create_statistics_array(
     return statistics, show_legend
 
 
-def get_subplot_ht_ratios(height_of_statistics_portion, num_statistics_plus_slider, spectrogram_height):
+def get_subplot_ht_ratios(
+    height_of_statistics_portion, num_statistics_plus_slider, spectrogram_height
+):
     """
     Creates a dictionary that can be ingested by the visualization figure that indicates the size of each display.
     Ensures that the spectrogram's window is bigger than the statistics bars below it and that the statistics
@@ -156,10 +203,12 @@ def get_subplot_ht_ratios(height_of_statistics_portion, num_statistics_plus_slid
     :return: Dictionary mapping 'height_ratios' to a list containing the proportions of each piece of the display to be
     taken in by the matplotlib figure creation (the pieces are the spectrogram, the statistics, and the slider bar).
     """
-    statistics_display_sizes = np.repeat(height_of_statistics_portion / num_statistics_plus_slider,
-                                         num_statistics_plus_slider).tolist()
+    statistics_display_sizes = np.repeat(
+        height_of_statistics_portion / num_statistics_plus_slider,
+        num_statistics_plus_slider,
+    ).tolist()
     subplot_sizes = [spectrogram_height] + statistics_display_sizes
-    height_ratios = {'height_ratios': subplot_sizes}
+    height_ratios = {"height_ratios": subplot_sizes}
     return height_ratios
 
 
@@ -177,10 +226,14 @@ def imshow_statistics_rows(axs, visualizer, config):
         if "preds" in label or "post process" in label:
             color_dict = dict()
             for class_code in range(len(config.class_code_to_name.keys())):
-                class_hex_code = config.name_to_rgb_code[config.class_code_to_name[class_code]]
+                class_hex_code = config.name_to_rgb_code[
+                    config.class_code_to_name[class_code]
+                ]
                 class_rgb_code = np.array(to_rgb(class_hex_code))
                 color_dict[class_code] = class_rgb_code
-            statistics_rgb = np.expand_dims(np.array([color_dict[i] for i in np.squeeze(statistics_bar)]), axis=0)
+            statistics_rgb = np.expand_dims(
+                np.array([color_dict[i] for i in np.squeeze(statistics_bar)]), axis=0
+            )
             axs[i].imshow(statistics_rgb, aspect="auto")
         else:
             if "iqr" in label:
@@ -197,7 +250,15 @@ def imshow_statistics_rows(axs, visualizer, config):
                 else:
                     cmap = "Blues"
                     axs[i].imshow(statistics_bar, aspect="auto", cmap=cmap)
-        axs[i].text(-0.01, 0.5, label, va="center", ha="right", fontsize=10, transform=axs[i].transAxes)
+        axs[i].text(
+            -0.01,
+            0.5,
+            label,
+            va="center",
+            ha="right",
+            fontsize=10,
+            transform=axs[i].transAxes,
+        )
 
     # turn off tick marks for each statistics bar and for the slider bar
     for i in range(1, len(axs)):
@@ -222,12 +283,14 @@ def add_predictions_legend(ax, config):
             [],
             color=config.name_to_rgb_code[name],
             marker="s",
-            linestyle='None',
+            linestyle="None",
             markersize=10,
-            label=name.title()
+            label=name.title(),
         )
         legend_handles.append(icon)
-    ax.legend(handles=legend_handles, loc='upper right', fontsize='small', title='prediction')
+    ax.legend(
+        handles=legend_handles, loc="upper right", fontsize="small", title="prediction"
+    )
 
 
 def build_slider(axs, visualizer):
@@ -239,12 +302,31 @@ def build_slider(axs, visualizer):
     """
     # todo: rename to something other than spect_position
     spect_position = axs[len(visualizer.statistics) + 1].get_position()
-    axis_position = plt.axes([spect_position.x0, spect_position.y0, spect_position.x1 - spect_position.x0, 0.05])
-    slider = Slider(axis_position, "x-position", 0.0, visualizer.statistics[0][1].shape[0])
+    axis_position = plt.axes(
+        [
+            spect_position.x0,
+            spect_position.y0,
+            spect_position.x1 - spect_position.x0,
+            0.05,
+        ]
+    )
+    slider = Slider(
+        axis_position, "x-position", 0.0, visualizer.statistics[0][1].shape[0]
+    )
     return slider
 
 
-def visualize(config, data_path, medians, post_process, means, iqr, votes, votes_line, second_data_path):
+def visualize(
+    config,
+    data_path,
+    medians,
+    post_process,
+    means,
+    iqr,
+    votes,
+    votes_line,
+    second_data_path,
+):
     """
     Visualize predictions interactively.
     :param config: disco.Config() object.
@@ -258,15 +340,30 @@ def visualize(config, data_path, medians, post_process, means, iqr, votes, votes
     :param second_data_path: String. filepath of second ensemble's visualization statistics for the same spectrogram.
     :return: None.
     """
-    visualizer = Visualizer(data_path, medians, post_process, means, iqr, votes, votes_line, second_data_path, config)
+    visualizer = Visualizer(
+        data_path,
+        medians,
+        post_process,
+        means,
+        iqr,
+        votes,
+        votes_line,
+        second_data_path,
+        config,
+    )
 
     fig, axs = plt.subplots(
         sharex=True,
         nrows=visualizer.num_statistics_plus_slider + 1,
         figsize=(10, visualizer.fig_ht),
-        gridspec_kw=visualizer.height_ratios
+        gridspec_kw=visualizer.height_ratios,
     )
-    fig.subplots_adjust(top=1 - 0.35 / visualizer.fig_ht, bottom=0.15 / visualizer.fig_ht, left=0.2, right=0.99)
+    fig.subplots_adjust(
+        top=1 - 0.35 / visualizer.fig_ht,
+        bottom=0.15 / visualizer.fig_ht,
+        left=0.2,
+        right=0.99,
+    )
 
     axs[0].imshow(visualizer.spectrogram, aspect="auto")
     imshow_statistics_rows(axs, visualizer, config)
