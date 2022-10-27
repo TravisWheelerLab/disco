@@ -1,7 +1,7 @@
 """
 disco classifies sound events within .wav files using machine learning.
 """
-__version__ = "2.0"
+__version__ = "0.0.1"
 
 import logging
 import os
