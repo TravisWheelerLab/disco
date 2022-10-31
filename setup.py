@@ -28,6 +28,11 @@ setuptools.setup(
         "pomegranate",
     ],
     setup_requires=[
-        "numpy >= 1.20.0",
+        "pyyaml",
+        "pytorch_lightning",
+        "numpy",
+        "matplotlib",
+        "torchaudio",
+        "pomegranate",
     ],
 )
