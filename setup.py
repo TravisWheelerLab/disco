@@ -27,4 +27,7 @@ setuptools.setup(
         "torchaudio",
         "pomegranate",
     ],
+    setup_requires=[
+        "numpy >= 1.20.0",
+    ],
 )
