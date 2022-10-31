@@ -12,7 +12,11 @@ dependencies = ["numpy",
     "matplotlib",
     "pytorch_lightning",
     "torchaudio",
-    "pyyaml"]
+    "pomegranate",
+    "pyyaml",
+    "pandas",
+    "tqdm",
+    "scikit-learn"]
 
 [project.urls]
 Home = "https://github.com/TravisWheelerLab/disco"
