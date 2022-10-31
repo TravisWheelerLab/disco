@@ -3,6 +3,9 @@ import setuptools
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+with open("requirements.txt") as f:
+    required = f.read().splitlines()
+
 setuptools.setup(
     name="disco",
     version="0.0.1",
@@ -19,4 +22,5 @@ setuptools.setup(
     ],
     include_package_data=True,
     python_requires=">=3.8",
+    install_requires=required,
 )
