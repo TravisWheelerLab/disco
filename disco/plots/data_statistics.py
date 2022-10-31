@@ -1,13 +1,15 @@
-import sklearn.metrics
-import disco.inference_utils as infer
-import pandas as pd
-from disco.extract_data import convert_time_to_index, w2s_idx
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
 import os
 from glob import glob
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import sklearn.metrics
+
 import disco.inference_utils as infer
+from disco.extract_data import convert_time_to_index, w2s_idx
+
 class_code_to_name = {0: "A", 1: "B", 2: "BACKGROUND"}
 
 
@@ -32,8 +34,12 @@ for data_dir in data_directories:
         datasets_dict[data_dir][class_code_to_name[unique[i]]] = counts[i]
 
 for data_dir in data_directories:
-    plt.bar(datasets_dict[data_dir].keys(), datasets_dict[data_dir].values(), width=0.5, color='cadetblue')
+    plt.bar(
+        datasets_dict[data_dir].keys(),
+        datasets_dict[data_dir].values(),
+        width=0.5,
+        color="cadetblue",
+    )
     plt.title("Sound event occurrences for " + data_dir + " set")
     plt.show()
     plt.close()
-

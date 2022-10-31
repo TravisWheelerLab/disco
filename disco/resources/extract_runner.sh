@@ -56,6 +56,3 @@ python3 disco/accuracy_metrics.py 10 "bootstrap"
 
 python3 disco/accuracy_metrics.py 30 "random_init"
 python3 disco/accuracy_metrics.py 30 "bootstrap"
-
-
-

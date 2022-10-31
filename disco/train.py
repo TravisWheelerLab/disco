@@ -1,16 +1,16 @@
+import logging
+import os
+from glob import glob
 from time import time
 
-import os
-import torch
-import logging
 import pytorch_lightning as pl
-from pytorch_lightning.plugins import DDPPlugin
-from glob import glob
+import torch
 from pytorch_lightning import seed_everything
+from pytorch_lightning.plugins import DDPPlugin
 
-from disco.models import UNet1D
-from disco.dataset import SpectrogramDatasetMultiLabel, pad_batch
 from disco.config import Config
+from disco.dataset import SpectrogramDatasetMultiLabel, pad_batch
+from disco.models import UNet1D
 
 log = logging.getLogger(__name__)
 

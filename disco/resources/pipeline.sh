@@ -55,4 +55,3 @@ echo "num. validation files: $validation_num"
 
  python3 disco/accuracy_metrics.py 30 "random_init"
  python3 disco/accuracy_metrics.py 30 "bootstrap"
-

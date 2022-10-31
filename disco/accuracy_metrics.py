@@ -1,11 +1,13 @@
-import sklearn.metrics as metrics
-import disco.inference_utils as infer
-import pandas as pd
-from disco.extract_data import convert_time_to_index, w2s_idx
-import numpy as np
 import os
-from scipy import stats
 from argparse import ArgumentParser
+
+import numpy as np
+import pandas as pd
+import sklearn.metrics as metrics
+from scipy import stats
+
+import disco.inference_utils as infer
+from disco.extract_data import convert_time_to_index, w2s_idx
 
 hop_length = 200
 sample_rate = 48000
@@ -13,8 +15,17 @@ name_to_class_code = {"A": 0, "B": 1, "X": 2, "BACKGROUND": 2}
 ground_truth_data_root = os.path.join(".", "data", "example.csv")
 ground_truth_pickle = True
 
+
 class SoundEvent:
-    def __init__(self, start, end, ground_truth_array, predictions_array, avg_iqr_array, votes_array):
+    def __init__(
+        self,
+        start,
+        end,
+        ground_truth_array,
+        predictions_array,
+        avg_iqr_array,
+        votes_array,
+    ):
         self.start = start
         self.end = end
 
@@ -37,7 +48,9 @@ class SoundEvent:
 
         self.span_iqr_average = np.average(avg_iqr_array)
         self.span_votes_average = np.average(votes_array)
-        if (self.span_iqr_average > iqr_threshold) or (self.span_votes_average < min_votes_needed):
+        if (self.span_iqr_average > iqr_threshold) or (
+            self.span_votes_average < min_votes_needed
+        ):
             self.adjusted_preds_label = name_to_class_code["BACKGROUND"]
         else:
             self.adjusted_preds_label = self.predictions_mode
@@ -60,10 +73,18 @@ def load_accuracy_metric_pickles(data_path, ground_truth_pickle):
 def get_ground_truth_np_array(data_path, pickle_shape):
     ground_truth_labels = pd.read_csv(data_path)
 
-    ground_truth_labels["begin samples idx"] = convert_time_to_index(ground_truth_labels["Begin Time (s)"], sample_rate)
-    ground_truth_labels["end samples idx"] = convert_time_to_index(ground_truth_labels["End Time (s)"], sample_rate)
-    ground_truth_labels["begin spect idx"] = [w2s_idx(x, hop_length) for x in ground_truth_labels["begin samples idx"]]
-    ground_truth_labels["end spect idx"] = [w2s_idx(x, hop_length) for x in ground_truth_labels["end samples idx"]]
+    ground_truth_labels["begin samples idx"] = convert_time_to_index(
+        ground_truth_labels["Begin Time (s)"], sample_rate
+    )
+    ground_truth_labels["end samples idx"] = convert_time_to_index(
+        ground_truth_labels["End Time (s)"], sample_rate
+    )
+    ground_truth_labels["begin spect idx"] = [
+        w2s_idx(x, hop_length) for x in ground_truth_labels["begin samples idx"]
+    ]
+    ground_truth_labels["end spect idx"] = [
+        w2s_idx(x, hop_length) for x in ground_truth_labels["end samples idx"]
+    ]
 
     # create a continuous numpy array for the ground truth
     ground_truth_label_vector = np.repeat(-1, pickle_shape)
@@ -88,17 +109,25 @@ def delete_indices(ground_truth, median_argmax, post_process, average_iqr, votes
     post_hmm_modified = np.delete(post_process, indices_to_delete)
     average_iqr_modified = np.delete(average_iqr, indices_to_delete)
     votes_modified = np.delete(votes, indices_to_delete, axis=1)
-    winning_vote_count = votes_modified[median_argmax_modified, np.arange(median_argmax_modified.shape[0])]
-    return ground_truth_modified, median_argmax_modified, post_hmm_modified, average_iqr_modified, winning_vote_count
+    winning_vote_count = votes_modified[
+        median_argmax_modified, np.arange(median_argmax_modified.shape[0])
+    ]
+    return (
+        ground_truth_modified,
+        median_argmax_modified,
+        post_hmm_modified,
+        average_iqr_modified,
+        winning_vote_count,
+    )
 
 
 def adjust_preds_by_confidence(
-        average_iqr,
-        iqr_threshold,
-        winning_vote_count,
-        min_votes_needed,
-        median_argmax,
-        map_to=2
+    average_iqr,
+    iqr_threshold,
+    winning_vote_count,
+    min_votes_needed,
+    median_argmax,
+    map_to=2,
 ):
     iqr_too_high = np.where(average_iqr > iqr_threshold)
     votes_too_low = np.where(winning_vote_count < min_votes_needed)
@@ -107,7 +136,9 @@ def adjust_preds_by_confidence(
     return median_argmax
 
 
-def make_sound_events_array(ground_truth, median_argmax, average_iqr, winning_vote_count):
+def make_sound_events_array(
+    ground_truth, median_argmax, average_iqr, winning_vote_count
+):
     sound_event_indices = get_sound_event_indices(ground_truth)
 
     sound_events = []
@@ -117,15 +148,21 @@ def make_sound_events_array(ground_truth, median_argmax, average_iqr, winning_vo
             end = sound_event_indices[i + 1]
         else:
             end = len(ground_truth)
-        sound_event = SoundEvent(start, end, ground_truth, median_argmax, average_iqr, winning_vote_count)
+        sound_event = SoundEvent(
+            start, end, ground_truth, median_argmax, average_iqr, winning_vote_count
+        )
         sound_events.append(sound_event)
 
     return sound_events
 
 
 def get_sound_event_indices(ground_truth):
-    n_events = 1  # note that n_events needs to start at 1 to count the first label as a chunk.
-    sound_event_indices = [0]  # here, we keep track of where these sound events start and stop
+    n_events = (
+        1  # note that n_events needs to start at 1 to count the first label as a chunk.
+    )
+    sound_event_indices = [
+        0
+    ]  # here, we keep track of where these sound events start and stop
     # (and manually record that the first sound starts at index 0).
     for i in range(len(ground_truth) - 1):
         current_label = ground_truth[i]
@@ -137,13 +174,22 @@ def get_sound_event_indices(ground_truth):
 
 
 def get_accuracy_metrics(ground_truth, predictions, normalize_confmat=None):
-    accuracy = metrics.accuracy_score(y_true=ground_truth, y_pred=predictions, normalize=True)
+    accuracy = metrics.accuracy_score(
+        y_true=ground_truth, y_pred=predictions, normalize=True
+    )
     recall = metrics.recall_score(y_true=ground_truth, y_pred=predictions, average=None)
-    precision = metrics.precision_score(y_true=ground_truth, y_pred=predictions, average=None)
-    confusion_matrix = metrics.confusion_matrix(y_true=ground_truth, y_pred=predictions,
-                                                normalize=normalize_confmat, labels=[0, 1, 2, 3]).round(3)
-    confusion_matrix_nonnorm = metrics.confusion_matrix(y_true=ground_truth, y_pred=predictions,
-                                                        labels=[0, 1, 2, 3]).round(4)
+    precision = metrics.precision_score(
+        y_true=ground_truth, y_pred=predictions, average=None
+    )
+    confusion_matrix = metrics.confusion_matrix(
+        y_true=ground_truth,
+        y_pred=predictions,
+        normalize=normalize_confmat,
+        labels=[0, 1, 2, 3],
+    ).round(3)
+    confusion_matrix_nonnorm = metrics.confusion_matrix(
+        y_true=ground_truth, y_pred=predictions, labels=[0, 1, 2, 3]
+    ).round(4)
     IoU = metrics.jaccard_score(y_true=ground_truth, y_pred=predictions, average=None)
     return accuracy, recall, precision, confusion_matrix, confusion_matrix_nonnorm, IoU
 
@@ -172,7 +218,9 @@ if __name__ == "__main__":
     proportion_event_correct_array = [30, 40, 50, 70, 80, 90, 95]
 
     ensemble_name = str(ensemble_members) + "_" + ensemble_type
-    infer_data_root = os.path.join(".", "data", "accuracy_metrics", "test_files-ensemble_" + ensemble_name)
+    infer_data_root = os.path.join(
+        ".", "data", "accuracy_metrics", "test_files-ensemble_" + ensemble_name
+    )
 
     event_wise = {}
     point_wise = {}
@@ -182,20 +230,51 @@ if __name__ == "__main__":
             for min_votes_needed in min_votes_needed_array:
                 if iqr_threshold == 1.0 or min_votes_needed == 0:
                     # load in predictions
-                    ground_truth, median_argmax, post_hmm, average_iqr, votes = load_accuracy_metric_pickles(
-                        infer_data_root,
-                        ground_truth_pickle)
+                    (
+                        ground_truth,
+                        median_argmax,
+                        post_hmm,
+                        average_iqr,
+                        votes,
+                    ) = load_accuracy_metric_pickles(
+                        infer_data_root, ground_truth_pickle
+                    )
                     # load in ground truth, raven-format labels and create columns with more helpful indexing
                     if not ground_truth_pickle:
-                        ground_truth = get_ground_truth_np_array(ground_truth_data_root, median_argmax.shape[0])
+                        ground_truth = get_ground_truth_np_array(
+                            ground_truth_data_root, median_argmax.shape[0]
+                        )
                     # remove indices where ground truth csv has no labels
-                    ground_truth, median_argmax, post_hmm, average_iqr, winning_vote_count = delete_indices(
-                        ground_truth, median_argmax, post_hmm, average_iqr, votes,
+                    (
+                        ground_truth,
+                        median_argmax,
+                        post_hmm,
+                        average_iqr,
+                        winning_vote_count,
+                    ) = delete_indices(
+                        ground_truth,
+                        median_argmax,
+                        post_hmm,
+                        average_iqr,
+                        votes,
                     )
 
                     if pointwise_accuracy:
-                        final_adjusted_preds = adjust_preds_by_confidence(average_iqr, iqr_threshold, winning_vote_count, min_votes_needed, median_argmax)
-                        accuracy, recall, precision, confusion_matrix, confmat_nonnorm, IoU = get_accuracy_metrics(
+                        final_adjusted_preds = adjust_preds_by_confidence(
+                            average_iqr,
+                            iqr_threshold,
+                            winning_vote_count,
+                            min_votes_needed,
+                            median_argmax,
+                        )
+                        (
+                            accuracy,
+                            recall,
+                            precision,
+                            confusion_matrix,
+                            confmat_nonnorm,
+                            IoU,
+                        ) = get_accuracy_metrics(
                             ground_truth,
                             final_adjusted_preds,
                             normalize_confmat="true",
@@ -219,18 +298,37 @@ if __name__ == "__main__":
 
                     else:
                         for proportion_event_correct in proportion_event_correct_array:
-                            sound_events = make_sound_events_array(ground_truth, median_argmax, average_iqr,
-                                                                   winning_vote_count)
+                            sound_events = make_sound_events_array(
+                                ground_truth,
+                                median_argmax,
+                                average_iqr,
+                                winning_vote_count,
+                            )
 
-                            event_ground_truth = [sound_event.ground_truth_label for sound_event in sound_events]
-                            event_preds_uncertainty_adjusted = [sound_event.adjusted_preds_label for sound_event in
-                                                                sound_events]
-                            event_preds_unadjusted = [sound_event.predictions_mode for sound_event in sound_events]
+                            event_ground_truth = [
+                                sound_event.ground_truth_label
+                                for sound_event in sound_events
+                            ]
+                            event_preds_uncertainty_adjusted = [
+                                sound_event.adjusted_preds_label
+                                for sound_event in sound_events
+                            ]
+                            event_preds_unadjusted = [
+                                sound_event.predictions_mode
+                                for sound_event in sound_events
+                            ]
 
-                            accuracy, recall, precision, confusion_matrix, confmat_nonnorm, IoU = get_accuracy_metrics(
+                            (
+                                accuracy,
+                                recall,
+                                precision,
+                                confusion_matrix,
+                                confmat_nonnorm,
+                                IoU,
+                            ) = get_accuracy_metrics(
                                 event_ground_truth,
                                 event_preds_uncertainty_adjusted,
-                                normalize_confmat="true"
+                                normalize_confmat="true",
                             )
 
                             large_dict = defaultdict(dict)
@@ -239,20 +337,50 @@ if __name__ == "__main__":
                             large_dict["recall, B chirp"] = recall[1]
 
                             large_dict["A chirp correct"] = confmat_nonnorm[0, 0]
-                            large_dict["A chirp incorrect"] = np.sum(confmat_nonnorm[0, 1:])
+                            large_dict["A chirp incorrect"] = np.sum(
+                                confmat_nonnorm[0, 1:]
+                            )
                             large_dict["B chirp correct"] = confmat_nonnorm[1, 1]
 
-                            large_dict["B chirp incorrect"] = confmat_nonnorm[1, 0] + confmat_nonnorm[1, 2] + confmat_nonnorm[1, 3]
+                            large_dict["B chirp incorrect"] = (
+                                confmat_nonnorm[1, 0]
+                                + confmat_nonnorm[1, 2]
+                                + confmat_nonnorm[1, 3]
+                            )
 
                             large_dict["confusion_matrix"] = confusion_matrix
                             large_dict["confusion_matrix_nonnorm"] = confmat_nonnorm
                             category_string = f"{iqr_threshold}/{min_votes_needed}/{proportion_event_correct}"
                             print("event_wise", category_string)
-                            event_wise[f"{iqr_threshold}/{min_votes_needed}/{proportion_event_correct}"] = large_dict
+                            event_wise[
+                                f"{iqr_threshold}/{min_votes_needed}/{proportion_event_correct}"
+                            ] = large_dict
 
-    print("Saving dataframe to " + os.path.join("disco", "plots", "final_data_csvs", f"~~point OR event~~_wise_{ensemble_members}_{ensemble_type}.csv"))
+    print(
+        "Saving dataframe to "
+        + os.path.join(
+            "disco",
+            "plots",
+            "final_data_csvs",
+            f"~~point OR event~~_wise_{ensemble_members}_{ensemble_type}.csv",
+        )
+    )
     pointwise_dataframe = pd.DataFrame.from_dict(point_wise)
     eventwise_dataframe = pd.DataFrame.from_dict(event_wise)
     os.makedirs(os.path.join("plots", "final_data_csvs"), exist_ok=True)
-    pointwise_dataframe.to_csv(os.path.join("disco", "plots", "final_data_csvs", f"point_wise_{ensemble_members}_{ensemble_type}.csv"))
-    eventwise_dataframe.to_csv(os.path.join("disco", "plots", "final_data_csvs", f"event_wise_{ensemble_members}_{ensemble_type}.csv"))
+    pointwise_dataframe.to_csv(
+        os.path.join(
+            "disco",
+            "plots",
+            "final_data_csvs",
+            f"point_wise_{ensemble_members}_{ensemble_type}.csv",
+        )
+    )
+    eventwise_dataframe.to_csv(
+        os.path.join(
+            "disco",
+            "plots",
+            "final_data_csvs",
+            f"event_wise_{ensemble_members}_{ensemble_type}.csv",
+        )
+    )
