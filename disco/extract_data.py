@@ -1,14 +1,13 @@
+import logging
+import os
+import pickle
 import random
-import pdb
+from glob import glob
 from shutil import copy2
-import torchaudio
+
 import numpy as np
 import pandas as pd
-import pickle
-import os
-import logging
-
-from glob import glob
+import torchaudio
 from sklearn.model_selection import train_test_split
 
 log = logging.getLogger(__name__)
@@ -25,12 +24,12 @@ def w2s_idx(idx, hop_length):
 
 
 def create_label_to_spectrogram(
-        spect,
-        labels,
-        hop_length,
-        name_to_class_code,
-        excluded_classes,
-        neighbor_tolerance=100,
+    spect,
+    labels,
+    hop_length,
+    name_to_class_code,
+    excluded_classes,
+    neighbor_tolerance=100,
 ):
     """
     Accepts a spectrogram (torch.Tensor) and labels (pd.DataFrame) and returns
@@ -61,7 +60,9 @@ def create_label_to_spectrogram(
         i = 0
         while i < labels.shape[0] - 1:
             contig = [i]
-            while (labels.iloc[i + 1]["begin idx"] - labels.iloc[i]["end idx"]) <= neighbor_tolerance:
+            while (
+                labels.iloc[i + 1]["begin idx"] - labels.iloc[i]["end idx"]
+            ) <= neighbor_tolerance:
                 contig.extend([i + 1])
                 i += 1
                 if i == labels.shape[0] - 1:
@@ -109,8 +110,9 @@ def convert_time_to_index(time, sample_rate):
     return np.round(time * sample_rate).astype(np.int)
 
 
-def extract_wav_and_csv_pair(csv_filename, wav_filename,
-                             n_fft, mel_scale, config, hop_length=200):
+def extract_wav_and_csv_pair(
+    csv_filename, wav_filename, n_fft, mel_scale, config, hop_length=200
+):
     """
     Applies the labels contained in csv_filename to the .wav file and extracts the labeled regions.
     :param csv_filename: .csv file containing the labels.
@@ -143,15 +145,12 @@ def extract_wav_and_csv_pair(csv_filename, wav_filename,
     # creates a spectrogram with a log2 transform
     if mel_scale:
         spect = torchaudio.transforms.MelSpectrogram(
-            sample_rate=sample_rate,
-            n_fft=n_fft,
-            hop_length=hop_length
+            sample_rate=sample_rate, n_fft=n_fft, hop_length=hop_length
         )(waveform)
     else:
-        spect = torchaudio.transforms.Spectrogram(
-            n_fft=n_fft,
-            hop_length=hop_length
-        )(waveform)
+        spect = torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length)(
+            waveform
+        )
 
     # dictionary containing all pre-labeled chirps and their associated spectrograms
     spect = spect.squeeze()
@@ -197,11 +196,15 @@ def save_data(out_path, data_list, filename_prefix, index_to_label, overwrite):
             uniq = np.unique(lvec, return_counts=True)
             label = np.argmax(uniq[1])
 
-        out_fpath = os.path.join(out_path, f"{filename_prefix}_{index_to_label[label]}_{fcount}.pkl")
+        out_fpath = os.path.join(
+            out_path, f"{filename_prefix}_{index_to_label[label]}_{fcount}.pkl"
+        )
 
         if os.path.isfile(out_fpath) and not overwrite:
-            log.info(f"Found file already at {out_fpath}. Skipping re-saving."
-                     f" Specify --overwrite to overwrite.")
+            log.info(
+                f"Found file already at {out_fpath}. Skipping re-saving."
+                f" Specify --overwrite to overwrite."
+            )
         else:
             log.info(f"Saving {out_fpath}.")
             with open(out_fpath, "wb") as dst:
@@ -210,14 +213,16 @@ def save_data(out_path, data_list, filename_prefix, index_to_label, overwrite):
         fcount += 1
 
 
-def extract_single_file(config,
-                        csv_file,
-                        wav_file,
-                        random_seed,
-                        no_mel_scale,
-                        n_fft,
-                        output_data_path,
-                        overwrite):
+def extract_single_file(
+    config,
+    csv_file,
+    wav_file,
+    random_seed,
+    no_mel_scale,
+    n_fft,
+    output_data_path,
+    overwrite,
+):
     """
     TODO: fix docstring
     Function to wrap the single data loading, extraction, and saving routine.
@@ -238,9 +243,16 @@ def extract_single_file(config,
     np.random.seed(random_seed)
 
     mel = not no_mel_scale
-    features_and_labels = extract_wav_and_csv_pair(csv_file, wav_file, n_fft, mel, config)
-    save_data(output_data_path, features_and_labels, filename_prefix=os.path.basename(os.path.splitext(csv_file)[0]),
-              index_to_label=config.class_code_to_name, overwrite=overwrite)
+    features_and_labels = extract_wav_and_csv_pair(
+        csv_file, wav_file, n_fft, mel, config
+    )
+    save_data(
+        output_data_path,
+        features_and_labels,
+        filename_prefix=os.path.basename(os.path.splitext(csv_file)[0]),
+        index_to_label=config.class_code_to_name,
+        overwrite=overwrite,
+    )
 
 
 def shuffle_data(data_directory, train_pct, extension, move, random_seed):
@@ -250,10 +262,10 @@ def shuffle_data(data_directory, train_pct, extension, move, random_seed):
 
     np.random.seed(random_seed)
     indices = np.random.permutation(len(data_files))
-    train_idx = indices[:int(len(indices)*train_pct)]
-    the_rest = indices[int(len(indices)*train_pct):]
-    test_idx = the_rest[:len(the_rest) // 2]
-    val_idx = the_rest[len(the_rest) // 2:]
+    train_idx = indices[: int(len(indices) * train_pct)]
+    the_rest = indices[int(len(indices) * train_pct) :]
+    test_idx = the_rest[: len(the_rest) // 2]
+    val_idx = the_rest[len(the_rest) // 2 :]
     assert np.all(train_idx != test_idx)
     assert np.all(train_idx != val_idx)
     assert np.all(test_idx != val_idx)

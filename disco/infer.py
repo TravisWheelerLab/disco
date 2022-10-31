@@ -1,10 +1,10 @@
-import pdb
-import warnings
-import numpy as np
-import os
 import logging
-import torch
+import os
+import warnings
 from glob import glob
+
+import numpy as np
+import torch
 
 import disco.heuristics as heuristics
 import disco.inference_utils as infer
@@ -17,29 +17,29 @@ log = logging.getLogger(__name__)
 
 
 def run_inference(
-        config,
-        wav_file=None,
-        output_csv_path=None,
-        filter_csv_label=None,
-        saved_model_directory=None,
-        model_extension=".pt",
-        tile_overlap=128,
-        tile_size=1024,
-        batch_size=32,
-        input_channels=108,
-        hop_length=200,
-        vertical_trim=20,
-        n_fft=1150,
-        viz=None,
-        viz_path=None,
-        accuracy_metrics=None,
-        accuracy_metrics_test_directory=None,
-        num_threads=4,
-        noise_pct=0,
-        map_unconfident=False,
-        map_to=None,
-        unconfidence_mapper_iqr_threshold=1.0,
-        blackout_unconfident_in_viz=False,
+    config,
+    wav_file=None,
+    output_csv_path=None,
+    filter_csv_label=None,
+    saved_model_directory=None,
+    model_extension=".pt",
+    tile_overlap=128,
+    tile_size=1024,
+    batch_size=32,
+    input_channels=108,
+    hop_length=200,
+    vertical_trim=20,
+    n_fft=1150,
+    viz=None,
+    viz_path=None,
+    accuracy_metrics=None,
+    accuracy_metrics_test_directory=None,
+    num_threads=4,
+    noise_pct=0,
+    map_unconfident=False,
+    map_to=None,
+    unconfidence_mapper_iqr_threshold=1.0,
+    blackout_unconfident_in_viz=False,
 ):
     """
     Script to run the inference routine. Briefly: Model ensemble is loaded in, used to evaluate the spectrogram, and
@@ -89,11 +89,15 @@ def run_inference(
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cpu":
         torch.set_num_threads(num_threads)
-    models = infer.assemble_ensemble(saved_model_directory, model_extension, device, input_channels, config)
+    models = infer.assemble_ensemble(
+        saved_model_directory, model_extension, device, input_channels, config
+    )
     if len(models) < 1:
-        raise ValueError("expected 1 or more models, found {}. Is model directory and extension correct?".format(
-            len(models)
-        ))
+        raise ValueError(
+            "expected 1 or more models, found {}. Is model directory and extension correct?".format(
+                len(models)
+            )
+        )
     if accuracy_metrics:
         test_files = glob(os.path.join(accuracy_metrics_test_directory, "*.pkl"))
         test_dataset = SpectrogramDatasetMultiLabel(
@@ -112,7 +116,9 @@ def run_inference(
             collate_fn=None,
         )
 
-        spect, labels, iqr, medians, means, votes = infer.evaluate_pickles(test_loader, models, device=device)
+        spect, labels, iqr, medians, means, votes = infer.evaluate_pickles(
+            test_loader, models, device=device
+        )
 
     else:
         spectrogram_iterator = infer.SpectrogramIterator(
@@ -127,10 +133,7 @@ def run_inference(
             wav_file=wav_file,
         )
         spectrogram_dataset = torch.utils.data.DataLoader(
-            spectrogram_iterator,
-            shuffle=False,
-            batch_size=batch_size,
-            drop_last=False
+            spectrogram_iterator, shuffle=False, batch_size=batch_size, drop_last=False
         )
         original_spectrogram = spectrogram_iterator.original_spectrogram
         original_shape = spectrogram_iterator.original_shape
@@ -190,7 +193,9 @@ def run_inference(
         )
 
     if viz:
-        debug_path = infer.make_viz_directory(wav_file, saved_model_directory, viz_path, accuracy_metrics)
+        debug_path = infer.make_viz_directory(
+            wav_file, saved_model_directory, viz_path, accuracy_metrics
+        )
 
         spectrogram_path = os.path.join(debug_path, "raw_spectrogram.pkl")
         hmm_prediction_path = os.path.join(debug_path, "hmm_predictions.pkl")
@@ -210,7 +215,9 @@ def run_inference(
                 noise_pct=noise_pct,
                 filter_csv_label=filter_csv_label,
             )
-            infer.pickle_tensor(spectrogram_iterator.original_spectrogram, spectrogram_path)
+            infer.pickle_tensor(
+                spectrogram_iterator.original_spectrogram, spectrogram_path
+            )
         else:
             infer.pickle_tensor(spect, spectrogram_path)
 
