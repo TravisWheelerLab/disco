@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel", "flit_core >=3.2,<4"]
+requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -8,6 +8,11 @@ authors = [{name = "Kayla Irish", email = "kayla.irish@umontana.edu"},
     {name = "Tommy Colligan", email = "thomas.colligan@umontana.edu"}]
 readme = "README.md"
 dynamic = ["version", "description"]
+dependencies = ["numpy",
+    "matplotlib",
+    "pytorch_lightning",
+    "torchaudio",
+    "pyyaml"]
 
 [project.urls]
 Home = "https://github.com/TravisWheelerLab/disco"
