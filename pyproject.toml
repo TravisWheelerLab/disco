@@ -1,6 +1,6 @@
 [build-system]
 requires = ["numpy", "matplotlib", "torch", "torchaudio",
-    "setuptools", "pomegranate", "pyyaml", "wheel"]
+    "setuptools", "pomegranate", "pyyaml", "wheel", "flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
