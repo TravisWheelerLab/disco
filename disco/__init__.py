@@ -84,12 +84,6 @@ def parser():
         help="size of the fft to use when calculating spectrogram",
     )
     infer_parser.add_argument(
-        "-v",
-        "--viz",
-        action="store_true",
-        help="save visualization statistics of the data for calling viz",
-    )
-    infer_parser.add_argument(
         "--viz_path",
         type=str,
         default=None,
@@ -461,10 +455,8 @@ def main():
 
         torch.manual_seed(0)
 
-        if (
-            not args.viz
-            and args.output_csv_path is None
-            and not (args.accuracy_metrics and args.accuracy_metrics_test_directory)
+        if args.output_csv_path is None and not (
+            args.accuracy_metrics and args.accuracy_metrics_test_directory
         ):
             if args.output_csv_path is None:
                 raise ValueError(
@@ -490,7 +482,6 @@ def main():
             hop_length=args.hop_length,
             vertical_trim=args.vertical_trim,
             n_fft=args.n_fft,
-            viz=args.viz,
             viz_path=args.viz_path,
             accuracy_metrics=args.accuracy_metrics,
             accuracy_metrics_test_directory=args.accuracy_metrics_test_directory,

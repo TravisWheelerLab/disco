@@ -30,7 +30,6 @@ def run_inference(
     hop_length=200,
     vertical_trim=20,
     n_fft=1150,
-    viz=None,
     viz_path=None,
     accuracy_metrics=None,
     accuracy_metrics_test_directory=None,
@@ -62,7 +61,6 @@ def run_inference(
     :param vertical_trim: How many rows to chop off from the beginning of the spectrogram (in effect, a high-pass
     filter).
     :param n_fft: N ffts to use when calulating the spectrogram.
-    :param viz: bool. Whether to save statistics of the output predictions.
     :param viz_path: str. Where to save the visualization data.  If debug path already exists, create a directory inside
     with the default name. If debug path doesn't already exist, creates a directory with the name provided. Default:
     creates a default-named directory within the current directory.
@@ -192,7 +190,7 @@ def run_inference(
             filter_csv_label=filter_csv_label,
         )
 
-    if viz:
+    if viz_path is not None:
         debug_path = infer.make_viz_directory(
             wav_file, saved_model_directory, viz_path, accuracy_metrics
         )
