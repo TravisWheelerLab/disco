@@ -7,10 +7,13 @@ from shutil import copy2
 
 import numpy as np
 import pandas as pd
+import torch
 import torchaudio
 from sklearn.model_selection import train_test_split
 
-log = logging.getLogger(__name__)
+from disco.util import add_gaussian_beeps, add_white_noise
+
+logger = logging.getLogger(__name__)
 
 
 def w2s_idx(idx, hop_length):
@@ -111,11 +114,13 @@ def convert_time_to_index(time, sample_rate):
 
 
 def extract_wav_and_csv_pair(
-    csv_filename, wav_filename, n_fft, mel_scale, config, hop_length=200
+    csv_filename, wav_filename, n_fft, mel_scale, snr, add_beeps, config, hop_length=200
 ):
     """
     Applies the labels contained in csv_filename to the .wav file and extracts the labeled regions.
     :param csv_filename: .csv file containing the labels.
+    :param snr: signal-to-noise ratio. 0 means no noise.
+    :param add_beeps: signal-to-noise ratio. 0 means no noise.
     :param wav_filename: .wav file containing the data.
     :param n_fft: int. Number of ffts to use when calculating the spectrogram.
     :param mel_scale: bool. Whether to calculate a MelSpectrogram.
@@ -126,7 +131,7 @@ def extract_wav_and_csv_pair(
     """
 
     labels = pd.read_csv(csv_filename)
-    log.info(f"File {os.path.basename(csv_filename)} has {labels.shape} labels.")
+    logger.info(f"File {os.path.basename(csv_filename)} has {labels.shape} labels.")
 
     if not os.path.isfile(wav_filename):
         wav_filename = os.path.splitext(csv_filename)[0] + ".WAV"
@@ -138,6 +143,13 @@ def extract_wav_and_csv_pair(
             )
 
     waveform, sample_rate = torchaudio.load(wav_filename)
+
+    if snr > 0:
+        waveform = add_white_noise(waveform, snr=snr)
+
+    if add_beeps:
+        waveform = add_gaussian_beeps(waveform, sample_rate=sample_rate)
+
     # adds additional columns to give indices of these chirp locations
     labels["begin idx"] = convert_time_to_index(labels["Begin Time (s)"], sample_rate)
     labels["end idx"] = convert_time_to_index(labels["End Time (s)"], sample_rate)
@@ -201,12 +213,12 @@ def save_data(out_path, data_list, filename_prefix, index_to_label, overwrite):
         )
 
         if os.path.isfile(out_fpath) and not overwrite:
-            log.info(
+            logger.info(
                 f"Found file already at {out_fpath}. Skipping re-saving."
                 f" Specify --overwrite to overwrite."
             )
         else:
-            log.info(f"Saving {out_fpath}.")
+            logger.info(f"Saving {out_fpath}.")
             with open(out_fpath, "wb") as dst:
                 pickle.dump([features, label_vector], dst)
 
@@ -222,29 +234,24 @@ def extract_single_file(
     n_fft,
     output_data_path,
     overwrite,
+    snr,
+    add_beeps,
 ):
     """
-    TODO: fix docstring
-    Function to wrap the single data loading, extraction, and saving routine.
-    Loads data from data_dir, calculates spectrogram, extracts labeled regions based on the .csv
-    file, and saves the regions to disk after shuffling and splitting into train/test/validation splits randomly.
-
-    :param config: disco.Config() object.
-    :param csv_file: csv file containing labels
-    :param wav_file: wav file containing recording
-    :param random_seed: int. What to seed RNGs with for reproducibility.
-    :param no_mel_scale: Whether or not to use the mel scale.
-    :param n_fft: How many ffts to use when calculating the spectrogram.
-    :param output_data_path: Where to save the extracted data.
-    :param overwrite: Whether or not to overwrite the data.
-    :return: None.
+    Extract data from a single .wav and .csv pair.
     """
     random.seed(random_seed)
     np.random.seed(random_seed)
 
     mel = not no_mel_scale
     features_and_labels = extract_wav_and_csv_pair(
-        csv_file, wav_file, n_fft, mel, config
+        csv_file,
+        wav_file,
+        n_fft,
+        mel,
+        snr,
+        add_beeps,
+        config,
     )
     save_data(
         output_data_path,
@@ -258,7 +265,7 @@ def extract_single_file(
 def shuffle_data(data_directory, train_pct, extension, move, random_seed):
     data_files = glob(os.path.join(data_directory, f"*{extension}"))
 
-    log.info(f"Setting seed for shuffling to {random_seed}.")
+    logger.info(f"Setting seed for shuffling to {random_seed}.")
 
     np.random.seed(random_seed)
     indices = np.random.permutation(len(data_files))
@@ -279,11 +286,11 @@ def shuffle_data(data_directory, train_pct, extension, move, random_seed):
     validation_path = os.path.join(data_directory, "validation")
     test_path = os.path.join(data_directory, "test")
 
-    log.info(f"Saving train files to {train_path}.")
+    logger.info(f"Saving train files to {train_path}.")
     copy_or_move_files(train_path, train_split, move)
-    log.info(f"Saving validation files to {validation_path}.")
+    logger.info(f"Saving validation files to {validation_path}.")
     copy_or_move_files(validation_path, val_split, move)
-    log.info(f"Saving test files to {test_path}.")
+    logger.info(f"Saving test files to {test_path}.")
     copy_or_move_files(test_path, test_split, move)
 
 
@@ -292,5 +299,5 @@ def copy_or_move_files(out_path, files, move):
     # instead of a conditional
     func = os.rename if move else copy2
     for filename in files:
-        log.debug(f"Copying {filename} to {out_path}")
+        logger.debug(f"Copying {filename} to {out_path}")
         func(filename, os.path.join(out_path, os.path.basename(filename)))

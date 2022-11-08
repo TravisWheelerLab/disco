@@ -14,8 +14,9 @@ import tqdm
 import disco.heuristics as heuristics
 from disco.accuracy_metrics import adjust_preds_by_confidence
 from disco.models import UNet1D
+from disco.util import add_gaussian_beeps, add_white_noise
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def create_hmm(transition_matrix, emission_probs, start_probs):
@@ -84,7 +85,9 @@ def aggregate_predictions(predictions):
     class_idx_to_prediction_start_and_end = []
 
     if len(idx) == 0:
-        log.info("Only one class found after heuristics, csv will only contain one row")
+        logger.info(
+            "Only one class found after heuristics, csv will only contain one row"
+        )
         dct = {
             "class": current_class,
             "start": current_idx,
@@ -147,7 +150,6 @@ def save_csv_from_predictions(
     sample_rate,
     hop_length,
     name_to_class_code,
-    noise_pct,
     filter_csv_label,
 ):
     """
@@ -159,7 +161,6 @@ def save_csv_from_predictions(
     :param sample_rate: Sample rate of predicted .wav file.
     :param hop_length: Spectrogram hop length.
     :param name_to_class_code: mapping from class name to class code (ex {"A":1}).
-    :param noise_pct: Float of how much noise is added to the spectrogram.
     :param filter_csv_label: str. remove a class from final csv.
     :return: pandas.DataFrame describing the saved csv.
     """
@@ -200,9 +201,6 @@ def save_csv_from_predictions(
 
     if not os.path.isdir(dirname):
         os.makedirs(dirname, exist_ok=True)
-
-    if noise_pct > 0:
-        output_csv_path = output_csv_path + "_" + str(noise_pct) + "_pctnoise"
 
     df.to_csv(output_csv_path, index=False)
 
@@ -281,7 +279,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
     model_paths = glob(os.path.join(model_directory, f"*{model_extension}"))
 
     if not len(model_paths):
-        log.info("no models found, downloading to {}".format(model_directory))
+        logger.info("no models found, downloading to {}".format(model_directory))
         download_models(model_directory, config.aws_download_link)
 
     model_paths = glob(os.path.join(model_directory, f"*{model_extension}"))
@@ -534,58 +532,6 @@ def evaluate_pickles(spectrogram_dataset, models, device="cpu"):
     )
 
 
-def make_viz_directory(wav_file, saved_model_directory, debug_path, accuracy_metrics):
-    """
-    Creates a directory based on the parser's debug path and returns the updated debug path later used for saving the
-    statistics. If given debug path already exists, creates a directory inside with the default name. If debug path
-    doesn't already exist, creates a directory with the name provided. If there is no debug path provided, creates a
-    default-named directory within the current directory.
-    :param wav_file: String. filepath of the given .wav file.
-    :param saved_model_directory: String. filepath of the saved models.
-    :param debug_path: String. Path indicating where to save the visualization files.
-    :param accuracy_metrics: bool. Whether the input files are accuracy metric (test) files.
-    :return: Updated debug path used
-    """
-    if not accuracy_metrics:
-        default_dirname = (
-            os.path.split(wav_file)[-1].split(".")[0]
-            + "-"
-            + os.path.split(saved_model_directory)[-1]
-        )
-    else:
-        default_dirname = (
-            os.path.basename(saved_model_directory) + "_test_files_visualization"
-        )
-
-    if debug_path is not None:
-        if os.path.exists(debug_path):
-            debug_path = os.path.join(debug_path, default_dirname)
-            os.makedirs(debug_path, exist_ok=True)
-        else:
-            os.makedirs(debug_path, exist_ok=True)
-    else:
-        debug_path = default_dirname
-        os.makedirs(debug_path, exist_ok=True)
-    print("Created visualizations directory: " + debug_path + ".")
-    return debug_path
-
-
-def add_gaussian_noise(spectrogram, noise_pct):
-    """
-    Adds gaussian noise to the spectrogram to experiment with out-of-distribution data. Find the standard deviation of
-    spectrogram values, multiplies by the percent provided, and multiplies onto a random number torch tensor. Finally,
-    adds these values to given spectrogram.
-    :param spectrogram: torch tensor of spectrogram
-    :param noise_pct: int. of desired noise percent of spectrogram standard deviation. This is multiplied by a random
-    variable distributed as a Normal(0,1) for each pixel of the spectrogram.
-    :return: Noised spectrogram
-    """
-    spect_sd = torch.std(spectrogram)
-    noise = 0.01 * noise_pct
-    spectrogram = spectrogram + noise * spect_sd * torch.randn(size=spectrogram.shape)
-    return spectrogram
-
-
 class SpectrogramIterator(torch.nn.Module):
     def __init__(
         self,
@@ -596,33 +542,42 @@ class SpectrogramIterator(torch.nn.Module):
         hop_length,
         log_spect,
         mel_transform,
-        noise_pct,
+        snr,
+        add_beeps,
         wav_file=None,
         spectrogram=None,
     ):
         super().__init__()
+
         self.tile_size = tile_size
         self.tile_overlap = tile_overlap
+
         if self.tile_size <= tile_overlap:
             raise ValueError()
+
         self.wav_file = wav_file
         self.spectrogram = spectrogram
+
         if self.spectrogram is None and self.wav_file is None:
             raise ValueError()
+
         self.vertical_trim = vertical_trim
         self.n_fft = n_fft
         self.hop_length = hop_length
         self.log_spect = log_spect
         self.mel_transform = mel_transform
-        self.noise_pct = noise_pct
+
         if self.spectrogram is None:
-            waveform, self.sample_rate = load_wav_file(self.wav_file)
-            self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)
+            waveform, self.sample_rate = load_wav_file(wav_file)
+            self.spectrogram = self.create_spectrogram(
+                waveform, self.sample_rate, snr, add_beeps
+            )
+
         self.spectrogram = self.spectrogram[vertical_trim:]
+
         if not torch.is_tensor(self.spectrogram):
             self.spectrogram = torch.tensor(self.spectrogram)
-        if self.noise_pct != 0:
-            self.spectrogram = add_gaussian_noise(self.spectrogram, self.noise_pct)
+
         if self.log_spect:
             self.spectrogram[self.spectrogram == 0] = 1
             self.spectrogram = self.spectrogram.log2()
@@ -659,7 +614,14 @@ class SpectrogramIterator(torch.nn.Module):
             dim=-1,
         )
 
-    def create_spectrogram(self, waveform, sample_rate):
+    def create_spectrogram(self, waveform, sample_rate, snr, add_beeps):
+        if snr > 0:
+            # add white gaussian noise
+            waveform = add_white_noise(waveform, snr)
+
+        if add_beeps:
+            waveform = add_gaussian_beeps(waveform, sample_rate)
+
         if self.mel_transform:
             spectrogram = torchaudio.transforms.MelSpectrogram(
                 sample_rate=sample_rate, n_fft=self.n_fft, hop_length=self.hop_length

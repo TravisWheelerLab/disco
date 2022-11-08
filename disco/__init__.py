@@ -271,6 +271,12 @@ def parser():
         help="SNR of white noise to add into the waveforms.",
     )
     extract_parser.add_argument(
+        "--add_beeps",
+        action="store_true",
+        help="Whether or not to add beeps to the .wav files before extraction."
+        " Useful for experiments in the paper.",
+    )
+    extract_parser.add_argument(
         "--mel_scale",
         action="store_true",
         help="whether or not to create a mel spectrogram. Default: don't create it",
@@ -429,6 +435,7 @@ def main():
             output_data_path=args.data_dir,
             overwrite=args.overwrite,
             snr=args.snr,
+            add_beeps=args.add_beeps,
         )
 
     elif args.command == "viz":
