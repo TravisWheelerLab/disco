@@ -23,6 +23,7 @@ def run_inference(
     filter_csv_label=None,
     saved_model_directory=None,
     model_extension=".pt",
+    metrics_path=None,
     tile_overlap=128,
     tile_size=1024,
     batch_size=32,
@@ -34,7 +35,8 @@ def run_inference(
     accuracy_metrics=None,
     accuracy_metrics_test_directory=None,
     num_threads=4,
-    noise_pct=0,
+    snr=0,
+    add_beeps=False,
     map_unconfident=False,
     map_to=None,
     unconfidence_mapper_iqr_threshold=1.0,
@@ -67,7 +69,8 @@ def run_inference(
     :param accuracy_metrics: bool. whether to save a directory containing needed files to determine ensemble accuracy
     :param accuracy_metrics_test_directory: str. where test files are located.
     :param num_threads: int. How many threads to use when loading data.
-    :param noise_pct: float. How much noise to add to the data.
+    :param snr: float. SNR ratio to add to the data. O means no noise.
+    :param add_beeps: bool. Whether or not to add semi-random 400Hz gaussian beeps to the data.
     :param map_unconfident: bool. whether to map any singular label in the horizontal index of the spectrogram to
     a different class (for example, mapping all unconfident labels to a background class).
     :param map_to: str. A class label. i.e., a key in config.py's "name_to_class_code" dictionary, e.g. "BACKGROUND".
@@ -81,8 +84,6 @@ def run_inference(
 
     if tile_size % 2 != 0:
         raise ValueError("tile_size must be even, got {}".format(tile_size))
-    if noise_pct < 0 or noise_pct > 100:
-        raise ValueError("noise_pct must be a percentage, got {}".format(noise_pct))
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cpu":
@@ -98,6 +99,12 @@ def run_inference(
         )
     if accuracy_metrics:
         test_files = glob(os.path.join(accuracy_metrics_test_directory, "*.pkl"))
+
+        if not len(test_files):
+            raise ValueError(
+                f"Didn't find any .pkl files in {accuracy_metrics_test_directory}."
+            )
+
         test_dataset = SpectrogramDatasetMultiLabel(
             test_files,
             config=config,
@@ -127,7 +134,8 @@ def run_inference(
             hop_length=hop_length,
             log_spect=True,
             mel_transform=True,
-            noise_pct=noise_pct,
+            snr=snr,
+            add_beeps=add_beeps,
             wav_file=wav_file,
         )
         spectrogram_dataset = torch.utils.data.DataLoader(
@@ -186,22 +194,18 @@ def run_inference(
             sample_rate=spectrogram_iterator.sample_rate,
             hop_length=hop_length,
             name_to_class_code=config.name_to_class_code,
-            noise_pct=noise_pct,
             filter_csv_label=filter_csv_label,
         )
 
     if viz_path is not None:
-        debug_path = infer.make_viz_directory(
-            wav_file, saved_model_directory, viz_path, accuracy_metrics
-        )
 
-        spectrogram_path = os.path.join(debug_path, "raw_spectrogram.pkl")
-        hmm_prediction_path = os.path.join(debug_path, "hmm_predictions.pkl")
-        median_prediction_path = os.path.join(debug_path, "median_predictions.pkl")
-        mean_prediction_path = os.path.join(debug_path, "mean_predictions.pkl")
-        votes_path = os.path.join(debug_path, "votes.pkl")
-        iqr_path = os.path.join(debug_path, "iqrs.pkl")
-        csv_path = os.path.join(debug_path, "classifications.csv")
+        spectrogram_path = os.path.join(viz_path, "raw_spectrogram.pkl")
+        hmm_prediction_path = os.path.join(viz_path, "hmm_predictions.pkl")
+        median_prediction_path = os.path.join(viz_path, "median_predictions.pkl")
+        mean_prediction_path = os.path.join(viz_path, "mean_predictions.pkl")
+        votes_path = os.path.join(viz_path, "votes.pkl")
+        iqr_path = os.path.join(viz_path, "iqrs.pkl")
+        csv_path = os.path.join(viz_path, "classifications.csv")
 
         if not accuracy_metrics:
             infer.save_csv_from_predictions(
@@ -210,7 +214,6 @@ def run_inference(
                 sample_rate=spectrogram_iterator.sample_rate,
                 hop_length=hop_length,
                 name_to_class_code=config.name_to_class_code,
-                noise_pct=noise_pct,
                 filter_csv_label=filter_csv_label,
             )
             infer.pickle_tensor(
@@ -226,11 +229,11 @@ def run_inference(
         infer.pickle_tensor(votes, votes_path)
 
     if accuracy_metrics:
-        default_dirname = f"test_files-{os.path.basename(saved_model_directory)}"
-        metrics_path = os.path.join("data", "accuracy_metrics", default_dirname)
-        os.makedirs(metrics_path, exist_ok=True)
-
-        print("Created accuracy metrics directory: " + metrics_path + ".")
+        if metrics_path is None:
+            raise ValueError("Must pass a string for metrics path.")
+        if not os.path.isdir(metrics_path):
+            log.info(f"Creating accuracy metrics directory {metrics_path}.")
+            os.makedirs(metrics_path, exist_ok=True)
 
         labels_path = os.path.join(metrics_path, "ground_truth.pkl")
         hmm_prediction_path = os.path.join(metrics_path, "hmm_predictions.pkl")

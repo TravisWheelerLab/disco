@@ -5,12 +5,13 @@ __version__ = "0.0.1"
 
 import logging
 import os
+import pdb
 from argparse import ArgumentParser
 
 from disco.config import Config
 
 logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def parser():
@@ -26,6 +27,11 @@ def parser():
         default=Config().default_model_directory,
         type=str,
         help="where the ensemble of models is stored",
+    )
+    infer_parser.add_argument(
+        "--metrics_path",
+        default=None,
+        help="Where to save the predicted file.",
     )
     infer_parser.add_argument(
         "--model_extension",
@@ -110,13 +116,15 @@ def parser():
         help="how many threads to use when evaluating on CPU",
     )
     infer_parser.add_argument(
-        "--noise_pct",
+        "--snr",
         type=float,
         default=0,
-        help="how much gaussian noise to add to the spectrogram. the noise is calculated by first taking the desired "
-        "noise percent of spectrogram standard deviation. This is multiplied by a random "
-        "variable distributed as a Normal(0,1) for each pixel of the spectrogram. Used for experimentation"
-        "and not intended for true inference.",
+    )
+    infer_parser.add_argument(
+        "--add_beeps",
+        action="store_true",
+        help="whether or not to add semi-random beeps at 440Hz to the inferred data."
+        " Useful for testing DISCO's performance.",
     )
     infer_parser.add_argument(
         "--map_unconfident",
@@ -185,7 +193,7 @@ def parser():
         " spectrogram was computed",
     )
     non_tunable.add_argument(
-        "--log",
+        "--logger",
         action="store_true",
         help="whether or not to apply a log2 transform to the" " spectrogram",
     )
@@ -255,6 +263,13 @@ def parser():
 
     # EXTRACT #
     extract_parser = subparsers.add_parser("extract", add_help=True)
+
+    extract_parser.add_argument(
+        "--snr",
+        type=float,
+        default=0,
+        help="SNR of white noise to add into the waveforms.",
+    )
     extract_parser.add_argument(
         "--mel_scale",
         action="store_true",
@@ -335,7 +350,7 @@ def parser():
         help="location of visualization data (directory, output of disco infer --viz)",
     )
     viz_parser.add_argument(
-        "--medians", action="store_true", help="display median ensemble predictions"
+        "--no_medians", action="store_true", help="display median ensemble predictions"
     )
     viz_parser.add_argument(
         "--post_process",
@@ -382,7 +397,7 @@ def main():
         os.path.expanduser("~"), ".cache", "disco", "params.yaml"
     )
     if os.path.isfile(config_path):
-        log.info(f"loading configuration from {config_path}")
+        logger.info(f"loading configuation from {config_path}")
         config = Config(config_file=config_path)
     else:
         config = Config()
@@ -403,6 +418,7 @@ def main():
     elif args.command == "extract":
         from disco.extract_data import extract_single_file
 
+        logger.info(f"Setting random seed to {args.random_seed}.")
         extract_single_file(
             config,
             csv_file=args.csv_file,
@@ -412,6 +428,7 @@ def main():
             n_fft=args.n_fft,
             output_data_path=args.data_dir,
             overwrite=args.overwrite,
+            snr=args.snr,
         )
 
     elif args.command == "viz":
@@ -420,7 +437,7 @@ def main():
         if (
             sum(
                 [
-                    args.medians,
+                    not args.no_medians,
                     args.post_process,
                     args.means,
                     args.iqr,
@@ -439,7 +456,7 @@ def main():
         visualize(
             config,
             data_path=args.data_path,
-            medians=args.medians,
+            medians=not args.no_medians,
             post_process=args.post_process,
             means=args.means,
             iqr=args.iqr,
@@ -455,24 +472,12 @@ def main():
 
         torch.manual_seed(0)
 
-        if args.output_csv_path is None and not (
-            args.accuracy_metrics and args.accuracy_metrics_test_directory
-        ):
-            if args.output_csv_path is None:
-                raise ValueError(
-                    "Must specify either --output_csv_path, --viz, or --accuracy_metrics with an "
-                    "--accuracy_metrics_test_directory."
-                )
-            if args.viz_path is not None:
-                raise ValueError(
-                    "Must call --viz if giving a statistics visualization path."
-                )
-
         run_inference(
             config,
             wav_file=args.wav_file,
             output_csv_path=args.output_csv_path,
             filter_csv_label=args.filter_output_csv_label,
+            metrics_path=args.metrics_path,
             saved_model_directory=args.saved_model_directory,
             model_extension=args.model_extension,
             tile_overlap=args.tile_overlap,
@@ -486,7 +491,8 @@ def main():
             accuracy_metrics=args.accuracy_metrics,
             accuracy_metrics_test_directory=args.accuracy_metrics_test_directory,
             num_threads=args.num_threads,
-            noise_pct=args.noise_pct,
+            add_beeps=args.add_beeps,
+            snr=args.snr,
             map_unconfident=args.map_unconfident,
             map_to=args.map_to,
             unconfidence_mapper_iqr_threshold=args.low_confidence_iqr_threshold,
