@@ -198,12 +198,17 @@ from collections import defaultdict
 
 if __name__ == "__main__":
     ap = ArgumentParser()
+    ap.add_argument(
+        "infer_data_root", help="where the predicted data is stored.", type=str
+    )
+
     ap.add_argument("ensemble_members", type=int)
     ap.add_argument("ensemble_type", type=str)
     args = ap.parse_args()
 
     ensemble_members = args.ensemble_members
     ensemble_type = args.ensemble_type
+    infer_data_root = args.infer_data_root
 
     iqr_threshold_array = [0.05, 0.1, 0.2, 0.4, 1][::-1]
 
@@ -218,9 +223,6 @@ if __name__ == "__main__":
     proportion_event_correct_array = [30, 40, 50, 70, 80, 90, 95]
 
     ensemble_name = str(ensemble_members) + "_" + ensemble_type
-    infer_data_root = os.path.join(
-        ".", "data", "accuracy_metrics", "test_files-ensemble_" + ensemble_name
-    )
 
     event_wise = {}
     point_wise = {}
