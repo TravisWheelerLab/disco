@@ -14,7 +14,7 @@ do
        --vertical_trim 20 \
        --n_fft 1150 \
        --num_threads 4 \
-       --snr_ratio 0 \
+       --snr 0 \
        --saved_model_directory $model_dir \
        --viz_path "/xdisk/twheeler/colligan/disco_visualizations" \
        --map_unconfident \

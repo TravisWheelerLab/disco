@@ -39,6 +39,6 @@ wav="${csv_file%%.*}".wav
 for snr in 0
 do
   data_dir="/xdisk/twheeler/colligan/disco_noise_ablation/snr_$snr"
-  disco extract --mel_scale "$csv_file" "$wav" "$data_dir" --snr_ratio $snr
+  disco extract --mel_scale "$csv_file" "$wav" "$data_dir" --snr $snr
   test_dir=$data_dir/test
 done
