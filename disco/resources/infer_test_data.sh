@@ -1,8 +1,10 @@
 #!/bin/bash
+# line below iterates over all of the <ensemble_members/init method>
 for model_dir in /xdisk/twheeler/colligan/disco/disco/trained_models_beetle/*;
 do
   bs=$(basename $model_dir)
-  for snr in 10 20 40 80 160 320
+  # over all of the sn ratios tested
+  for snr in 0 10 20 40 80 160 320
   do
   data_dir=disco_noise_ablation/snr_$snr/test
   disco infer " " \
