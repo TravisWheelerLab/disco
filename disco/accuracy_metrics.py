@@ -1,5 +1,6 @@
 import os
 from argparse import ArgumentParser
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -194,14 +195,12 @@ def get_accuracy_metrics(ground_truth, predictions, normalize_confmat=None):
     return accuracy, recall, precision, confusion_matrix, confusion_matrix_nonnorm, IoU
 
 
-from collections import defaultdict
-
 if __name__ == "__main__":
     ap = ArgumentParser()
     ap.add_argument(
         "infer_data_root", help="where the predicted data is stored.", type=str
     )
-
+    ap.add_argument("out_path", help="where to store the .csv files", type=str)
     ap.add_argument("ensemble_members", type=int)
     ap.add_argument("ensemble_type", type=str)
     args = ap.parse_args()
@@ -209,6 +208,7 @@ if __name__ == "__main__":
     ensemble_members = args.ensemble_members
     ensemble_type = args.ensemble_type
     infer_data_root = args.infer_data_root
+    out_path = args.out_path
 
     iqr_threshold_array = [0.05, 0.1, 0.2, 0.4, 1][::-1]
 
@@ -361,28 +361,21 @@ if __name__ == "__main__":
     print(
         "Saving dataframe to "
         + os.path.join(
-            "disco",
-            "plots",
-            "final_data_csvs",
+            out_path,
             f"~~point OR event~~_wise_{ensemble_members}_{ensemble_type}.csv",
         )
     )
+    os.makedirs(out_path, exist_ok=True)
+
     pointwise_dataframe = pd.DataFrame.from_dict(point_wise)
     eventwise_dataframe = pd.DataFrame.from_dict(event_wise)
-    os.makedirs(os.path.join("plots", "final_data_csvs"), exist_ok=True)
+
     pointwise_dataframe.to_csv(
-        os.path.join(
-            "disco",
-            "plots",
-            "final_data_csvs",
-            f"point_wise_{ensemble_members}_{ensemble_type}.csv",
-        )
+        os.path.join(out_path, f"point_wise_{ensemble_members}_{ensemble_type}.csv")
     )
     eventwise_dataframe.to_csv(
         os.path.join(
-            "disco",
-            "plots",
-            "final_data_csvs",
+            out_path,
             f"event_wise_{ensemble_members}_{ensemble_type}.csv",
         )
     )
