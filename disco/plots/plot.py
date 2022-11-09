@@ -5,14 +5,25 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+outcome_variables = [
+    "accuracy",
+    "recall, A chirp",
+    "recall, B chirp",
+    "precision, A chirp",
+    "precision, B chirp",
+    "IoU, A chirp",
+    "IoU, B chirp",
+]
+
 
 class Plotter:
     def __init__(self, csv_dirpath):
         sns.set_style("darkgrid", {"axes.facecolor": ".95"})
-        self.csv_dir = csv_dirpath
-        self.files = glob(os.path.join(self.csv_dir, "*.csv"))
-        self.dataframes = {}
-        for file in self.files:
+        csv_dir = csv_dirpath
+        files = glob(os.path.join(csv_dir, "*.csv"))
+        dataframes = {}
+
+        for file in files:
             filename = os.path.basename(file).split(".")[0]
             dataframe = pd.read_csv(file, index_col=0)
             dataframe.loc["iqr threshold"] = [
@@ -44,11 +55,11 @@ class Plotter:
             dataframe["members"] = int(filename.split("_")[2])
             dataframe["type"] = filename.split("_")[-1]
             dataframe.loc[dataframe["type"] == "init", "type"] = "random init"
-            self.dataframes[filename] = dataframe
+            dataframes[filename] = dataframe
 
         self.merged_event_wise_dfs = (
             pd.concat(
-                [val for key, val in self.dataframes.items() if "event" in key],
+                [val for key, val in dataframes.items() if "event" in key],
                 ignore_index=True,
             )
             .sort_values(by="iqr threshold", ascending=False)
@@ -56,7 +67,7 @@ class Plotter:
         )
         self.merged_point_wise_dfs = (
             pd.concat(
-                [val for key, val in self.dataframes.items() if "point" in key],
+                [val for key, val in dataframes.items() if "point" in key],
                 ignore_index=True,
             )
             .sort_values(by="iqr threshold", ascending=False)
@@ -64,7 +75,7 @@ class Plotter:
         )
 
     def plot_event_wise(
-        self, type, outcome_variable, ylims=(0, 1), palette="crest", title=None
+        self, type, outcome_variable, ax, ylims=(0, 1), palette="crest", title=None
     ):
         if type == "both":
             base_df = self.merged_event_wise_dfs
@@ -107,6 +118,7 @@ class Plotter:
                 hue="members",
                 palette=palette,
                 marker="o",
+                ax=ax,
             )
         if title is None:
             title = outcome_variable
@@ -118,7 +130,7 @@ class Plotter:
         )
 
         sns.set(rc={"figure.figsize": (5, 6)})
-        plt.show(line_plot)
+        return line_plot
 
     def plot_point_wise(
         self, type, outcome_variable, predictive_variable, ylims=(0, 1), palette="crest"
@@ -134,7 +146,6 @@ class Plotter:
             base_df = base_df[base_df["voting threshold"] == 0]
         else:
             print("No graphs available for non-iqr predictive variables.")
-            pass
 
         if type == "both":
             line_plot = sns.relplot(
@@ -174,7 +185,7 @@ class Plotter:
 
         line_plot.set(ylim=ylims, xlabel=predictive_variable)
         sns.set(rc={"figure.figsize": (5, 6)})
-        plt.show(line_plot)
+        return line_plot
 
     def plot_iqr_thresholding(self, type, members, palette="crest"):
         base_df = self.merged_point_wise_dfs[self.merged_point_wise_dfs["type"] == type]
@@ -209,21 +220,24 @@ class Plotter:
         )
 
 
-plotter = Plotter(csv_dirpath="./")
-plotter.merged_event_wise_dfs = plotter.merged_event_wise_dfs[
-    plotter.merged_event_wise_dfs["event proportion"] != 95
-]
+if __name__ == "__main__":
 
-outcome_variables = [
-    "accuracy",
-    "recall, A chirp",
-    "recall, B chirp",
-    "precision, A chirp",
-    "precision, B chirp",
-    "IoU, A chirp",
-    "IoU, B chirp",
-]
+    for i in [0, 20, 40, 80, 160, 320]:
 
-outcome = 2
-# plotter.plot_point_wise(type="random init", outcome_variable=outcome_variables[outcome], ylims=(0.3, 1.01), predictive_variable="iqr threshold")
-plotter.plot_iqr_thresholding(type="random init", members=10, palette="colorblind")
+        plotter = Plotter(csv_dirpath=f"disco/resources/disco_accuracy_csvs/snr_{i}")
+        plotter.merged_event_wise_dfs = plotter.merged_event_wise_dfs[
+            plotter.merged_event_wise_dfs["event proportion"] != 95
+        ]
+
+        outcome = 0
+        # plotter.plot_point_wise(type="bootstrap", outcome_variable=outcome_variables[outcome], ylims=(0.3, 1.01), predictive_variable="iqr threshold")
+        plotter.plot_event_wise(
+            type="bootstrap",
+            outcome_variable=outcome_variables[outcome],
+            ylims=(0.3, 1.01),
+        )
+        # plotter.plot_event_wise(type="bootstrap", outcome_variable=outcome_variables[outcome], ylims=(0.3, 1.01))
+        # plotter.plot_point_wise(type="bootstrap", outcome_variable=outcome_variables[outcome], ylims=(0.3, 1.01), predictive_variable="iqr threshold")
+        # plotter.plot_iqr_thresholding(type="random init", members=10, palette="colorblind")
+        plt.legend(title="ensemble_members")
+        plt.show()
