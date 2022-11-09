@@ -133,7 +133,13 @@ class Plotter:
         return line_plot
 
     def plot_point_wise(
-        self, type, outcome_variable, predictive_variable, ylims=(0, 1), palette="crest"
+        self,
+        type,
+        outcome_variable,
+        predictive_variable,
+        ax,
+        ylims=(0, 1),
+        palette="crest",
     ):
         if type == "both":
             base_df = self.merged_point_wise_dfs
@@ -179,6 +185,7 @@ class Plotter:
                 hue="members",
                 palette=palette,
                 marker="o",
+                ax=ax,
             )
             line_plot.set(title=type)
             line_plot.set_xlim(line_plot.get_xlim()[::-1])

@@ -33,19 +33,22 @@ b_chirp = plotter.plot_event_wise(
 for a in ax:
     a.spines["top"].set_visible(False)
     a.spines["right"].set_visible(False)
+    a.spines["bottom"].set_color("#808080")
+    a.spines["left"].set_color("#808080")
 
 ax[1].get_legend().remove()
 ax[0].set(xlabel=None)
 ax[1].set(xlabel=None)
 ax[2].set(xlabel=None)
 
-ax[0].set_xlim(20, 100)
-ax[1].set_xlim(20, 100)
-ax[2].set_xlim(20, 100)
+ax[0].set_xlim(25, 100)
+ax[1].set_xlim(25, 100)
+ax[2].set_xlim(25, 100)
 
 ax[0].set_ylabel("accuracy", fontsize=15)
-ax[1].set_xlabel("minimum proportion event correct", fontsize=15)
+ax[1].set_xlabel("minimum proportion of event classified correctly", fontsize=15)
 alpha = 0.3
+plt.suptitle("event-wise accuracy")
 
 ax[0].grid(alpha=alpha)
 ax[1].grid(alpha=alpha)
