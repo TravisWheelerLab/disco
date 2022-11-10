@@ -36,7 +36,7 @@ fname=/home/u4/colligan/disco/disco/resources/extraction_files.txt
 test_files=/home/u4/colligan/disco/disco/resources/disco_test_files.txt
 csv_file=$(sed -n "$SLURM_ARRAY_TASK_ID"p $fname)
 wav="${csv_file%%.*}".wav
-for snr in 0
+for snr in 0 5 10 15 20 25 30 35 40
 do
   data_dir="/xdisk/twheeler/colligan/disco_noise_ablation/snr_$snr"
   disco extract --mel_scale "$csv_file" "$wav" "$data_dir" --snr $snr

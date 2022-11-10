@@ -7,7 +7,7 @@ do
 for ensemble_member in 2 10 30
 do
   # over all of the sn ratios tested
-  for snr in 0 10 20 40 80 160 320
+  for snr in 0 5 10 15 20 25 30 35 40
   do
     infer_data_root=$data_root/"snr"_"$snr"_"ensemble_$ensemble_member"_"$method"
     out_path=$csv_root/"snr"_"$snr"_"ensemble_$ensemble_member"_"$method"
