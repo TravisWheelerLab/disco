@@ -2,7 +2,6 @@ absl-py==1.3.0
 aiohttp==3.8.3
 aiosignal==1.2.0
 async-timeout==4.0.2
-git+git://github.com/TravisWheelerLab/disco
 attrs==22.1.0
 cachetools==5.2.0
 certifi==2022.9.24
@@ -63,3 +62,5 @@ Werkzeug==2.2.2
 yarl==1.8.1
 
 seaborn~=0.12.1
+
+joypy~=0.2.6

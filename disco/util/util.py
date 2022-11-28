@@ -7,6 +7,10 @@ logger = logging.getLogger(__name__)
 __all__ = ["add_white_noise", "add_gaussian_beeps"]
 
 
+def to_dict(obj):
+    return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
+
+
 def add_white_noise(waveform, snr):
     rms_signal = torch.sqrt(torch.mean(waveform.squeeze() ** 2))
     std = torch.sqrt((rms_signal**2) / (10 ** (snr / 10)))

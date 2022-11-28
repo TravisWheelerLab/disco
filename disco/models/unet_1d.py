@@ -3,7 +3,6 @@ import torch
 import torchmetrics
 from torch import nn
 
-__all__ = ["UNet1D"]
 # TODO: add mask character to something global
 MASK_CHARACTER = -1
 
@@ -45,8 +44,6 @@ class UNet1D(pl.LightningModule):
         mask_beginning_and_end,
         begin_mask,
         end_mask,
-        train_files,
-        val_files,
         mask_character,
         divisible_by=16,
     ):
@@ -66,8 +63,6 @@ class UNet1D(pl.LightningModule):
         self.mask_beginning_and_end = mask_beginning_and_end
         self.begin_mask = begin_mask
         self.end_mask = end_mask
-        self.train_files = list(train_files)
-        self.val_files = list(val_files)
         self.initial_power = 5
         self.mask_character = mask_character
 

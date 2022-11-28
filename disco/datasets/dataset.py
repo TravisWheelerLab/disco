@@ -7,8 +7,10 @@ from glob import glob
 import numpy as np
 import torch
 
+from disco.datasets import DataModule
 
-def pad_batch(batch, mask_flag):
+
+def pad_batch(batch, mask_flag=-1):
     """
     :param batch: The batch to pad.
     :param mask_flag: int. What character to interpret as the mask.
@@ -39,20 +41,24 @@ def _load_pickle(f):
         return pickle.load(src)
 
 
-class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
+class SpectrogramDatasetMultiLabel(DataModule):
     """
     Handles potentially multiple labels per example.
     This class takes into account labels next to each other and therefore helps the neural network learn
     transitions between classes in training.
     """
 
+    def collate_fn(self):
+        print("I may or may not be masking properly. Please fix!")
+        return pad_batch
+
     def __init__(
         self,
         files,
-        config,
         apply_log=True,
         vertical_trim=0,
         bootstrap_sample=False,
+        mask_flag=-1,
         mask_beginning_and_end=False,
         begin_mask=None,
         end_mask=None,
@@ -66,7 +72,7 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
             )
 
         self.apply_log = apply_log
-        self.config = config
+        self.mask_flag = mask_flag
         self.vertical_trim = vertical_trim
         self.bootstrap_sample = bootstrap_sample
         self.begin_mask = begin_mask
@@ -94,12 +100,12 @@ class SpectrogramDatasetMultiLabel(torch.utils.data.Dataset):
                 # if there's only one class
                 if labels.shape[0] > (self.begin_mask + self.end_mask):
                     # and if the label vector is longer than where we're supposed to mask
-                    labels[self.begin_mask] = self.config.mask_flag
-                    labels[-self.end_mask :] = self.config.mask_flag
+                    labels[self.begin_mask] = self.mask_flag
+                    labels[-self.end_mask :] = self.mask_flag
                 else:
                     # if it's not, throw it out. We don't want any possibility of bad data
                     # when training the model so we'll waste some compute.
-                    labels[:] = self.config.mask_flag
+                    labels[:] = self.mask_flag
 
         return torch.tensor(spect_slice), torch.tensor(labels)
 
@@ -121,8 +127,6 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
     Handles one label per example.
     """
 
-    # TODO: put label_type in config file
-    # TODO: remove
     def __init__(
         self,
         dataset_type,

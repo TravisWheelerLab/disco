@@ -8,8 +8,6 @@ import os
 import pdb
 from argparse import ArgumentParser
 
-from disco.config import Config
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -404,6 +402,7 @@ def parser():
 
 
 def main():
+    return
     config_path = os.path.join(
         os.path.expanduser("~"), ".cache", "disco", "params.yaml"
     )

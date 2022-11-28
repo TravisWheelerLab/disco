@@ -297,8 +297,6 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
             mask_beginning_and_end=None,
             begin_mask=None,
             end_mask=None,
-            train_files=[1],
-            val_files=[1],
             mask_character=config.mask_flag,
         ).to(device)
 
