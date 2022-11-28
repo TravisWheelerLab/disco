@@ -40,11 +40,11 @@ def train(config, hparams):
         save_top_k=1,
     )
 
-    if not len(glob(train_path)) or not len(glob(val_path)):
-        raise ValueError("no files found in one of {}, {}".format(train_path, val_path))
-
     train_files = glob(train_path)
     val_files = glob(val_path)
+
+    if not len(train_files) or not len(val_files):
+        raise ValueError("no files found in one of {}, {}".format(train_path, val_path))
 
     train_dataset = SpectrogramDatasetMultiLabel(
         train_files,

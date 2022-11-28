@@ -1,5 +1,6 @@
 import logging
 import os
+import pdb
 import pickle
 import random
 from glob import glob
@@ -33,6 +34,7 @@ def create_label_to_spectrogram(
     name_to_class_code,
     excluded_classes,
     neighbor_tolerance=100,
+    extract_context=None,
 ):
     """
     Accepts a spectrogram (torch.Tensor) and labels (pd.DataFrame) and returns
@@ -76,6 +78,7 @@ def create_label_to_spectrogram(
             i += 1
 
     features_and_labels = []
+
     for contig in contiguous_indices:
         contiguous_labels = labels.iloc[contig, :]
         begin = contiguous_labels.iloc[0]["begin spect idx"]
@@ -86,6 +89,7 @@ def create_label_to_spectrogram(
 
         label_vector = np.zeros((spect_slice.shape[1]))
         first = True
+        pdb.set_trace()
 
         for _, row in contiguous_labels.iterrows():
             if row["Sound_Type"] in excluded_classes:
@@ -114,7 +118,15 @@ def convert_time_to_index(time, sample_rate):
 
 
 def extract_wav_and_csv_pair(
-    csv_filename, wav_filename, n_fft, mel_scale, snr, add_beeps, config, hop_length=200
+    csv_filename,
+    wav_filename,
+    n_fft,
+    mel_scale,
+    snr,
+    add_beeps,
+    config,
+    hop_length=200,
+    extract_context=None,
 ):
     """
     Applies the labels contained in csv_filename to the .wav file and extracts the labeled regions.
@@ -166,12 +178,14 @@ def extract_wav_and_csv_pair(
 
     # dictionary containing all pre-labeled chirps and their associated spectrograms
     spect = spect.squeeze()
+
     features_and_labels = create_label_to_spectrogram(
         spect,
         labels,
         hop_length=hop_length,
         name_to_class_code=config.name_to_class_code,
         excluded_classes=config.excluded_classes,
+        extract_context=extract_context,
     )
 
     return features_and_labels
@@ -236,6 +250,7 @@ def extract_single_file(
     overwrite,
     snr,
     add_beeps,
+    extract_context=None,
 ):
     """
     Extract data from a single .wav and .csv pair.
@@ -252,6 +267,7 @@ def extract_single_file(
         snr,
         add_beeps,
         config,
+        extract_context=extract_context,
     )
     save_data(
         output_data_path,

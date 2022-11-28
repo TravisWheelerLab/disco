@@ -193,9 +193,9 @@ def parser():
         " spectrogram was computed",
     )
     non_tunable.add_argument(
-        "--logger",
+        "--log",
         action="store_true",
-        help="whether or not to apply a log2 transform to the" " spectrogram",
+        help="whether or not to apply a log2 transform to the spectrogram",
     )
     non_tunable.add_argument(
         "--apply_attn", action="store_true", help="use 1d Unet with attention"
@@ -310,6 +310,11 @@ def parser():
         "--overwrite",
         action="store_true",
         help="Whether or not to overwrite the data already saved in data_dir.",
+    )
+    extract_parser.add_argument(
+        "--extract_context",
+        type=float,
+        help="the number of (fractional/whole) seconds of context to extract around each data point.",
     )
 
     # SHUFFLE #
@@ -436,6 +441,7 @@ def main():
             overwrite=args.overwrite,
             snr=args.snr,
             add_beeps=args.add_beeps,
+            extract_context=args.extract_context,
         )
 
     elif args.command == "viz":
