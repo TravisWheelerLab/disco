@@ -56,6 +56,7 @@ def run_inference(
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cpu":
         torch.set_num_threads(num_threads)
+
     models = infer.assemble_ensemble(
         saved_model_directory,
         model_extension,

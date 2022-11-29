@@ -8,9 +8,6 @@ from matplotlib.widgets import Slider
 
 import disco.util.inference_utils as infer
 
-# todo: Instead of passing in just config, give functions the specific things config uses for better functionality
-#  elsewhere.
-
 
 class Visualizer:
     def __init__(

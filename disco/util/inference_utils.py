@@ -13,7 +13,6 @@ import tqdm
 
 import disco.util.heuristics as heuristics
 from disco.accuracy_metrics import adjust_preds_by_confidence
-from disco.models import UNet1D
 from disco.util.util import add_gaussian_beeps, add_white_noise
 
 logger = logging.getLogger(__name__)
@@ -150,7 +149,6 @@ def save_csv_from_predictions(
     sample_rate,
     hop_length,
     name_to_class_code,
-    filter_csv_label,
 ):
     """
     Ingest a Nx1 np.array of point-wise predictions and save a .csv with
@@ -161,7 +159,6 @@ def save_csv_from_predictions(
     :param sample_rate: Sample rate of predicted .wav file.
     :param hop_length: Spectrogram hop length.
     :param name_to_class_code: mapping from class name to class code (ex {"A":1}).
-    :param filter_csv_label: str. remove a class from final csv.
     :return: pandas.DataFrame describing the saved csv.
     """
     class_idx_to_prediction_start_end = heuristics.remove_a_chirps_in_between_b_chirps(
@@ -193,9 +190,6 @@ def save_csv_from_predictions(
         i += 1
 
     df = pd.DataFrame.from_dict(list_of_dicts_for_dataframe)
-
-    if filter_csv_label:
-        df = df[df["Sound_Type"] != filter_csv_label]
 
     dirname = os.path.dirname(output_csv_path)
 
@@ -269,44 +263,31 @@ def load_prediction_csv(csv_path, hop_length, sample_rate):
 
 def assemble_ensemble(
     model_directory,
-    model_extension,
+    model_class,
     device,
-    in_channels,
     default_model_directory,
     aws_download_link,
-    mask_flag,
-    class_code_to_name,
 ):
 
     if model_directory is None:
         model_directory = default_model_directory
 
-    model_paths = glob(os.path.join(model_directory, f"*{model_extension}"))
+    model_paths = glob(os.path.join(model_directory, f"*"))
 
     if not len(model_paths):
         logger.info("no models found, downloading to {}".format(model_directory))
         download_models(model_directory, aws_download_link)
 
-    model_paths = glob(os.path.join(model_directory, f"*{model_extension}"))
+    model_paths = glob(os.path.join(model_directory, f"*"))
 
     models = []
     for model_path in model_paths:
-        skeleton = UNet1D(
-            in_channels,
-            out_channels=len(class_code_to_name.keys()),
-            learning_rate=1e-2,
-            mel=False,
-            apply_log=False,
-            n_fft=None,
-            vertical_trim=20,
-            mask_beginning_and_end=None,
-            begin_mask=None,
-            end_mask=None,
-            mask_character=mask_flag,
+        model = model_class.load_from_checkpoint(
+            model_path,
+            map_location=torch.device(device),
         ).to(device)
 
-        skeleton = skeleton.load_from_checkpoint(model_path)
-        models.append(skeleton.eval())
+        models.append(model)
 
     return models
 
