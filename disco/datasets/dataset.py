@@ -6,8 +6,10 @@ from glob import glob
 
 import numpy as np
 import torch
+import torchaudio
 
 from disco.datasets import DataModule
+from disco.util.inference_utils import load_wav_file
 
 
 def pad_batch(batch, mask_flag=-1):
@@ -238,3 +240,120 @@ class SpectrogramDatasetSingleLabel(torch.utils.data.Dataset):
 
     def get_unique_labels(self):
         return self.unique_labels.keys()
+
+
+class SpectrogramIterator(DataModule):
+    def collate_fn(self):
+        return None
+
+    def __init__(
+        self,
+        tile_size,
+        tile_overlap,
+        vertical_trim,
+        n_fft,
+        hop_length,
+        log_spect,
+        mel_transform,
+        snr,
+        add_beeps,
+        wav_file=None,
+        spectrogram=None,
+    ):
+        super().__init__()
+
+        self.tile_size = tile_size
+        self.tile_overlap = tile_overlap
+
+        if self.tile_size <= tile_overlap:
+            raise ValueError()
+
+        self.wav_file = wav_file
+        self.spectrogram = spectrogram
+
+        if self.spectrogram is None and self.wav_file is None:
+            raise ValueError("No spectrogram or .wav file specified.")
+
+        self.vertical_trim = vertical_trim
+        self.n_fft = n_fft
+        self.hop_length = hop_length
+        self.log_spect = log_spect
+        self.mel_transform = mel_transform
+
+        if self.spectrogram is None:
+            waveform, self.sample_rate = load_wav_file(wav_file)
+            self.spectrogram = self.create_spectrogram(
+                waveform, self.sample_rate, snr, add_beeps
+            )
+
+        self.spectrogram = self.spectrogram[vertical_trim:]
+
+        if not torch.is_tensor(self.spectrogram):
+            self.spectrogram = torch.tensor(self.spectrogram)
+
+        if self.log_spect:
+            self.spectrogram[self.spectrogram == 0] = 1
+            self.spectrogram = self.spectrogram.log2()
+
+        self.original_spectrogram = self.spectrogram.clone()
+        self.original_shape = self.spectrogram.shape
+
+        step_size = self.tile_size - 2 * self.tile_overlap
+        leftover = self.spectrogram.shape[-1] % step_size
+        # Since the length of our spectrogram % step_size isn't always 0, we will have a little
+        # leftover at the end of spectrogram that we need to predict to get full coverage. There
+        # are multiple ways to do this, but I decided to mirror pad the end of the spectrogram with
+        # the correct amount of columns from the spectrogram so that padded_spectrogram % step_size == 0.
+        # I cut off the predictions on the mirrored data after stitching the predictions together.
+        to_pad = step_size - leftover + tile_size // 2
+
+        if to_pad != 0:
+            self.spectrogram = torch.cat(
+                (
+                    self.spectrogram,
+                    torch.flip(self.spectrogram[:, -to_pad:], dims=[-1]),
+                ),
+                dim=-1,
+            )
+
+        self.indices = range(self.tile_size // 2, self.spectrogram.shape[-1], step_size)
+
+        # mirror pad the beginning of the spectrogram
+        self.spectrogram = torch.cat(
+            (
+                torch.flip(self.spectrogram[:, : self.tile_overlap], dims=[-1]),
+                self.spectrogram,
+            ),
+            dim=-1,
+        )
+
+    def create_spectrogram(self, waveform, sample_rate, snr, add_beeps):
+        if snr > 0:
+            # add white gaussian noise
+            waveform = add_white_noise(waveform, snr)
+
+        if add_beeps:
+            waveform = add_gaussian_beeps(waveform, sample_rate)
+
+        if self.mel_transform:
+            spectrogram = torchaudio.transforms.MelSpectrogram(
+                sample_rate=sample_rate, n_fft=self.n_fft, hop_length=self.hop_length
+            )(waveform)
+        else:
+            spectrogram = torchaudio.transforms.Spectrogram(
+                n_fft=self.n_fft,
+                hop_length=self.hop_length,
+            )(waveform)
+        return spectrogram.squeeze()
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        center_idx = self.indices[idx]
+        # we want to overlap-tile starting from the beginning
+        # so that our predictions are seamless.
+        x = self.spectrogram[
+            :, center_idx - self.tile_size // 2 : center_idx + self.tile_size // 2
+        ]
+        return x

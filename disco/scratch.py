@@ -1,8 +1,8 @@
 import logging
 import os.path
 import warnings
-from pathlib import Path
 
+import numpy as np
 import torch
 
 import disco.cfg as cfg
@@ -18,13 +18,13 @@ def predict_wav_file(
     wav_file,
     dataset,
     model_class,
-    dataset_class,
     saved_model_directory,
     tile_overlap=128,
     tile_size=1024,
     batch_size=32,
     hop_length=200,
     num_threads=4,
+    seed=None,
 ):
     # dataset class will already be initialized
 
@@ -36,6 +36,7 @@ def predict_wav_file(
         torch.set_num_threads(num_threads)
 
     models = infer.assemble_ensemble(
+        model_class,
         saved_model_directory,
         device,
         default_model_directory=cfg.default_model_directory,
@@ -67,7 +68,7 @@ def predict_wav_file(
         device=device,
     )
 
-    predictions = torch.argmax(medians, axis=0).squeeze()
+    predictions = np.argmax(medians, axis=0).squeeze()
 
     hmm_predictions = infer.smooth_predictions_with_hmm(
         predictions,
@@ -77,7 +78,7 @@ def predict_wav_file(
     )
 
     # auto-generate a directory
-    wav_root = Path(wav_file).root
+    wav_root = os.path.dirname(wav_file)
 
     output_csv_path = os.path.join(
         wav_root, os.path.splitext(os.path.basename(wav_file))[0] + "-detected.csv"
@@ -92,7 +93,7 @@ def predict_wav_file(
     )
 
     # now make a visualization path
-    viz_root = Path(wav_file).root
+    viz_root = os.path.dirname(wav_file)
     wav_basename = os.path.splitext(os.path.basename(wav_file))[0]
     viz_path = os.path.join(viz_root, wav_basename + "-viz")
     os.makedirs(viz_path)
@@ -114,3 +115,8 @@ def predict_wav_file(
     )
 
     infer.pickle_tensor(dataset.original_spectrogram, spectrogram_path)
+    infer.pickle_tensor(hmm_predictions, hmm_prediction_path)
+    infer.pickle_tensor(predictions, median_prediction_path)
+    infer.pickle_tensor(iqr, iqr_path)
+    infer.pickle_tensor(means, mean_prediction_path)
+    infer.pickle_tensor(votes, votes_path)

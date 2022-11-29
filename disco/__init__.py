@@ -138,7 +138,6 @@ def label(_config):
     labeler.save_labels()
 
 
-@infer_experiment.config
 def _infer_semi_permanent():
     default_model_directory = os.path.join(os.path.expanduser("~"), ".cache", "disco")
     model_extension = ".pt"
@@ -176,11 +175,45 @@ def _infer_semi_permanent():
     ]
 
 
+@infer_experiment.config
+def _load_model_and_dataset(model_name, dataset_name):
+    model_class = load_model_class(model_name)
+    dataset = load_dataset_class(dataset_name)
+
+
+@infer_experiment.config
+def _dataloader_args(dataloader_args):
+    dataloader_args["tile_size"] = 1024
+    dataloader_args["tile_overlap"] = 128
+    dataloader_args["vertical_trim"] = 20
+    dataloader_args["n_fft"] = 1150
+    dataloader_args["hop_length"] = 200
+    dataloader_args["log_spect"] = (True,)
+    dataloader_args["mel_transform"] = (True,)
+    dataloader_args["snr"] = 0
+    dataloader_args["add_beeps"] = False
+
+
 @infer_experiment.main
 def infer(_config):
-    from disco.infer import run_inference
+    # from disco.infer import run_inference
+    from disco.scratch import predict_wav_file
 
-    run_inference(**_config)
+    _config = dict(_config)
+    del _config["model_name"]
+    del _config["dataset_name"]
+    if "saved_model_directory" not in _config:
+        _config["saved_model_directory"] = cfg.default_model_directory
+
+    dataloader_args = dict(_config["dataloader_args"])
+    dataloader_args["wav_file"] = _config["wav_file"]
+
+    dataset = _config["dataset"](**dataloader_args)
+
+    del _config["dataloader_args"]
+    _config["dataset"] = dataset
+
+    predict_wav_file(**_config)
 
 
 @extract_experiment.config
