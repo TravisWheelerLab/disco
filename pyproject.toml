@@ -5,7 +5,7 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "disco"
 authors = [{name = "Kayla Irish", email = "kayla.irish@umontana.edu"},
-    {name = "Tommy Colligan", email = "thomas.colligan@umontana.edu"}]
+    {name = "Thomas Colligan", email = "thomas.colligan@umontana.edu"}]
 readme = "README.md"
 dynamic = ["version", "description"]
 dependencies = ["numpy",
@@ -23,3 +23,9 @@ Home = "https://github.com/TravisWheelerLab/disco"
 
 [project.scripts]
 disco = "disco:main"
+
+[tool.isort]
+profile = "black"
+
+[tool.pycln]
+all = true

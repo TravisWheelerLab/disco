@@ -7,8 +7,8 @@ import pandas as pd
 import sklearn.metrics as metrics
 from scipy import stats
 
-import disco.inference_utils as infer
-from disco.extract_data import convert_time_to_index, w2s_idx
+import disco.util.inference_utils as infer
+from disco.util.extract_data import convert_time_to_index, w2s_idx
 
 hop_length = 200
 sample_rate = 48000

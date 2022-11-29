@@ -1,6 +1,6 @@
 import logging
 
-import disco.inference_utils as infer
+import disco.util.inference_utils as infer
 
 log = logging.getLogger(__name__)
 

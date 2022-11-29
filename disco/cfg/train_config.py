@@ -1,14 +1,13 @@
 from glob import glob
 
-import yaml
 from sacred import Experiment
 
 from disco.util.util import to_dict
 
-main_experiment = Experiment()
+train_experiment = Experiment()
 
 
-@main_experiment.config
+@train_experiment.config
 def config():
     model_name = "UNet1D"
     log_dir = "/tmp/testing"

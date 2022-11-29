@@ -6,9 +6,9 @@ from glob import glob
 import numpy as np
 import torch
 
-import disco.heuristics as heuristics
-import disco.inference_utils as infer
-from disco.dataset import SpectrogramDatasetMultiLabel
+import disco.util.heuristics as heuristics
+import disco.util.inference_utils as infer
+from disco.datasets.dataset import SpectrogramDatasetMultiLabel
 
 # removes torchaudio warning that spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -17,7 +17,6 @@ log = logging.getLogger(__name__)
 
 
 def run_inference(
-    config,
     wav_file=None,
     output_csv_path=None,
     filter_csv_label=None,
@@ -36,51 +35,20 @@ def run_inference(
     accuracy_metrics_test_directory=None,
     num_threads=4,
     snr=0,
+    name_to_class_code=None,
     add_beeps=False,
     map_unconfident=False,
+    aws_download_link=None,
+    class_code_to_name=None,
+    mask_flag=None,
     map_to=None,
-    unconfidence_mapper_iqr_threshold=1.0,
     blackout_unconfident_in_viz=False,
+    default_model_directory=None,
+    hmm_transition_probabilities=None,
+    hmm_start_probabilities=None,
+    hmm_emission_probabilities=None,
+    seed=None,
 ):
-    """
-    Script to run the inference routine. Briefly: Model ensemble is loaded in, used to evaluate the spectrogram, and
-    heuristics and the hmm are applied to the ensemble's predictions. The .csv containing model labels is saved and
-    debugging information is saved depending on whether debug is a string or None.
-
-    The ensemble predicts a .wav file quickly and seamlessly by using an overlap-tile strategy.
-
-    :param config: disco.Config() object.
-    :param wav_file: str. .wav file to analyze.
-    :param output_csv_path: str. Where to save predictions.
-    :param filter_csv_label: str. Which (if any) of the labels to remove from the final inference .csv
-    :param saved_model_directory: str. Where models are saved.
-    :param model_extension: str. Model file suffix. Default ".pt".
-    :param tile_overlap: int. How much to overlap subsequent evaluation windows.
-    :param tile_size: Size of tiles ingested into ensemble.
-    :param batch_size: int. How many tiles to evaluate in parallel.
-    :param input_channels: Number of input channels for the model ensemble.
-    :param hop_length: Used in spectrogram calculation.
-    :param vertical_trim: How many rows to chop off from the beginning of the spectrogram (in effect, a high-pass
-    filter).
-    :param n_fft: N ffts to use when calulating the spectrogram.
-    :param viz_path: str. Where to save the visualization data.  If debug path already exists, create a directory inside
-    with the default name. If debug path doesn't already exist, creates a directory with the name provided. Default:
-    creates a default-named directory within the current directory.
-    :param accuracy_metrics: bool. whether to save a directory containing needed files to determine ensemble accuracy
-    :param accuracy_metrics_test_directory: str. where test files are located.
-    :param num_threads: int. How many threads to use when loading data.
-    :param snr: float. SNR ratio to add to the data. O means no noise.
-    :param add_beeps: bool. Whether or not to add semi-random 400Hz gaussian beeps to the data.
-    :param map_unconfident: bool. whether to map any singular label in the horizontal index of the spectrogram to
-    a different class (for example, mapping all unconfident labels to a background class).
-    :param map_to: str. A class label. i.e., a key in config.py's "name_to_class_code" dictionary, e.g. "BACKGROUND".
-    :param unconfidence_mapper_iqr_threshold: float. Threshold for how small the ensemble prediction's IQR needs to be
-    in order to stay as its original label. If the ensemble IQR is larger than this number, the label will be mapped to
-    map_to if map_unconfident=True.
-    :param blackout_unconfident_in_viz: Show which indices were mapped to the background class in the visualizer.
-    They will show up in black.
-    :return: None. Everything relevant is saved to disk.
-    """
 
     if tile_size % 2 != 0:
         raise ValueError("tile_size must be even, got {}".format(tile_size))
@@ -89,7 +57,14 @@ def run_inference(
     if device == "cpu":
         torch.set_num_threads(num_threads)
     models = infer.assemble_ensemble(
-        saved_model_directory, model_extension, device, input_channels, config
+        saved_model_directory,
+        model_extension,
+        device,
+        input_channels,
+        default_model_directory,
+        aws_download_link,
+        mask_flag,
+        class_code_to_name,
     )
     if len(models) < 1:
         raise ValueError(
@@ -107,7 +82,6 @@ def run_inference(
 
         test_dataset = SpectrogramDatasetMultiLabel(
             test_files,
-            config=config,
             apply_log=True,
             vertical_trim=20,
             bootstrap_sample=False,
@@ -158,28 +132,31 @@ def run_inference(
     if not accuracy_metrics:
         for heuristic in heuristics.HEURISTIC_FNS:
             log.info(f"applying heuristic function {heuristic.__name__}")
-            predictions = heuristic(predictions, iqr, config.name_to_class_code)
+            predictions = heuristic(predictions, iqr, name_to_class_code)
 
     if map_unconfident:
         predictions = infer.map_unconfident(
             predictions,
             to=map_to,
             threshold_type="iqr",
-            threshold=unconfidence_mapper_iqr_threshold,
+            threshold=1.0,
             thresholder=iqr,
-            config=config,
         )
 
-    hmm_predictions = infer.smooth_predictions_with_hmm(predictions, config)
+    hmm_predictions = infer.smooth_predictions_with_hmm(
+        predictions,
+        hmm_transition_probabilities,
+        hmm_emission_probabilities,
+        hmm_start_probabilities,
+    )
 
     if blackout_unconfident_in_viz:
         predictions = infer.map_unconfident(
             predictions,
             to="dummy_class",
             threshold_type="iqr",
-            threshold=unconfidence_mapper_iqr_threshold,
+            threshold=1.0,
             thresholder=iqr,
-            config=config,
         )
 
     if output_csv_path is not None:
@@ -193,7 +170,7 @@ def run_inference(
             hmm_predictions,
             sample_rate=spectrogram_iterator.sample_rate,
             hop_length=hop_length,
-            name_to_class_code=config.name_to_class_code,
+            name_to_class_code=name_to_class_code,
             filter_csv_label=filter_csv_label,
         )
 
@@ -213,7 +190,7 @@ def run_inference(
                 hmm_predictions,
                 sample_rate=spectrogram_iterator.sample_rate,
                 hop_length=hop_length,
-                name_to_class_code=config.name_to_class_code,
+                name_to_class_code=name_to_class_code,
                 filter_csv_label=filter_csv_label,
             )
             infer.pickle_tensor(

@@ -1,7 +1,6 @@
 import logging
 import os
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -10,8 +9,7 @@ from matplotlib.widgets import SpanSelector
 
 np.random.seed(0)
 
-import disco.inference_utils as infer
-from disco.config import Config
+from disco.util import inference_utils as infer
 
 log = logging.getLogger(__name__)
 
@@ -55,17 +53,18 @@ def add_example(
 class SimpleLabeler:
     """
     This class uses matplotlib widgets to label a spectrogram.
-    Can be customized by a disco.Config() object.
     """
 
-    def __init__(self, wav_file, output_csv_path, config):
+    def __init__(
+        self, wav_file, output_csv_path, key_to_label, visualization_n_fft, vertical_cut
+    ):
 
         self.wav_file = wav_file
         self.output_csv_path = output_csv_path
-        self.config = config
         self.forbidden_keys = ("a", "t", "g", "j", "d", "c", "v", "q")
+        self.key_to_label = key_to_label
 
-        for key in set(self.config.key_to_label.keys()):
+        for key in set(key_to_label.keys()):
             if key in self.forbidden_keys:
                 raise ValueError(
                     f"Cannot override default keypress {key}, change"
@@ -86,12 +85,12 @@ class SimpleLabeler:
 
         self.spectrogram = torchaudio.transforms.MelSpectrogram(
             sample_rate=self.sample_rate,
-            n_fft=config.visualization_n_fft,
+            n_fft=visualization_n_fft,
             hop_length=self.hop_length,
         )(self.waveform).squeeze()
 
         self.spectrogram[self.spectrogram == 0] = 1
-        self.vertical_cut = config.vertical_cut
+        self.vertical_cut = vertical_cut
         self.spectrogram = self.spectrogram[self.vertical_cut :].log2()
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, figsize=(8, 6))
@@ -126,7 +125,7 @@ class SimpleLabeler:
             "The selected region will appear\n"
             "on the bottom plot. If it looks good,\n"
             "save it by pressing the keys "
-            f"{set(self.config.key_to_label.keys())} (defined in config.py,"
+            f"{set(key_to_label.keys())} (defined in config.py,"
             f" or in your custom config.yaml)>.\n"
             "Closing the window will save the labels.\n "
             "key:\n"
@@ -200,14 +199,14 @@ class SimpleLabeler:
 
     def process_keystroke(self, key):
 
-        if key.key in set(self.config.key_to_label.keys()):
-            log.info(f"saving {self.config.key_to_label[key.key]} chirp (r to delete)")
+        if key.key in set(self.key_to_label.keys()):
+            log.info(f"saving {self.key_to_label[key.key]} chirp (r to delete)")
             add_example(
                 self.label_list,
                 self.wav_file,
                 self.n + self.xmin,
                 self.n + self.xmax,
-                sound_type=self.config.key_to_label[key.key],
+                sound_type=key_to_label[key.key],
                 hop_length=self.hop_length,
                 sample_rate=self.sample_rate,
             )
@@ -250,17 +249,3 @@ class SimpleLabeler:
             log.info("saving and quitting")
         else:
             log.info("unknown key pressed")
-
-
-def label(config, wav_file, output_csv_path):
-    """
-    Runner file to apply the SimpleLabeler to a .wav file.
-    :param config: disco.Config() object.
-    :param wav_file: .wav file to label.
-    :param output_csv_path:  Where to save the labels.
-    :return: None.
-    """
-    labeler = SimpleLabeler(wav_file, output_csv_path, config=config)
-    plt.show()
-    labeler.show()
-    labeler.save_labels()

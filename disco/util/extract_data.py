@@ -8,11 +8,9 @@ from shutil import copy2
 
 import numpy as np
 import pandas as pd
-import torch
 import torchaudio
-from sklearn.model_selection import train_test_split
 
-from disco.util import add_gaussian_beeps, add_white_noise
+from disco.util.util import add_gaussian_beeps, add_white_noise
 
 logger = logging.getLogger(__name__)
 
@@ -124,23 +122,11 @@ def extract_wav_and_csv_pair(
     mel_scale,
     snr,
     add_beeps,
-    config,
     hop_length=200,
+    name_to_class_code=None,
+    excluded_classes=None,
     extract_context=None,
 ):
-    """
-    Applies the labels contained in csv_filename to the .wav file and extracts the labeled regions.
-    :param csv_filename: .csv file containing the labels.
-    :param snr: signal-to-noise ratio. 0 means no noise.
-    :param add_beeps: signal-to-noise ratio. 0 means no noise.
-    :param wav_filename: .wav file containing the data.
-    :param n_fft: int. Number of ffts to use when calculating the spectrogram.
-    :param mel_scale: bool. Whether to calculate a MelSpectrogram.
-    :param config: disco.Config object. Controls the mapping from class name to class code and the classes to exclude
-    from the labeled sounds.
-    :param hop_length: int. Hop length between subsequent fft calculations when forming the spectrogram.
-    :return: list: List of lists. Each sublist contains a feature tensor and the associated vector of labels.
-    """
 
     labels = pd.read_csv(csv_filename)
     logger.info(f"File {os.path.basename(csv_filename)} has {labels.shape} labels.")
@@ -183,8 +169,8 @@ def extract_wav_and_csv_pair(
         spect,
         labels,
         hop_length=hop_length,
-        name_to_class_code=config.name_to_class_code,
-        excluded_classes=config.excluded_classes,
+        name_to_class_code=name_to_class_code,
+        excluded_classes=excluded_classes,
         extract_context=extract_context,
     )
 
@@ -240,23 +226,26 @@ def save_data(out_path, data_list, filename_prefix, index_to_label, overwrite):
 
 
 def extract_single_file(
-    config,
     csv_file,
     wav_file,
-    random_seed,
+    seed,
     no_mel_scale,
     n_fft,
     output_data_path,
     overwrite,
     snr,
     add_beeps,
+    class_code_to_name,
+    name_to_class_code,
+    excluded_classes,
     extract_context=None,
 ):
     """
     Extract data from a single .wav and .csv pair.
     """
-    random.seed(random_seed)
-    np.random.seed(random_seed)
+    logger.info(f"Setting seed to {seed}")
+    random.seed(seed)
+    np.random.seed(seed)
 
     mel = not no_mel_scale
     features_and_labels = extract_wav_and_csv_pair(
@@ -266,24 +255,25 @@ def extract_single_file(
         mel,
         snr,
         add_beeps,
-        config,
+        name_to_class_code=name_to_class_code,
+        excluded_classes=excluded_classes,
         extract_context=extract_context,
     )
     save_data(
         output_data_path,
         features_and_labels,
         filename_prefix=os.path.basename(os.path.splitext(csv_file)[0]),
-        index_to_label=config.class_code_to_name,
+        index_to_label=class_code_to_name,
         overwrite=overwrite,
     )
 
 
-def shuffle_data(data_directory, train_pct, extension, move, random_seed):
+def shuffle_data(data_directory, train_pct, extension, move, seed):
     data_files = glob(os.path.join(data_directory, f"*{extension}"))
 
-    logger.info(f"Setting seed for shuffling to {random_seed}.")
+    logger.info(f"Setting seed for shuffling to {seed}.")
 
-    np.random.seed(random_seed)
+    np.random.seed(seed)
     indices = np.random.permutation(len(data_files))
     train_idx = indices[: int(len(indices) * train_pct)]
     the_rest = indices[int(len(indices) * train_pct) :]

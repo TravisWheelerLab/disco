@@ -6,7 +6,7 @@ import numpy as np
 from matplotlib.colors import to_rgb
 from matplotlib.widgets import Slider
 
-import disco.inference_utils as infer
+import disco.util.inference_utils as infer
 
 # todo: Instead of passing in just config, give functions the specific things config uses for better functionality
 #  elsewhere.
@@ -23,7 +23,8 @@ class Visualizer:
         votes,
         votes_line,
         second_data_path,
-        config,
+        class_code_to_name,
+        name_to_rgb_code,
     ):
         """
         Class containing most information needed to perform visualization.
@@ -38,10 +39,8 @@ class Visualizer:
         :param votes_line: bool. Whether to display votes as a line rather than a color bar.
         :param second_data_path: String. data path to visualizations from a different ensemble of the same .wav file.
         Useful for comparing multiple ensembles and determining which is better.
-        :param config: disco.Config object helping map pkl data to actual labels and determining colors for display.
         :return: None.
         """
-        self.config = config
 
         self.votes_line = votes_line
         (
@@ -54,11 +53,11 @@ class Visualizer:
         ) = load_arrays(data_path)
         self.spectrogram = np.flip(self.spectrogram, axis=0)
 
-        if self.median_argmax.max() > max(config.class_code_to_name.keys()):
-            self.config.class_code_to_name[
+        if self.median_argmax.max() > max(class_code_to_name.keys()):
+            self.class_code_to_name[
                 self.median_argmax.max()
             ] = "DROPPED, HIGH UNCERTAINTY"
-            self.config.name_to_rgb_code["DROPPED, HIGH UNCERTAINTY"] = "#282B30"
+            self.name_to_rgb_code["DROPPED, HIGH UNCERTAINTY"] = "#282B30"
 
         first_data_path_name = os.path.split(data_path)[-1].split("-")[-1].split("_")[0]
 
@@ -74,7 +73,7 @@ class Visualizer:
             self.iqr,
             votes,
             self.votes,
-            config.class_code_to_name,
+            class_code_to_name,
             first_data_path_name + ":",
         )
         if second_data_path:
@@ -102,7 +101,7 @@ class Visualizer:
                 self.iqr_2,
                 votes,
                 self.votes_2,
-                config.class_code_to_name,
+                class_code_to_name,
                 second_data_path_name + ":",
             )
             self.statistics += self.statistics_2
@@ -212,12 +211,16 @@ def get_subplot_ht_ratios(
     return height_ratios
 
 
-def imshow_statistics_rows(axs, visualizer, config):
+def imshow_statistics_rows(
+    axs,
+    visualizer,
+    class_code_to_name,
+    name_to_rgb_code,
+):
     """
     Go through each subplot (row) and display each statistic.
     :param axs: Matplotlib axes containing each subplot.
     :param visualizer: Visualizer object with all statistics needed for display.
-    :param config: Config object used to map the class numbers to their colors in the display.
     :return: None.
     """
     for i in range(1, len(axs) - 1):
@@ -225,10 +228,8 @@ def imshow_statistics_rows(axs, visualizer, config):
         statistics_bar = np.expand_dims(visualizer.statistics[i - 1][1], axis=0)
         if "preds" in label or "post process" in label:
             color_dict = dict()
-            for class_code in range(len(config.class_code_to_name.keys())):
-                class_hex_code = config.name_to_rgb_code[
-                    config.class_code_to_name[class_code]
-                ]
+            for class_code in range(len(class_code_to_name.keys())):
+                class_hex_code = name_to_rgb_code[class_code_to_name[class_code]]
                 class_rgb_code = np.array(to_rgb(class_hex_code))
                 color_dict[class_code] = class_rgb_code
             statistics_rgb = np.expand_dims(
@@ -269,19 +270,18 @@ def imshow_statistics_rows(axs, visualizer, config):
             axs[i].get_yaxis().set_visible(False)
 
 
-def add_predictions_legend(ax, config):
+def add_predictions_legend(ax, name_to_rgb_code):
     """
     Creates a legend for class predictions in the top right corner of the spectrogram.
     :param ax: Matplotlib subplot containing the spectrogram
-    :param config: Config object containing the rgb values for each label.
     :return: None.
     """
     legend_handles = []
-    for name in config.name_to_rgb_code.keys():
+    for name in name_to_rgb_code.keys():
         icon = mlines.Line2D(
             [],
             [],
-            color=config.name_to_rgb_code[name],
+            color=name_to_rgb_code[name],
             marker="s",
             linestyle="None",
             markersize=10,
@@ -317,7 +317,6 @@ def build_slider(axs, visualizer):
 
 
 def visualize(
-    config,
     data_path,
     medians,
     post_process,
@@ -326,10 +325,13 @@ def visualize(
     votes,
     votes_line,
     second_data_path,
+    class_code_to_name,
+    name_to_rgb_code,
+    visualization_columns,
+    seed=None,
 ):
     """
     Visualize predictions interactively.
-    :param config: disco.Config() object.
     :param data_path: String. path of directory containing spectrogram and inference ran on it.
     :param medians: bool. whether to display median predictions by the ensemble.
     :param post_process: bool. whether to display post-processed (hmm, other heuristics) predictions by the ensemble.
@@ -349,7 +351,8 @@ def visualize(
         votes,
         votes_line,
         second_data_path,
-        config,
+        class_code_to_name,
+        name_to_rgb_code,
     )
 
     fig, axs = plt.subplots(
@@ -366,16 +369,16 @@ def visualize(
     )
 
     axs[0].imshow(visualizer.spectrogram, aspect="auto")
-    imshow_statistics_rows(axs, visualizer, config)
+    imshow_statistics_rows(axs, visualizer, class_code_to_name, name_to_rgb_code)
 
     if visualizer.show_legend:
-        add_predictions_legend(axs[0], config)
+        add_predictions_legend(axs[0], name_to_rgb_code)
 
     slider = build_slider(axs, visualizer)
 
     def update(val):
         for i in range(len(axs) - 1):
-            axs[i].set_xlim(slider.val, slider.val + config.visualization_columns)
+            axs[i].set_xlim(slider.val, slider.val + visualization_columns)
 
     slider.on_changed(update)
 

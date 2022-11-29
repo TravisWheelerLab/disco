@@ -11,10 +11,10 @@ import torch
 import torchaudio
 import tqdm
 
-import disco.heuristics as heuristics
+import disco.util.heuristics as heuristics
 from disco.accuracy_metrics import adjust_preds_by_confidence
 from disco.models import UNet1D
-from disco.util import add_gaussian_beeps, add_white_noise
+from disco.util.util import add_gaussian_beeps, add_white_noise
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ def create_hmm(transition_matrix, emission_probs, start_probs):
     dists = []
 
     for dist in emission_probs:
-        dists.append(pom.DiscreteDistribution(dist))
+        dists.append(pom.DiscreteDistribution(dict(dist)))
 
     transition_matrix = np.asarray(transition_matrix)
     start_probs = np.asarray(start_probs)
@@ -207,7 +207,12 @@ def save_csv_from_predictions(
     return df
 
 
-def smooth_predictions_with_hmm(unsmoothed_predictions, config):
+def smooth_predictions_with_hmm(
+    unsmoothed_predictions,
+    hmm_transition_probabilities,
+    hmm_emission_probabilities,
+    hmm_start_probabilities,
+):
     """
     Run the hmm defined by the config on the point-wise predictions.
     :param unsmoothed_predictions: np array of point-wise argmaxed predictions (size Nx1).
@@ -220,9 +225,9 @@ def smooth_predictions_with_hmm(unsmoothed_predictions, config):
         )
 
     hmm = create_hmm(
-        config.hmm_transition_probabilities,
-        config.hmm_emission_probabilities,
-        config.hmm_start_probabilities,
+        hmm_transition_probabilities,
+        hmm_emission_probabilities,
+        hmm_start_probabilities,
     )
     # forget about the first element because it's the start state
     smoothed_predictions = np.asarray(
@@ -262,25 +267,25 @@ def load_prediction_csv(csv_path, hop_length, sample_rate):
     return df
 
 
-def assemble_ensemble(model_directory, model_extension, device, in_channels, config):
-    """
-    Load models in from disk or download them from an AWS bucket.
-    :param model_directory: Location of saved models.
-    :param model_extension: Glob extension to load the models.
-    :param device: 'cuda' or 'cpu'. What device to place the models on.
-    :param in_channels: How many channels the models accepts
-    :param config: disco.Config() object.
-    :return: list of torch.Models().
-    """
+def assemble_ensemble(
+    model_directory,
+    model_extension,
+    device,
+    in_channels,
+    default_model_directory,
+    aws_download_link,
+    mask_flag,
+    class_code_to_name,
+):
 
     if model_directory is None:
-        model_directory = config.default_model_directory
+        model_directory = default_model_directory
 
     model_paths = glob(os.path.join(model_directory, f"*{model_extension}"))
 
     if not len(model_paths):
         logger.info("no models found, downloading to {}".format(model_directory))
-        download_models(model_directory, config.aws_download_link)
+        download_models(model_directory, aws_download_link)
 
     model_paths = glob(os.path.join(model_directory, f"*{model_extension}"))
 
@@ -288,7 +293,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
     for model_path in model_paths:
         skeleton = UNet1D(
             in_channels,
-            out_channels=len(config.class_code_to_name.keys()),
+            out_channels=len(class_code_to_name.keys()),
             learning_rate=1e-2,
             mel=False,
             apply_log=False,
@@ -297,7 +302,7 @@ def assemble_ensemble(model_directory, model_extension, device, in_channels, con
             mask_beginning_and_end=None,
             begin_mask=None,
             end_mask=None,
-            mask_character=config.mask_flag,
+            mask_character=mask_flag,
         ).to(device)
 
         skeleton = skeleton.load_from_checkpoint(model_path)
@@ -557,7 +562,7 @@ class SpectrogramIterator(torch.nn.Module):
         self.spectrogram = spectrogram
 
         if self.spectrogram is None and self.wav_file is None:
-            raise ValueError()
+            raise ValueError("No spectrogram or .wav file specified.")
 
         self.vertical_trim = vertical_trim
         self.n_fft = n_fft
