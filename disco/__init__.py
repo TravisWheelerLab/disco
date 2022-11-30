@@ -125,7 +125,6 @@ def label(_config):
 
     from disco.label import SimpleLabeler
 
-    pdb.set_trace()
     labeler = SimpleLabeler(
         _config["wav_file"],
         _config["output_csv_path"],
