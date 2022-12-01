@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 import torch
 import torchmetrics
@@ -239,3 +240,63 @@ class UNet1D(pl.LightningModule):
         val_acc = torch.mean(torch.stack(val_acc))
         self.log("val_loss", val_loss)
         self.log("val_acc", val_acc)
+
+
+class WhaleUNet(UNet1D):
+    def _shared_step(self, batch):
+
+        if len(batch) == 3:
+            x, x_mask, y = batch
+            logits = self.forward(x, x_mask)
+        else:
+            x, y = batch
+            logits = self.forward(x)
+
+        # duplicate labels so we can do fully-convolutional predictions
+        y = y.unsqueeze(-1).repeat(1, logits.shape[-1])
+        loss = torch.nn.functional.binary_cross_entropy(
+            torch.sigmoid(logits.ravel()).float(), y.ravel().float()
+        )
+
+        acc = self.accuracy(torch.round(torch.sigmoid(logits)).ravel(), y.ravel())
+
+        if self.global_step % 500 == 0:
+            with torch.no_grad():
+                fig = plt.figure(figsize=(10, 10))
+                plt.imshow(x[0].detach().to("cpu").numpy())
+                plt.title(y[0][0].detach().to("cpu").numpy())
+                plt.colorbar()
+                self.logger.experiment.add_figure(
+                    f"image", plt.gcf(), global_step=self.global_step
+                )
+
+        return loss, acc
+
+    def _forward(self, x):
+        x1 = self.conv1(x)
+        d1 = self.downsample(x1)
+
+        x2 = self.conv2(d1)
+        d2 = self.downsample(x2)
+
+        x3 = self.conv3(d2)
+        d3 = self.downsample(x3)
+
+        x4 = self.conv4(d3)
+        d4 = self.downsample(x4)
+
+        x5 = self.conv5(d4)
+        u1 = self.upsample(x5) + x4
+
+        x6 = self.conv6(u1)
+        u2 = self.upsample(x6) + x3
+
+        x7 = self.conv7(u2)
+        u3 = self.upsample(x7) + x2
+
+        x8 = self.conv8(u3)
+        u4 = self.upsample(x8) + x1
+
+        x9 = self.conv9(u4)
+        x = self.conv_out(x9)
+        return x

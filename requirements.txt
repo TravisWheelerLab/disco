@@ -65,5 +65,4 @@ seaborn~=0.12.1
 
 joypy~=0.2.6
 
-disco~=0.0.1
 sacred~=0.8.2

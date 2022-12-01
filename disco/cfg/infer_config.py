@@ -7,7 +7,7 @@ infer_experiment = Experiment()
 
 @infer_experiment.config
 def config():
-    wav_file = "/Users/wheelerlab/share/disco/disco/resources/example.wav"
+    wav_file = "/Users/mac/share/disco/disco/resources/example.wav"
     model_name = "UNet1D"
     dataset_name = "SpectrogramIterator"
 
