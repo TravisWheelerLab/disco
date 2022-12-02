@@ -1,20 +1,30 @@
-import os.path
+import os
+from glob import glob
 
 import numpy as np
 import torch
+from sacred import Experiment
 
 import disco.cfg as cfg
 import disco.util.inference_utils as infer
+from disco.datasets.dataset import SpectrogramDatasetMultiLabel
+from disco.util.loading import load_model_class
+
+experiment = Experiment()
 
 
+@experiment.automain
 def evaluate_test_files(
-    test_files,
-    model_class,
+    test_path,
+    model_name,
     metrics_path,
     saved_model_directory=None,
     tile_size=1024,
     num_threads=4,
 ):
+
+    test_files = glob(os.path.join(test_path, "*pkl"))
+    model_class = load_model_class(model_name)
 
     if not len(test_files):
         raise ValueError("no test files.")
@@ -63,14 +73,20 @@ def evaluate_test_files(
         cfg.hmm_start_probabilities,
     )
 
+    os.makedirs(metrics_path, exist_ok=True)
+
     labels_path = os.path.join(metrics_path, "ground_truth.pkl")
-    hmm_prediction_path = os.path.join(metrics_path, "hmm_predictions.pkl")
+    mean_path = os.path.join(metrics_path, "hmm_predictions.pkl")
+    hmm_prediction_path = os.path.join(metrics_path, "mean_predictions.pkl")
     median_prediction_path = os.path.join(metrics_path, "median_predictions.pkl")
     iqr_path = os.path.join(metrics_path, "iqrs.pkl")
     votes_path = os.path.join(metrics_path, "votes.pkl")
+    spectrogram_path = os.path.join(metrics_path, "spectrogram.pkl")
 
     infer.pickle_tensor(labels, labels_path)
     infer.pickle_tensor(hmm_predictions, hmm_prediction_path)
+    infer.pickle_tensor(means, mean_path)
     infer.pickle_tensor(medians, median_prediction_path)
     infer.pickle_tensor(iqr, iqr_path)
     infer.pickle_tensor(votes, votes_path)
+    infer.pickle_tensor(spect, spectrogram_path)
