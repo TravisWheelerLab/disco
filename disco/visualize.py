@@ -21,7 +21,6 @@ class Visualizer:
         votes_line,
         second_data_path,
         class_code_to_name,
-        name_to_rgb_code,
     ):
         """
         Class containing most information needed to perform visualization.
@@ -362,7 +361,6 @@ def visualize(
         votes_line,
         second_data_path,
         class_code_to_name,
-        name_to_rgb_code,
     )
 
     fig, axs = plt.subplots(

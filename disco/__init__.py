@@ -28,7 +28,6 @@ logger = logging.getLogger(__file__)
 
 @train_experiment.config
 def _inject_semi_permanent():
-    # TODO: fixme
     """
     Semi-permanent arguments used for the beetles dataset.
     """

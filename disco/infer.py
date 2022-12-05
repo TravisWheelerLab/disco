@@ -24,7 +24,6 @@ def predict_wav_file(
     batch_size=32,
     hop_length=200,
     num_threads=4,
-    add_beeps=False,
     seed=None,
 ):
     # dataset class will already be initialized
