@@ -196,6 +196,7 @@ def get_accuracy_metrics(ground_truth, predictions, normalize_confmat=None):
 
 
 if __name__ == "__main__":
+
     ap = ArgumentParser()
     ap.add_argument(
         "infer_data_root", help="where the predicted data is stored.", type=str

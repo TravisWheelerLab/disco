@@ -288,6 +288,13 @@ def assemble_ensemble(
 
         models.append(model)
 
+    if len(models) < 1:
+        raise ValueError(
+            "expected 1 or more models, found {}. Is model directory and extension correct?".format(
+                len(models)
+            )
+        )
+
     return models
 
 
@@ -468,35 +475,32 @@ def map_unconfident(predictions, to, threshold_type, threshold, thresholder, con
     return predictions
 
 
-def evaluate_pickles(spectrogram_dataset, models, device="cpu"):
+@torch.no_grad()
+def evaluate_test_loader(spectrogram_dataset, models, device="cpu"):
     """
-    Use the overlap-tile strategy to seamlessly evaluate a spectrogram.
-    :param spectrogram_dataset: torch.data.DataLoader()
-    :param models: list of model ensemble.
-    :param device: 'cuda' or 'cpu'
     :return: medians, iqrs, means, and votes, each numpy arrays that have a shape of (classes, length).
     """
-    with torch.no_grad():
-        spectrograms_concat = []
-        labels_concat = []
-        iqrs_full_sequence = []
-        medians_full_sequence = []
-        means_full_sequence = []
-        votes_full_sequence = []
 
-        for features, labels in spectrogram_dataset:
-            features = features.to(device)
-            ensemble_preds = predict_with_ensemble(models, features)
+    spectrograms_concat = []
+    labels_concat = []
+    iqrs_full_sequence = []
+    medians_full_sequence = []
+    means_full_sequence = []
+    votes_full_sequence = []
 
-            ensemble_preds = np.stack(ensemble_preds)
-            iqrs, medians, means, votes = calculate_ensemble_statistics(ensemble_preds)
+    for features, labels in spectrogram_dataset:
+        features = features.to(device)
+        ensemble_preds = predict_with_ensemble(models, features)
 
-            spectrograms_concat.extend(features.to("cpu"))
-            labels_concat.extend(labels.to("cpu"))
-            iqrs_full_sequence.extend(iqrs)
-            medians_full_sequence.extend(medians)
-            means_full_sequence.extend(means)
-            votes_full_sequence.extend(votes)
+        ensemble_preds = np.stack(ensemble_preds)
+        iqrs, medians, means, votes = calculate_ensemble_statistics(ensemble_preds)
+
+        spectrograms_concat.extend(features.to("cpu"))
+        labels_concat.extend(labels.to("cpu"))
+        iqrs_full_sequence.extend(iqrs)
+        medians_full_sequence.extend(medians)
+        means_full_sequence.extend(means)
+        votes_full_sequence.extend(votes)
 
     spectrograms_concat = np.concatenate(spectrograms_concat, axis=-1)
     labels_concat = np.concatenate(labels_concat, axis=-1)

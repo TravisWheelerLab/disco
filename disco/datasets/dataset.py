@@ -10,6 +10,7 @@ import torchaudio
 
 from disco.datasets import DataModule
 from disco.util.inference_utils import load_wav_file
+from disco.util.util import add_gaussian_beeps, add_white_noise
 
 
 def pad_batch(batch, mask_flag=-1):
@@ -51,7 +52,6 @@ class SpectrogramDatasetMultiLabel(DataModule):
     """
 
     def collate_fn(self):
-        print("I may or may not be masking properly. Please fix!")
         return pad_batch
 
     def __init__(

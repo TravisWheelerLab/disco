@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 import torch
-import torchmetrics
 from torch import nn
 
 # TODO: add mask character to something global
@@ -55,7 +54,7 @@ class UNet1D(pl.LightningModule):
         self.filter_width = 3
         self._setup_layers()
         self.divisible_by = divisible_by
-        self.accuracy = torchmetrics.Accuracy()
+        # self.accuracy = torchmetrics.Accuracy()
         self.learning_rate = learning_rate
         self.mel = mel
         self.apply_log = apply_log

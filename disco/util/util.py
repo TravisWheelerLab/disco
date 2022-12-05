@@ -1,5 +1,6 @@
 import logging
 
+import numpy as np
 import torch
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ def add_white_noise(waveform, snr):
 
 def add_gaussian_beeps(waveform, sample_rate):
     x = torch.arange(waveform.shape[1])
-    bep = torch.sin(2 * torch.pi * 440.0 * (x / sample_rate))
+    bep = 100 * torch.sin(2 * torch.pi * 440.0 * (x / sample_rate))
     # center a gaussian somewhere - here at 1000 units
     gaussian = torch.zeros_like(x).float()
     n_beeps = 10

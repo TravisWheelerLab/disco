@@ -124,10 +124,17 @@ def load_arrays(data_root):
     :param data_root: String of the user-provided visualization data directory.
     """
     medians = infer.load_pickle(os.path.join(data_root, "median_predictions.pkl"))
-    spectrogram = infer.load_pickle(os.path.join(data_root, "raw_spectrogram.pkl"))
+    if os.path.isfile(os.path.join(data_root, "raw_spectrogram.pkl")):
+        spectrogram = infer.load_pickle(os.path.join(data_root, "raw_spectrogram.pkl"))
+    else:
+        spectrogram = infer.load_pickle(os.path.join(data_root, "spectrogram.pkl"))
+
     post_hmm = infer.load_pickle(os.path.join(data_root, "hmm_predictions.pkl"))
     iqr = infer.load_pickle(os.path.join(data_root, "iqrs.pkl"))
-    means = infer.load_pickle(os.path.join(data_root, "mean_predictions.pkl"))
+    if not os.path.isfile(os.path.join(data_root, "mean_predictions.pkl")):
+        means = infer.load_pickle(os.path.join(data_root, "median_predictions.pkl"))
+    else:
+        means = infer.load_pickle(os.path.join(data_root, "mean_predictions.pkl"))
     votes = infer.load_pickle(os.path.join(data_root, "votes.pkl"))
     return spectrogram, medians, post_hmm, iqr, means, votes
 
@@ -222,13 +229,19 @@ def imshow_statistics_rows(
     """
     for i in range(1, len(axs) - 1):
         label = visualizer.statistics[i - 1][0]
-        statistics_bar = np.expand_dims(visualizer.statistics[i - 1][1], axis=0)
+        statistics_bar = np.expand_dims(
+            visualizer.statistics[i - 1][1], axis=0
+        ).squeeze()
         if "preds" in label or "post process" in label:
             color_dict = dict()
             for class_code in range(len(class_code_to_name.keys())):
                 class_hex_code = name_to_rgb_code[class_code_to_name[class_code]]
                 class_rgb_code = np.array(to_rgb(class_hex_code))
                 color_dict[class_code] = class_rgb_code
+
+            if statistics_bar.ndim > 1:
+                statistics_bar = statistics_bar.argmax(axis=0)
+
             statistics_rgb = np.expand_dims(
                 np.array([color_dict[i] for i in np.squeeze(statistics_bar)]), axis=0
             )

@@ -196,7 +196,7 @@ def _dataloader_args(dataloader_args):
 @infer_experiment.main
 def infer(_config):
     # from disco.infer import run_inference
-    from disco.scratch import predict_wav_file
+    from disco.infer import predict_wav_file
 
     _config = dict(_config)
     del _config["model_name"]
