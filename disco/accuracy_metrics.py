@@ -57,18 +57,24 @@ class SoundEvent:
             self.adjusted_preds_label = self.predictions_mode
 
 
-def load_accuracy_metric_pickles(data_path, ground_truth_pickle):
-    if ground_truth_pickle:
-        ground_truth = infer.load_pickle(os.path.join(data_path, "ground_truth.pkl"))
-    else:
-        ground_truth = None
+def load_accuracy_metric_pickles(data_path, return_dict=True):
+    ground_truth = infer.load_pickle(os.path.join(data_path, "ground_truth.pkl"))
     medians = infer.load_pickle(os.path.join(data_path, "median_predictions.pkl"))
     post_hmm = infer.load_pickle(os.path.join(data_path, "hmm_predictions.pkl"))
     iqr = infer.load_pickle(os.path.join(data_path, "iqrs.pkl"))
     votes = infer.load_pickle(os.path.join(data_path, "votes.pkl"))
     average_iqr = np.mean(iqr, axis=0)
     median_argmax = np.argmax(medians, axis=0)
-    return ground_truth, median_argmax, post_hmm, average_iqr, votes
+    if return_dict:
+        return {
+            "ground_truth": ground_truth,
+            "medians": medians,
+            "post_hmm": post_hmm,
+            "iqr": iqr,
+            "votes": votes,
+        }
+    else:
+        return ground_truth, median_argmax, post_hmm, average_iqr, votes
 
 
 def get_ground_truth_np_array(data_path, pickle_shape):
@@ -193,6 +199,22 @@ def get_accuracy_metrics(ground_truth, predictions, normalize_confmat=None):
     ).round(4)
     IoU = metrics.jaccard_score(y_true=ground_truth, y_pred=predictions, average=None)
     return accuracy, recall, precision, confusion_matrix, confusion_matrix_nonnorm, IoU
+
+
+def compute_eventwise_metrics(data_dict):
+    pass
+
+
+def compute_pointwise_metrics(data_dict, iqr_threshold):
+    iqr = data_dict["iqr"]
+    medians = data_dict["medians"]
+    pass
+
+
+def compute_accuracy(infer_data_root):
+    data = load_accuracy_metric_pickles(infer_data_root, return_dict=True)
+    eventwise = compute_eventwise_metrics(data)
+    pointwise = compute_pointwise_metrics(data)
 
 
 if __name__ == "__main__":

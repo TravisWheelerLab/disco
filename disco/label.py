@@ -125,7 +125,7 @@ class SimpleLabeler:
             "The selected region will appear\n"
             "on the bottom plot. If it looks good,\n"
             "save it by pressing the keys "
-            f"{set(key_to_label.keys())} (defined in config.py,"
+            f"{set(self.key_to_label.keys())} (defined in config.py,"
             f" or in your custom config.yaml)>.\n"
             "Closing the window will save the labels.\n "
             "key:\n"
@@ -206,7 +206,7 @@ class SimpleLabeler:
                 self.wav_file,
                 self.n + self.xmin,
                 self.n + self.xmax,
-                sound_type=key_to_label[key.key],
+                sound_type=self.key_to_label[key.key],
                 hop_length=self.hop_length,
                 sample_rate=self.sample_rate,
             )
