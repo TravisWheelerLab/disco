@@ -26,7 +26,7 @@ class SoundEvent:
         ground_truth_array,
         predictions_array,
         avg_iqr_array,
-        votes_array,
+        proportion_event_correct,
     ):
         self.start = start
         self.end = end
@@ -46,13 +46,10 @@ class SoundEvent:
         else:
             self.correct = False
             if self.predictions_mode == self.ground_truth_label:
-                self.predictions_mode = 3
+                self.predictions_mode = 2
 
         self.span_iqr_average = np.average(avg_iqr_array)
-        self.span_votes_average = np.average(votes_array)
-        if (self.span_iqr_average > iqr_threshold) or (
-            self.span_votes_average < min_votes_needed
-        ):
+        if self.span_iqr_average > iqr_threshold:
             self.adjusted_preds_label = name_to_class_code["BACKGROUND"]
         else:
             self.adjusted_preds_label = self.predictions_mode
@@ -64,11 +61,11 @@ def load_accuracy_metric_pickles(data_path, return_dict=True):
     post_hmm = infer.load_pickle(os.path.join(data_path, "hmm_predictions.pkl"))
     iqr = infer.load_pickle(os.path.join(data_path, "iqrs.pkl"))
     votes = infer.load_pickle(os.path.join(data_path, "votes.pkl"))
-    average_iqr = np.mean(iqr, axis=0)
-    median_argmax = np.argmax(medians, axis=0)
+    spect = infer.load_pickle(os.path.join(data_path, "spectrogram.pkl"))
     if return_dict:
         return {
             "ground_truth": ground_truth,
+            "spectrogram": spect,
             "medians": medians,
             "post_hmm": post_hmm,
             "iqr": iqr,
@@ -144,9 +141,7 @@ def adjust_preds_by_confidence(
     return median_argmax
 
 
-def make_sound_events_array(
-    ground_truth, median_argmax, average_iqr, winning_vote_count
-):
+def make_sound_events_array(ground_truth, median_argmax, average_iqr):
     sound_event_indices = get_sound_event_indices(ground_truth)
 
     sound_events = []
@@ -156,9 +151,7 @@ def make_sound_events_array(
             end = sound_event_indices[i + 1]
         else:
             end = len(ground_truth)
-        sound_event = SoundEvent(
-            start, end, ground_truth, median_argmax, average_iqr, winning_vote_count
-        )
+        sound_event = SoundEvent(start, end, ground_truth, median_argmax, average_iqr)
         sound_events.append(sound_event)
 
     return sound_events
@@ -202,8 +195,40 @@ def get_accuracy_metrics(ground_truth, predictions, normalize_confmat=None):
     return accuracy, recall, precision, confusion_matrix, confusion_matrix_nonnorm, IoU
 
 
-def eventwise_metrics(data_dict):
-    pass
+def eventwise_metrics(data_dict, cov_pct=0.5):
+    gts = data_dict["ground_truth"]
+    spect = data_dict["spectrogram"]
+    preds = data_dict["medians"]
+    for cov_pct in np.linspace(0.1, 1.0, num=10):
+        y_true = []
+        y_pred = []
+        for ground_truth, spect_slice, pred in zip(gts, spect, preds):
+            pred = np.argmax(pred, axis=0)
+            if len(np.unique(ground_truth)) == 1:
+                if np.sum(ground_truth == pred) >= cov_pct * ground_truth.shape[0]:
+                    y_pred.append(ground_truth[0])
+                else:
+                    y_pred.append(cfg.name_to_class_code["BACKGROUND"])
+
+                y_true.append(ground_truth[0])
+            else:
+                slice_boundaries = np.where(np.diff(ground_truth) != 0)[0]
+                end_idx = (
+                    [0] + [x + 1 for x in slice_boundaries] + [ground_truth.shape[0]]
+                )
+                for i in range(len(end_idx) - 1):
+
+                    gt_slice = ground_truth[end_idx[i] : end_idx[i + 1]]
+                    y_true.append(gt_slice[0])
+                    assert len(np.unique(gt_slice) == 1)
+                    pred_slice = pred[end_idx[i] : end_idx[i + 1]]
+
+                    if np.sum(gt_slice == pred_slice) >= cov_pct * gt_slice.shape[0]:
+                        y_pred.append(ground_truth[0])
+                    else:
+                        y_pred.append(cfg.name_to_class_code["BACKGROUNd"])
+
+        print(cov_pct, metrics.recall_score(y_true, y_pred, average=None))
 
 
 def pointwise_metrics(data_dict):
@@ -263,4 +288,4 @@ if __name__ == "__main__":
     args = ap.parse_args()
 
     data = load_accuracy_metric_pickles(args.infer_data_root)
-    x = pointwise_metrics(data)
+    x = eventwise_metrics(data)

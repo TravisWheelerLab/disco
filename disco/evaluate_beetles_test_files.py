@@ -13,11 +13,12 @@ from disco.util.loading import load_model_class
 experiment = Experiment()
 
 
+@torch.no_grad()
 @experiment.automain
 def evaluate_test_files(
     test_path,
-    model_name,
     metrics_path,
+    model_name="UNet1D",
     saved_model_directory=None,
     tile_size=1024,
     num_threads=4,
@@ -64,14 +65,17 @@ def evaluate_test_files(
         test_loader, models, device=device
     )
 
-    predictions = np.argmax(medians, axis=0).squeeze()
+    predictions = [np.argmax(m, axis=0).squeeze() for m in medians]
 
-    hmm_predictions = infer.smooth_predictions_with_hmm(
-        predictions,
-        cfg.hmm_transition_probabilities,
-        cfg.hmm_emission_probabilities,
-        cfg.hmm_start_probabilities,
-    )
+    hmm_predictions = [
+        infer.smooth_predictions_with_hmm(
+            p,
+            cfg.hmm_transition_probabilities,
+            cfg.hmm_emission_probabilities,
+            cfg.hmm_start_probabilities,
+        )
+        for p in predictions
+    ]
 
     os.makedirs(metrics_path, exist_ok=True)
 
@@ -83,10 +87,10 @@ def evaluate_test_files(
     votes_path = os.path.join(metrics_path, "votes.pkl")
     spectrogram_path = os.path.join(metrics_path, "spectrogram.pkl")
 
-    infer.pickle_tensor(labels, labels_path)
-    infer.pickle_tensor(hmm_predictions, hmm_prediction_path)
-    infer.pickle_tensor(means, mean_path)
-    infer.pickle_tensor(medians, median_prediction_path)
-    infer.pickle_tensor(iqr, iqr_path)
-    infer.pickle_tensor(votes, votes_path)
-    infer.pickle_tensor(spect, spectrogram_path)
+    infer.pickle_object(labels, labels_path)
+    infer.pickle_object(hmm_predictions, hmm_prediction_path)
+    infer.pickle_object(means, mean_path)
+    infer.pickle_object(medians, median_prediction_path)
+    infer.pickle_object(iqr, iqr_path)
+    infer.pickle_object(votes, votes_path)
+    infer.pickle_object(spect, spectrogram_path)

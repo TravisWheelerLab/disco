@@ -115,6 +115,11 @@ def convert_spectrogram_index_to_seconds(spect_idx, hop_length, sample_rate):
     return spect_idx * seconds_per_hop
 
 
+def pickle_object(data, path):
+    with open(path, "wb") as dst:
+        pickle.dump(data, dst)
+
+
 def pickle_tensor(data, path):
     """
     Pickles a pytorch tensor. If .numpy() isn't called, the entire computational graph is saved resulting in 100s of
@@ -491,23 +496,14 @@ def evaluate_test_loader(spectrogram_dataset, models, device="cpu"):
     for features, labels in spectrogram_dataset:
         features = features.to(device)
         ensemble_preds = predict_with_ensemble(models, features)
-
         ensemble_preds = np.stack(ensemble_preds)
         iqrs, medians, means, votes = calculate_ensemble_statistics(ensemble_preds)
-
-        spectrograms_concat.extend(features.to("cpu"))
-        labels_concat.extend(labels.to("cpu"))
+        spectrograms_concat.extend(features.to("cpu").numpy())
+        labels_concat.extend(labels.to("cpu").numpy())
         iqrs_full_sequence.extend(iqrs)
         medians_full_sequence.extend(medians)
         means_full_sequence.extend(means)
         votes_full_sequence.extend(votes)
-
-    spectrograms_concat = np.concatenate(spectrograms_concat, axis=-1)
-    labels_concat = np.concatenate(labels_concat, axis=-1)
-    iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)
-    medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)
-    means_full_sequence = np.concatenate(means_full_sequence, axis=-1)
-    votes_full_sequence = np.concatenate(votes_full_sequence, axis=-1)
 
     return (
         spectrograms_concat,

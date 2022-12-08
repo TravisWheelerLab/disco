@@ -386,7 +386,10 @@ def visualize(
 
     def update(val):
         for i in range(len(axs) - 1):
-            axs[i].set_xlim(slider.val, slider.val + visualization_columns)
+            axs[i].set_xlim(
+                visualizer.spectrogram.shape[1] * slider.val,
+                visualizer.spectrogram.shape[1] * slider.val + visualization_columns,
+            )
 
     slider.on_changed(update)
 
