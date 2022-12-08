@@ -1,6 +1,5 @@
 import logging
 import os
-import pdb
 import pickle
 import random
 from glob import glob
@@ -87,7 +86,6 @@ def create_label_to_spectrogram(
 
         label_vector = np.zeros((spect_slice.shape[1]))
         first = True
-        pdb.set_trace()
 
         for _, row in contiguous_labels.iterrows():
             if row["Sound_Type"] in excluded_classes:
@@ -158,9 +156,10 @@ def extract_wav_and_csv_pair(
             sample_rate=sample_rate, n_fft=n_fft, hop_length=hop_length
         )(waveform)
     else:
-        spect = torchaudio.transforms.Spectrogram(n_fft=n_fft, hop_length=hop_length)(
-            waveform
-        )
+        spect = torchaudio.transforms.Spectrogram(
+            n_fft=n_fft,
+            hop_length=hop_length,
+        )(waveform)
 
     # dictionary containing all pre-labeled chirps and their associated spectrograms
     spect = spect.squeeze()

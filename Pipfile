@@ -67,7 +67,7 @@ werkzeug = "==2.2.2"
 yarl = "==1.8.1"
 seaborn = "~=0.12.1"
 joypy = "~=0.2.6"
-sacred = "*"
+sacred = "~=0.8.2"
 
 [dev-packages]
 

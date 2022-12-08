@@ -199,7 +199,9 @@ def eventwise_metrics(data_dict, cov_pct=0.5):
     gts = data_dict["ground_truth"]
     spect = data_dict["spectrogram"]
     preds = data_dict["medians"]
-    for cov_pct in np.linspace(0.1, 1.0, num=10):
+
+    for cov_pct in np.linspace(0.1, 1.0, num=10)[::-1]:
+
         y_true = []
         y_pred = []
         for ground_truth, spect_slice, pred in zip(gts, spect, preds):
@@ -209,6 +211,17 @@ def eventwise_metrics(data_dict, cov_pct=0.5):
                     y_pred.append(ground_truth[0])
                 else:
                     y_pred.append(cfg.name_to_class_code["BACKGROUND"])
+                    # where are the false negatives?
+                    fig, ax = plt.subplots(nrows=2)
+                    ax[0].imshow(spect_slice)
+                    ax[1].imshow(
+                        np.concatenate(
+                            (ground_truth[np.newaxis, :], pred[np.newaxis, :]), axis=0
+                        ),
+                        aspect="auto",
+                    )
+                    ax[0].set_title("single-label example")
+                    plt.show()
 
                 y_true.append(ground_truth[0])
             else:
@@ -226,7 +239,20 @@ def eventwise_metrics(data_dict, cov_pct=0.5):
                     if np.sum(gt_slice == pred_slice) >= cov_pct * gt_slice.shape[0]:
                         y_pred.append(ground_truth[0])
                     else:
-                        y_pred.append(cfg.name_to_class_code["BACKGROUNd"])
+                        y_pred.append(cfg.name_to_class_code["BACKGROUND"])
+                        fig, ax = plt.subplots(nrows=2)
+                        second_spect_slice = spect_slice[:, end_idx[i] : end_idx[i + 1]]
+                        ax[0].imshow(second_spect_slice)
+                        ax[1].imshow(
+                            np.concatenate(
+                                (gt_slice[np.newaxis, :], pred_slice[np.newaxis, :]),
+                                axis=0,
+                            ),
+                            aspect="auto",
+                        )
+                        ax[0].set_title("multi-label example")
+                        plt.show()
+        exit()
 
         print(cov_pct, metrics.recall_score(y_true, y_pred, average=None))
 
