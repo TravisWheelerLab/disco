@@ -277,12 +277,14 @@ def assemble_ensemble(
         model_directory = default_model_directory
 
     model_paths = glob(os.path.join(model_directory, f"*"))
+    model_paths = [f for f in model_paths if os.path.isfile(f)]
 
     if not len(model_paths):
-        logger.info("no models found, downloading to {}".format(model_directory))
-        download_models(model_directory, aws_download_link)
-
-    model_paths = glob(os.path.join(model_directory, f"*"))
+        logger.info(
+            "no models found, downloading to {}".format(default_model_directory)
+        )
+        download_models(default_model_directory, aws_download_link)
+        model_paths = glob(os.path.join(default_model_directory, f"*"))
 
     models = []
     for model_path in model_paths:

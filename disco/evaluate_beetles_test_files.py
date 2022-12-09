@@ -20,7 +20,6 @@ def evaluate_test_files(
     metrics_path,
     model_name="UNet1D",
     saved_model_directory=None,
-    tile_size=1024,
     num_threads=4,
 ):
 
@@ -30,10 +29,8 @@ def evaluate_test_files(
     if not len(test_files):
         raise ValueError("no test files.")
 
-    if tile_size % 2 != 0:
-        raise ValueError("tile_size must be even, got {}".format(tile_size))
-
     device = "cuda" if torch.cuda.is_available() else "cpu"
+
     if device == "cpu":
         torch.set_num_threads(num_threads)
 

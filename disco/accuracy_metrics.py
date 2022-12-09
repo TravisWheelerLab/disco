@@ -1,5 +1,4 @@
 import os
-from argparse import ArgumentParser
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -195,12 +194,16 @@ def get_accuracy_metrics(ground_truth, predictions, normalize_confmat=None):
     return accuracy, recall, precision, confusion_matrix, confusion_matrix_nonnorm, IoU
 
 
-def eventwise_metrics(data_dict, cov_pct=0.5):
+def eventwise_metrics(data_dict):
     gts = data_dict["ground_truth"]
     spect = data_dict["spectrogram"]
     preds = data_dict["medians"]
+    a_recall = []
+    b_recall = []
 
-    for cov_pct in np.linspace(0.1, 1.0, num=10)[::-1]:
+    cov_pcts = np.linspace(0.1, 1.0, num=10)
+
+    for cov_pct in cov_pcts:
 
         y_true = []
         y_pred = []
@@ -211,17 +214,6 @@ def eventwise_metrics(data_dict, cov_pct=0.5):
                     y_pred.append(ground_truth[0])
                 else:
                     y_pred.append(cfg.name_to_class_code["BACKGROUND"])
-                    # where are the false negatives?
-                    fig, ax = plt.subplots(nrows=2)
-                    ax[0].imshow(spect_slice)
-                    ax[1].imshow(
-                        np.concatenate(
-                            (ground_truth[np.newaxis, :], pred[np.newaxis, :]), axis=0
-                        ),
-                        aspect="auto",
-                    )
-                    ax[0].set_title("single-label example")
-                    plt.show()
 
                 y_true.append(ground_truth[0])
             else:
@@ -240,29 +232,20 @@ def eventwise_metrics(data_dict, cov_pct=0.5):
                         y_pred.append(ground_truth[0])
                     else:
                         y_pred.append(cfg.name_to_class_code["BACKGROUND"])
-                        fig, ax = plt.subplots(nrows=2)
-                        second_spect_slice = spect_slice[:, end_idx[i] : end_idx[i + 1]]
-                        ax[0].imshow(second_spect_slice)
-                        ax[1].imshow(
-                            np.concatenate(
-                                (gt_slice[np.newaxis, :], pred_slice[np.newaxis, :]),
-                                axis=0,
-                            ),
-                            aspect="auto",
-                        )
-                        ax[0].set_title("multi-label example")
-                        plt.show()
-        exit()
 
-        print(cov_pct, metrics.recall_score(y_true, y_pred, average=None))
+        recalls = metrics.recall_score(y_true, y_pred, average=None)
+        a_recall.append(recalls[0])
+        b_recall.append(recalls[1])
+
+    return a_recall, b_recall, cov_pcts
 
 
 def pointwise_metrics(data_dict):
     # why have we been taking the mean as the uncertainty?
     # i think it makes more sense to grab the max
-    iqr = np.max(data_dict["iqr"], axis=0)
-    medians = np.argmax(data_dict["medians"], axis=0)
-    ground_truth = data_dict["ground_truth"]
+    iqr = np.max(np.hstack(data_dict["iqr"]), axis=0)
+    medians = np.argmax(np.hstack(data_dict["medians"]), axis=0)
+    ground_truth = np.hstack(data_dict["ground_truth"])
 
     precisions = []
     recalls = []
@@ -290,28 +273,104 @@ def pointwise_metrics(data_dict):
     recalls = np.asarray(recalls)
     precisions = np.asarray(precisions)
 
-    plt.plot(thresholds, accuracies, label="accuracy")
-    for name, cc in cfg.name_to_class_code.items():
-        if name == "X":
-            continue
-        plt.plot(thresholds, precisions[:, cc], label=f"{name} precision")
-        plt.plot(thresholds, recalls[:, cc], label=f"{name} recall")
+    return recalls, precisions, thresholds
 
-    plt.semilogx()
-    plt.legend()
+
+def eventwise():
+    ten_member = "/Users/mac/beetles_figures/snr_0_ensemble_10_random_init"
+    two_member = "/Users/mac/beetles_figures/snr_0_ensemble_2_random_init"
+    thirty_member = "/Users/mac/beetles_figures/snr_0_ensemble_30_random_init"
+
+    ten = eventwise_metrics(load_accuracy_metric_pickles(ten_member))
+    two = eventwise_metrics(load_accuracy_metric_pickles(two_member))
+    thirty = eventwise_metrics(load_accuracy_metric_pickles(thirty_member))
+
+    cov_thresholds = ten[-1]
+
+    fig, ax = plt.subplots(ncols=2, sharey=True, sharex=True)
+    # A chirp recall
+    ax[0].plot(cov_thresholds, ten[0], label="ten-member ensemble", c="k")
+    ax[0].plot(cov_thresholds, two[0], label="two-member ensemble", c="r")
+    ax[0].plot(cov_thresholds, thirty[0], label="thirty-member ensemble", c="b")
+
+    ax[0].scatter(cov_thresholds, ten[0], c="k")
+    ax[0].scatter(cov_thresholds, two[0], c="r")
+    ax[0].scatter(cov_thresholds, thirty[0], c="b")
+
+    ax[1].plot(cov_thresholds, ten[1], c="k")
+    ax[1].plot(cov_thresholds, two[1], c="r")
+    ax[1].plot(cov_thresholds, thirty[1], c="b")
+
+    ax[1].scatter(cov_thresholds, ten[1], c="k")
+    ax[1].scatter(cov_thresholds, two[1], c="r")
+    ax[1].scatter(cov_thresholds, thirty[1], c="b")
+
+    ax[0].set_title("a recall")
+    ax[1].set_title("b recall")
+
+    for a in ax:
+        a.spines["top"].set_visible(False)
+        a.spines["right"].set_visible(False)
+        a.spines["bottom"].set_color("#808080")
+        a.spines["left"].set_color("#808080")
+
+    ax[0].legend()
+    alpha = 0.3
+    plt.suptitle("event-wise accuracy")
+
+    ax[0].grid(alpha=alpha)
+    ax[1].grid(alpha=alpha)
+    ax[0].set_ylim(0, 1)
+    ax[0].set_ylabel("accuracy")
+
+    fig.text(0.5, 0.01, "percent event covered", ha="center")
+
     plt.show()
 
 
 if __name__ == "__main__":
+    # repro figure 1.
+    ten_member = "/Users/mac/beetles_figures/snr_0_ensemble_10_random_init"
+    two_member = "/Users/mac/beetles_figures/snr_0_ensemble_2_random_init"
+    thirty_member = "/Users/mac/beetles_figures/snr_0_ensemble_30_random_init"
 
-    ap = ArgumentParser()
-    ap.add_argument(
-        "infer_data_root", help="where the predicted data is stored.", type=str
+    ten = pointwise_metrics(load_accuracy_metric_pickles(ten_member))
+    two = pointwise_metrics(load_accuracy_metric_pickles(two_member))
+    thirty = pointwise_metrics(load_accuracy_metric_pickles(thirty_member))
+
+    iqr_thresholds = ten[-1]
+
+    fig, ax = plt.subplots(ncols=2, sharey=True, sharex=True)
+    # A chirp recall
+    ax[0].plot(iqr_thresholds, ten[0][:, 0], label="ten-member ensemble", c="k")
+    ax[0].plot(iqr_thresholds, two[0][:, 0], label="two-member ensemble", c="r")
+    ax[0].plot(iqr_thresholds, thirty[0][:, 0], label="thirty-member ensemble", c="b")
+
+    # A chirp precision
+    ax[0].plot(iqr_thresholds, ten[1][:, 0], "*-", c="k")
+    ax[0].plot(iqr_thresholds, two[1][:, 0], "*-", c="r")
+    ax[0].plot(iqr_thresholds, thirty[1][:, 0], "*-", c="b")
+
+    # B chirp recall
+    ax[1].plot(iqr_thresholds, ten[0][:, 1], label="ten-member ensemble", c="k")
+    ax[1].plot(iqr_thresholds, two[0][:, 1], label="two-member ensemble", c="r")
+    ax[1].plot(iqr_thresholds, thirty[0][:, 1], label="thirty-member ensemble", c="b")
+
+    # B chirp precision
+    ax[1].plot(iqr_thresholds, ten[1][:, 1], "*-", label="ten-member ensemble", c="k")
+    ax[1].plot(iqr_thresholds, two[1][:, 1], "*-", label="two-member ensemble", c="r")
+    ax[1].plot(
+        iqr_thresholds, thirty[1][:, 1], "*-", label="thirty-member ensemble", c="b"
     )
-    # ap.add_argument("out_path", help="where to store the .csv files", type=str)
-    # ap.add_argument("ensemble_members", type=int)
-    # ap.add_argument("ensemble_type", type=str)
-    args = ap.parse_args()
 
-    data = load_accuracy_metric_pickles(args.infer_data_root)
-    x = eventwise_metrics(data)
+    ax[0].semilogx()
+    ax[1].semilogx()
+
+    ax[0].set_title("a chirp precision and recall")
+    ax[1].set_title("b chirp precision and recall")
+
+    ax[0].legend()
+
+    fig.text(0.5, 0.01, "percent event covered", ha="center")
+
+    plt.show()
