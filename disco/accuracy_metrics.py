@@ -1,5 +1,6 @@
 import os
 
+import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -330,9 +331,11 @@ def eventwise():
 
 if __name__ == "__main__":
     # repro figure 1.
-    ten_member = "/Users/mac/beetles_figures/snr_0_ensemble_10_random_init"
-    two_member = "/Users/mac/beetles_figures/snr_0_ensemble_2_random_init"
-    thirty_member = "/Users/mac/beetles_figures/snr_0_ensemble_30_random_init"
+    ten_member = f"{os.environ['HOME']}/beetles_figures/snr_0_ensemble_10_random_init"
+    two_member = f"{os.environ['HOME']}/beetles_figures/snr_0_ensemble_2_random_init"
+    thirty_member = (
+        f"{os.environ['HOME']}/beetles_figures/snr_0_ensemble_30_random_init"
+    )
 
     ten = pointwise_metrics(load_accuracy_metric_pickles(ten_member))
     two = pointwise_metrics(load_accuracy_metric_pickles(two_member))
@@ -342,25 +345,52 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots(ncols=2, sharey=True, sharex=True)
     # A chirp recall
-    ax[0].plot(iqr_thresholds, ten[0][:, 0], label="ten-member ensemble", c="k")
-    ax[0].plot(iqr_thresholds, two[0][:, 0], label="two-member ensemble", c="r")
-    ax[0].plot(iqr_thresholds, thirty[0][:, 0], label="thirty-member ensemble", c="b")
+    (h1,) = ax[0].plot(
+        iqr_thresholds, ten[0][:, 0], "o-", label="ten-member ensemble", c="k"
+    )
+    (h2,) = ax[0].plot(
+        iqr_thresholds, two[0][:, 0], "o-", label="two-member ensemble", c="r"
+    )
+    (h3,) = ax[0].plot(
+        iqr_thresholds, thirty[0][:, 0], "o-", label="thirty-member ensemble", c="b"
+    )
 
     # A chirp precision
-    ax[0].plot(iqr_thresholds, ten[1][:, 0], "*-", c="k")
-    ax[0].plot(iqr_thresholds, two[1][:, 0], "*-", c="r")
-    ax[0].plot(iqr_thresholds, thirty[1][:, 0], "*-", c="b")
+    ax[0].plot(iqr_thresholds, ten[1][:, 0], "*-", c="k", markersize=10)
+    ax[0].plot(iqr_thresholds, two[1][:, 0], "*-", c="r", markersize=10)
+    ax[0].plot(iqr_thresholds, thirty[1][:, 0], "*-", c="b", markersize=10)
 
     # B chirp recall
-    ax[1].plot(iqr_thresholds, ten[0][:, 1], label="ten-member ensemble", c="k")
-    ax[1].plot(iqr_thresholds, two[0][:, 1], label="two-member ensemble", c="r")
-    ax[1].plot(iqr_thresholds, thirty[0][:, 1], label="thirty-member ensemble", c="b")
+    ax[1].plot(iqr_thresholds, ten[0][:, 1], "o-", label="ten-member ensemble", c="k")
+    ax[1].plot(iqr_thresholds, two[0][:, 1], "o-", label="two-member ensemble", c="r")
+    ax[1].plot(
+        iqr_thresholds, thirty[0][:, 1], "o-", label="thirty-member ensemble", c="b"
+    )
 
     # B chirp precision
-    ax[1].plot(iqr_thresholds, ten[1][:, 1], "*-", label="ten-member ensemble", c="k")
-    ax[1].plot(iqr_thresholds, two[1][:, 1], "*-", label="two-member ensemble", c="r")
     ax[1].plot(
-        iqr_thresholds, thirty[1][:, 1], "*-", label="thirty-member ensemble", c="b"
+        iqr_thresholds,
+        ten[1][:, 1],
+        "*-",
+        label="ten-member ensemble",
+        c="k",
+        markersize=10,
+    )
+    ax[1].plot(
+        iqr_thresholds,
+        two[1][:, 1],
+        "*-",
+        label="two-member ensemble",
+        c="r",
+        markersize=10,
+    )
+    ax[1].plot(
+        iqr_thresholds,
+        thirty[1][:, 1],
+        "*-",
+        label="thirty-member ensemble",
+        c="b",
+        markersize=10,
     )
 
     ax[0].semilogx()
@@ -369,8 +399,29 @@ if __name__ == "__main__":
     ax[0].set_title("a chirp precision and recall")
     ax[1].set_title("b chirp precision and recall")
 
-    ax[0].legend()
+    black_star = mlines.Line2D(
+        [],
+        [],
+        color="black",
+        marker="*",
+        linestyle="None",
+        markersize=10,
+        label="precision",
+    )
 
-    fig.text(0.5, 0.01, "percent event covered", ha="center")
+    black_dot = mlines.Line2D(
+        [],
+        [],
+        color="black",
+        marker="o",
+        linestyle="None",
+        markersize=6,
+        label="recall",
+    )
+
+    ax[0].legend(handles=[h1, h2, h3, black_star, black_dot])
+    ax[0].set_ylabel("precision/recall")
+
+    fig.text(0.5, 0.01, "log(iqr_threshold)", ha="center")
 
     plt.show()
