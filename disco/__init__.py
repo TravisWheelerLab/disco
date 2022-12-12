@@ -48,7 +48,7 @@ def _inject_semi_permanent():
 def _label_semi_permanent():
     visualization_n_fft = 1150
     vertical_cut = 20
-    key_to_label = {"y": "A", "w": "B", "e": "BACKGROUND"}
+    key_to_label = {"s": "A", "b": "B", "x": "BACKGROUND"}
 
 
 @train_experiment.config

@@ -7,6 +7,8 @@ import pandas as pd
 import torchaudio
 from matplotlib.widgets import SpanSelector
 
+import disco.cfg as cfg
+
 np.random.seed(0)
 
 from disco.util import inference_utils as infer
@@ -75,9 +77,15 @@ class SimpleLabeler:
             os.makedirs(os.path.dirname(os.path.abspath(self.output_csv_path)))
 
         n = 0
+        self.label_list = []
 
         if os.path.isfile(self.output_csv_path):
-            log.info("Already labeled this wav file.")
+            log.info(
+                f"Already labeled this wav file with label file {self.output_csv_path}. Loading labels."
+            )
+            df = pd.read_csv(self.output_csv_path)
+            for _, row in df.iterrows():
+                self.label_list.append(row.to_dict())
 
         self.waveform, self.sample_rate = infer.load_wav_file(self.wav_file)
 
@@ -86,6 +94,8 @@ class SimpleLabeler:
         self.spectrogram = torchaudio.transforms.MelSpectrogram(
             sample_rate=self.sample_rate,
             n_fft=visualization_n_fft,
+            f_max=15000,
+            f_min=2000,
             hop_length=self.hop_length,
         )(self.waveform).squeeze()
 
@@ -99,7 +109,6 @@ class SimpleLabeler:
         self.xmin = 0
         self.xmax = 0
         self.interval = 400
-        self.label_list = []
 
         self.ax1.imshow(
             self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval],
@@ -189,6 +198,39 @@ class SimpleLabeler:
                 int(100 * self.n / self.spectrogram.shape[-1])
             )
         )
+        if len(self.label_list) != 0:
+            for label in self.label_list:
+                cls = label["Sound_Type"]
+                begin = infer.convert_time_to_spect_index(
+                    label["Begin Time (s)"],
+                    hop_length=self.hop_length,
+                    sample_rate=self.sample_rate,
+                )
+                end = infer.convert_time_to_spect_index(
+                    label["End Time (s)"],
+                    hop_length=self.hop_length,
+                    sample_rate=self.sample_rate,
+                )
+                color = cfg.name_to_rgb_code[cls]
+
+                # if a label intersects the current viewing window, plot it up to the end of the window.
+
+                # if i start after the start of the current window
+                if begin >= self.n:
+                    # and if my end is near the current end
+                    if end <= (self.n + self.interval + 200):
+                        # then plot me
+                        # starting from begin;
+                        start_plot = begin - self.n
+                        # ending either at interval or the true end (because coordinates are relative)
+                        end_plot = min(end - self.n, self.interval)
+                        self.ax1.plot(
+                            range(start_plot, end_plot),
+                            (end_plot - start_plot) * [1],
+                            color=cfg.name_to_rgb_code[cls],
+                            linewidth=12,
+                        )
+
         self.fig.canvas.draw()
 
     def onselect(self, x_min, x_max):

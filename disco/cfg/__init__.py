@@ -15,6 +15,8 @@ mask_flag = -1
 name_to_class_code = {"A": 0, "B": 1, "BACKGROUND": 2, "X": 2}
 class_code_to_name = {0: "A", 1: "B", 2: "BACKGROUND"}
 
+name_to_rgb_code = {"A": "#B65B47", "B": "#A36DE9", "BACKGROUND": "#AAAAAA"}
+
 hmm_transition_probabilities = [
     [0.995, 0.00000, 0.005],
     [0.0000, 0.995, 0.005],
