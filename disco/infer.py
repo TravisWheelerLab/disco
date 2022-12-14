@@ -19,6 +19,7 @@ def predict_wav_file(
     dataset,
     model_class,
     saved_model_directory,
+    output_directory=None,
     tile_overlap=128,
     tile_size=1024,
     batch_size=32,
@@ -78,7 +79,10 @@ def predict_wav_file(
     )
 
     # auto-generate a directory
-    wav_root = os.path.dirname(wav_file)
+    if output_directory is None:
+        wav_root = os.path.dirname(wav_file)
+    else:
+        wav_root = output_directory
 
     output_csv_path = os.path.join(
         wav_root, os.path.splitext(os.path.basename(wav_file))[0] + "-detected.csv"
@@ -93,9 +97,14 @@ def predict_wav_file(
     )
 
     # now make a visualization path
-    viz_root = os.path.dirname(wav_file)
+    if output_directory is None:
+        viz_root = os.path.dirname(wav_file)
+    else:
+        viz_root = output_directory
+
     wav_basename = os.path.splitext(os.path.basename(wav_file))[0]
     viz_path = os.path.join(viz_root, wav_basename + "-viz")
+
     if os.path.isdir(viz_path):
         print(f"Directory {viz_path} already exists. Overwriting.")
     else:

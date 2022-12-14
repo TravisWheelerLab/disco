@@ -55,24 +55,19 @@ class SoundEvent:
             self.adjusted_preds_label = self.predictions_mode
 
 
-def load_accuracy_metric_pickles(data_path, return_dict=True):
-    ground_truth = infer.load_pickle(os.path.join(data_path, "ground_truth.pkl"))
+def load_accuracy_metric_data(data_path):
     medians = infer.load_pickle(os.path.join(data_path, "median_predictions.pkl"))
     post_hmm = infer.load_pickle(os.path.join(data_path, "hmm_predictions.pkl"))
     iqr = infer.load_pickle(os.path.join(data_path, "iqrs.pkl"))
     votes = infer.load_pickle(os.path.join(data_path, "votes.pkl"))
-    spect = infer.load_pickle(os.path.join(data_path, "spectrogram.pkl"))
-    if return_dict:
-        return {
-            "ground_truth": ground_truth,
-            "spectrogram": spect,
-            "medians": medians,
-            "post_hmm": post_hmm,
-            "iqr": iqr,
-            "votes": votes,
-        }
-    else:
-        return ground_truth, median_argmax, post_hmm, average_iqr, votes
+    spect = infer.load_pickle(os.path.join(data_path, "raw_spectrogram.pkl"))
+    return {
+        "spectrogram": spect,
+        "medians": medians,
+        "post_hmm": post_hmm,
+        "iqr": iqr,
+        "votes": votes,
+    }
 
 
 def get_ground_truth_np_array(data_path, pickle_shape):
@@ -196,20 +191,26 @@ def get_accuracy_metrics(ground_truth, predictions, normalize_confmat=None):
 
 
 def eventwise_metrics(data_dict):
+    """
+    Data dict must have a ground_truth key, a spectrogram key, and
+    a medians key
+    """
     gts = data_dict["ground_truth"]
-    spect = data_dict["spectrogram"]
     preds = data_dict["medians"]
     a_recall = []
     b_recall = []
+    cmats = []
 
-    cov_pcts = np.linspace(0.1, 1.0, num=10)
+    cov_pcts = np.linspace(0.1, 0.99, num=10)
 
     for cov_pct in cov_pcts:
 
         y_true = []
         y_pred = []
-        for ground_truth, spect_slice, pred in zip(gts, spect, preds):
-            pred = np.argmax(pred, axis=0)
+        for ground_truth, pred in zip(gts, preds):
+            if pred.ndim > 1:
+                pred = np.argmax(pred, axis=0)
+
             if len(np.unique(ground_truth)) == 1:
                 if np.sum(ground_truth == pred) >= cov_pct * ground_truth.shape[0]:
                     y_pred.append(ground_truth[0])
@@ -235,10 +236,12 @@ def eventwise_metrics(data_dict):
                         y_pred.append(cfg.name_to_class_code["BACKGROUND"])
 
         recalls = metrics.recall_score(y_true, y_pred, average=None)
+        cmat = metrics.confusion_matrix(y_true, y_pred, labels=[0, 1, 2])
         a_recall.append(recalls[0])
         b_recall.append(recalls[1])
+        cmats.append(cmat)
 
-    return a_recall, b_recall, cov_pcts
+    return a_recall, b_recall, cmats, cov_pcts
 
 
 def pointwise_metrics(data_dict):

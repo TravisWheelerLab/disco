@@ -12,7 +12,6 @@ import torchaudio
 import tqdm
 
 import disco.util.heuristics as heuristics
-from disco.accuracy_metrics import adjust_preds_by_confidence
 
 logger = logging.getLogger(__name__)
 
@@ -196,6 +195,8 @@ def save_csv_from_predictions(
     df = pd.DataFrame.from_dict(list_of_dicts_for_dataframe)
 
     dirname = os.path.dirname(output_csv_path)
+    if dirname == "":
+        dirname = os.path.splitext(os.path.basename(output_csv_path))[0]
 
     if not os.path.isdir(dirname):
         os.makedirs(dirname, exist_ok=True)
@@ -457,29 +458,6 @@ def evaluate_spectrogram(
         means_full_sequence,
         votes_full_sequence,
     )
-
-
-def map_unconfident(predictions, to, threshold_type, threshold, thresholder, config):
-    if threshold_type == "iqr":
-        thresholder = np.mean(thresholder, axis=0)
-    else:
-        "Not currently set up to do any unconfidence mappings other than iqr."
-    if to == "dummy_class":
-        unconfident_class = max(config.class_code_to_name.keys()) + 1
-    elif to == "BACKGROUND":
-        unconfident_class = config.name_to_class_code["BACKGROUND"]
-    elif to is None:
-        unconfident_class = max(config.class_code_to_name.keys())
-
-    predictions = adjust_preds_by_confidence(
-        average_iqr=thresholder,
-        iqr_threshold=threshold,
-        winning_vote_count=thresholder,
-        min_votes_needed=-1,
-        median_argmax=predictions,
-        map_to=unconfident_class,
-    )
-    return predictions
 
 
 @torch.no_grad()

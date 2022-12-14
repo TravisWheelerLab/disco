@@ -94,9 +94,8 @@ class SimpleLabeler:
         self.spectrogram = torchaudio.transforms.MelSpectrogram(
             sample_rate=self.sample_rate,
             n_fft=visualization_n_fft,
-            f_max=15000,
-            f_min=2000,
             hop_length=self.hop_length,
+            n_mels=110,
         )(self.waveform).squeeze()
 
         self.spectrogram[self.spectrogram == 0] = 1
@@ -104,6 +103,8 @@ class SimpleLabeler:
         self.spectrogram = self.spectrogram[self.vertical_cut :].log2()
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, figsize=(8, 6))
+
+        self.ax2.set_title(self.wav_file)
 
         self.n = n
         self.xmin = 0
@@ -211,25 +212,24 @@ class SimpleLabeler:
                     hop_length=self.hop_length,
                     sample_rate=self.sample_rate,
                 )
-                color = cfg.name_to_rgb_code[cls]
 
                 # if a label intersects the current viewing window, plot it up to the end of the window.
+                # if I start after the start of the current window
+                # and if my end is near the current end i
+                if begin >= (self.n - 200) and end <= (self.n + self.interval + 200):
+                    # then plot me
+                    # starting from begin;
+                    start_plot = max(begin - self.n, 0)
+                    # ending either at interval or the true end (because coordinates are relative)
+                    end_plot = min(end - self.n, self.interval)
+                    self.ax1.plot(
+                        range(start_plot, end_plot),
+                        (end_plot - start_plot) * [1],
+                        color=cfg.name_to_rgb_code[cls],
+                        linewidth=12,
+                    )
 
-                # if i start after the start of the current window
-                if begin >= self.n:
-                    # and if my end is near the current end
-                    if end <= (self.n + self.interval + 200):
-                        # then plot me
-                        # starting from begin;
-                        start_plot = begin - self.n
-                        # ending either at interval or the true end (because coordinates are relative)
-                        end_plot = min(end - self.n, self.interval)
-                        self.ax1.plot(
-                            range(start_plot, end_plot),
-                            (end_plot - start_plot) * [1],
-                            color=cfg.name_to_rgb_code[cls],
-                            linewidth=12,
-                        )
+                    print(start_plot, end_plot)
 
         self.fig.canvas.draw()
 

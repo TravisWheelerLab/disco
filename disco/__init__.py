@@ -48,7 +48,7 @@ def _inject_semi_permanent():
 def _label_semi_permanent():
     visualization_n_fft = 1150
     vertical_cut = 20
-    key_to_label = {"s": "A", "b": "B", "x": "BACKGROUND"}
+    key_to_label = {"z": "A", "b": "B", "x": "BACKGROUND"}
 
 
 @train_experiment.config
@@ -200,6 +200,7 @@ def infer(_config):
     _config = dict(_config)
     del _config["model_name"]
     del _config["dataset_name"]
+
     if "saved_model_directory" not in _config:
         _config["saved_model_directory"] = cfg.default_model_directory
 

@@ -320,8 +320,9 @@ def build_slider(axs, visualizer):
         ]
     )
     slider = Slider(
-        axis_position, "x-position", 0.0, visualizer.statistics[0][1].shape[0]
+        axis_position, "x-position", valmin=0.0, valmax=visualizer.spectrogram.shape[-1]
     )
+
     return slider
 
 
@@ -387,8 +388,8 @@ def visualize(
     def update(val):
         for i in range(len(axs) - 1):
             axs[i].set_xlim(
-                visualizer.spectrogram.shape[1] * slider.val,
-                visualizer.spectrogram.shape[1] * slider.val + visualization_columns,
+                slider.val,
+                slider.val + visualization_columns,
             )
 
     slider.on_changed(update)
