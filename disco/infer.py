@@ -43,6 +43,10 @@ def predict_wav_file(
         default_model_directory=cfg.default_model_directory,
         aws_download_link=cfg.aws_download_link,
     )
+    from random import shuffle
+
+    shuffle(models)
+    models = models[:1]
 
     if len(models) < 1:
         raise ValueError(
@@ -60,7 +64,7 @@ def predict_wav_file(
     original_spectrogram = dataset.original_spectrogram
     original_shape = dataset.original_shape
 
-    iqr, medians, means, votes = infer.evaluate_spectrogram(
+    iqr, medians, means, votes, preds = infer.evaluate_spectrogram(
         spectrogram_dataloader,
         models,
         tile_overlap,
@@ -114,6 +118,7 @@ def predict_wav_file(
     hmm_prediction_path = os.path.join(viz_path, "hmm_predictions.pkl")
     median_prediction_path = os.path.join(viz_path, "median_predictions.pkl")
     mean_prediction_path = os.path.join(viz_path, "mean_predictions.pkl")
+    raw_pred_path = os.path.join(viz_path, "raw_preds.pkl")
     votes_path = os.path.join(viz_path, "votes.pkl")
     iqr_path = os.path.join(viz_path, "iqrs.pkl")
     csv_path = os.path.join(viz_path, "classifications.csv")
@@ -131,4 +136,5 @@ def predict_wav_file(
     infer.pickle_tensor(predictions, median_prediction_path)
     infer.pickle_tensor(iqr, iqr_path)
     infer.pickle_tensor(means, mean_prediction_path)
+    infer.pickle_tensor(preds, raw_pred_path)
     infer.pickle_tensor(votes, votes_path)

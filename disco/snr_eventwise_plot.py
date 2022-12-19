@@ -45,7 +45,6 @@ def compute_eventwise_accuracy(
     (transitions,) = np.where(np.diff(label_array) != 0)
     ground_truth = []
     corresponding_predictions = []
-    spectrogram_slices = []
     cmat = None
 
     for i in range(len(transitions) - 1):
@@ -59,16 +58,15 @@ def compute_eventwise_accuracy(
         corresponding_predictions.append(prediction_slice)
         # now VISUALIZE!
         spectrogram_slice = spectrogram[:, transitions[i] + 1 : transitions[i + 1]]
-        spectrogram_slices.append(spectrogram_slice)
 
     data_dict = {
         "medians": corresponding_predictions,
-        "spectrograms": spectrogram_slices,
         "ground_truth": ground_truth,
+        "spectrograms": [],
     }
 
     # returns an array of confusion matrices at different coverage percentages
-    _, _, cmats, cov_pcts = eventwise_metrics(data_dict, debug=True, cov_pcts=[0.5])
+    _, _, cmats, cov_pcts = eventwise_metrics(data_dict, cov_pcts=[0.5])
 
     if cmat is None:
         cmat = cmats
@@ -81,7 +79,8 @@ def compute_eventwise_accuracy(
 
 if __name__ == "__main__":
 
-    root = "/Users/wheelerlab/beetles_testing/unannotated_files_12_12_2022/audio_2020"
+    # root = "/Users/wheelerlab/beetles_testing/unannotated_files_12_12_2022/audio_2020/"
+    root = "/xdisk/twheeler/colligan/ground_truth/"
     # compare the different ensembles.
     test1 = "180101_0133S12-viz"
     test2 = "180101_0183S34D06-viz"
@@ -96,7 +95,7 @@ if __name__ == "__main__":
 
     ensemble_to_cmat = {}
 
-    for ensemble_directory in glob(root + "/*ensemble*"):
+    for ensemble_directory in glob(root + "/snr_ablation/*ensemble*"):
         conf_matrix = None
         for test_directory, label_file in zip(test_directories, label_files):
             data = load_accuracy_metric_data(
@@ -118,9 +117,7 @@ if __name__ == "__main__":
 
         ensemble_to_cmat[os.path.basename(ensemble_directory)] = conf_matrix
 
-fig, ax = plt.subplots(
-    ncols=2, sharey=True, sharex=True, subplot_kw={"aspect": "equal"}
-)
+fig, ax = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(13, 10))
 
 ensemble_name_map = {
     "ensemble_10_random_init": "10 member, random init.",
@@ -131,28 +128,73 @@ ensemble_name_map = {
     "ensemble_30_bootstrap": "30 member, bootstrap",
 }
 
-for ensemble_type, confusion_matrices in ensemble_to_cmat.items():
+snr = []
+accuracy = []
+
+ensemble_to_snr = {}
+
+for name in ensemble_name_map:
+    performances = []
+    snrs = []
+    for snr_name in ensemble_to_cmat.keys():
+        if name in snr_name:
+            # only will work with one cov. percent
+            (cmat,) = ensemble_to_cmat[snr_name]
+            performances.append(cmat)
+            snr = int(snr_name[: snr_name.find("_")])
+
+            if snr == 0:
+                # 0 is shorthand for "no noise"
+                snr = 500
+
+            snrs.append(snr)
+
+    ensemble_to_snr[name] = (snrs, performances)
+
+# plot SNR and recall
+
+for ensemble_type, arrs in ensemble_to_snr.items():
+    snrs, confusion_matrices = arrs
+    sorted_idx = np.argsort(snrs)
+    snrs = np.asarray(snrs)[sorted_idx]
+    confusion_matrices = np.asarray(confusion_matrices)[sorted_idx]
+
     recalls = [
         np.diag((c / np.sum(c, axis=1, keepdims=True))) for c in confusion_matrices
     ]
+    # A chirp
     (line,) = ax[0].plot(
-        cov_pct,
+        snrs,
         [r[0] for r in recalls],
-        "*-",
-        label=ensemble_name_map[ensemble_type],
+        "o-",
+        label=ensemble_type,
         markersize=8,
     )
+    # B chirp
     ax[1].plot(
-        cov_pct, [r[1] for r in recalls], "*-", color=line.get_color(), markersize=8
+        snrs, [r[1] for r in recalls], "o-", color=line.get_color(), markersize=8
     )
 
 ax[0].legend()
-ax[0].set_ylabel("accuracy")
+ax[0].set_ylabel("recall")
+
+ax[0].invert_xaxis()
+ax[1].invert_xaxis()
+
+ax[0].semilogx()
+ax[1].semilogx()
 
 ax[0].set_title("A chirp")
 ax[1].set_title("B chirp")
 
-fig.text(y=0.1, x=0.5, s="percent event covered", ha="center")
+labels = ax[0].get_xticks()
+labels[0] = "more noise"
+labels[-1] = "less noise"
+
+ax[0].set_xticklabels(labels)
+ax[1].set_xticklabels(labels)
+
+fig.text(y=0.05, x=0.5, s="sn ratio", ha="center")
 
 for a in ax:
     a.spines["top"].set_visible(False)
@@ -160,4 +202,4 @@ for a in ax:
     a.spines["bottom"].set_color("#808080")
     a.spines["left"].set_color("#808080")
 
-plt.show()
+plt.savefig("testing.png", bbox_inches="tight")

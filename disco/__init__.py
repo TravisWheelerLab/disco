@@ -208,6 +208,7 @@ def infer(_config):
     dataloader_args["wav_file"] = _config["wav_file"]
 
     dataset = _config["dataset"](**dataloader_args)
+    print(dataloader_args["snr"])
 
     del _config["dataloader_args"]
     _config["dataset"] = dataset

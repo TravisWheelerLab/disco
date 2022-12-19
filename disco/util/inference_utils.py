@@ -406,6 +406,7 @@ def evaluate_spectrogram(
         iqrs_full_sequence = []
         medians_full_sequence = []
         means_full_sequence = []
+        preds_full_sequence = []
         votes_full_sequence = []
         if assert_accuracy:
             all_features = []
@@ -427,9 +428,9 @@ def evaluate_spectrogram(
                 [seq[:, :, tile_overlap:-tile_overlap] for seq in ensemble_preds]
             )
             iqrs, medians, means, votes = calculate_ensemble_statistics(ensemble_preds)
-
             iqrs_full_sequence.extend(iqrs)
             medians_full_sequence.extend(medians)
+            preds_full_sequence.extend(ensemble_preds)
             means_full_sequence.extend(means)
             votes_full_sequence.extend(votes)
 
@@ -439,9 +440,18 @@ def evaluate_spectrogram(
         ]
         assert np.all(all_features == original_spectrogram.numpy())
 
+    # split the predictions
+    concat = np.concatenate(preds_full_sequence, axis=0)
+    splt = np.split(concat, concat.shape[0])
+
+    preds_full_sequence = np.concatenate(splt, axis=-1).squeeze()[
+        :, : original_spectrogram_shape[-1]
+    ]
+
     iqrs_full_sequence = np.concatenate(iqrs_full_sequence, axis=-1)[
         :, : original_spectrogram_shape[-1]
     ]
+
     medians_full_sequence = np.concatenate(medians_full_sequence, axis=-1)[
         :, : original_spectrogram_shape[-1]
     ]
@@ -457,6 +467,7 @@ def evaluate_spectrogram(
         medians_full_sequence,
         means_full_sequence,
         votes_full_sequence,
+        preds_full_sequence,
     )
 
 

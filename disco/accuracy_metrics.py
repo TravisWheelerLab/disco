@@ -61,13 +61,24 @@ def load_accuracy_metric_data(data_path):
     iqr = infer.load_pickle(os.path.join(data_path, "iqrs.pkl"))
     votes = infer.load_pickle(os.path.join(data_path, "votes.pkl"))
     spect = infer.load_pickle(os.path.join(data_path, "raw_spectrogram.pkl"))
-    return {
-        "spectrogram": spect,
-        "medians": medians,
-        "post_hmm": post_hmm,
-        "iqr": iqr,
-        "votes": votes,
-    }
+    if os.path.isfile(os.path.join(data_path, "raw_preds.pkl")):
+        preds = infer.load_pickle(os.path.join(data_path, "raw_preds.pkl"))
+        return {
+            "raw_preds": preds,
+            "spectrogram": spect,
+            "medians": medians,
+            "post_hmm": post_hmm,
+            "iqr": iqr,
+            "votes": votes,
+        }
+    else:
+        return {
+            "spectrogram": spect,
+            "medians": medians,
+            "post_hmm": post_hmm,
+            "iqr": iqr,
+            "votes": votes,
+        }
 
 
 def get_ground_truth_np_array(data_path, pickle_shape):
@@ -190,32 +201,47 @@ def get_accuracy_metrics(ground_truth, predictions, normalize_confmat=None):
     return accuracy, recall, precision, confusion_matrix, confusion_matrix_nonnorm, IoU
 
 
-def eventwise_metrics(data_dict):
+def eventwise_metrics(data_dict, cov_pcts=None, debug=False):
     """
     Data dict must have a ground_truth key, a spectrogram key, and
     a medians key
     """
     gts = data_dict["ground_truth"]
     preds = data_dict["medians"]
+    spectrograms = data_dict["spectrograms"]
     a_recall = []
     b_recall = []
     cmats = []
 
-    cov_pcts = np.linspace(0.1, 0.99, num=10)
+    if cov_pcts is None:
+        cov_pcts = np.linspace(0.1, 0.99, num=10)
 
     for cov_pct in cov_pcts:
 
         y_true = []
         y_pred = []
-        for ground_truth, pred in zip(gts, preds):
+        for j, (ground_truth, pred) in enumerate(zip(gts, preds)):
             if pred.ndim > 1:
                 pred = np.argmax(pred, axis=0)
 
             if len(np.unique(ground_truth)) == 1:
-                if np.sum(ground_truth == pred) >= cov_pct * ground_truth.shape[0]:
+                if np.sum(ground_truth == pred) >= (cov_pct * ground_truth.shape[0]):
                     y_pred.append(ground_truth[0])
                 else:
                     y_pred.append(cfg.name_to_class_code["BACKGROUND"])
+                    if debug:
+                        fig, ax = plt.subplots(nrows=2)
+                        ax[0].imshow(spectrograms[j], aspect="auto")
+                        ax[1].imshow(
+                            pred[
+                                np.newaxis,
+                            ],
+                            aspect="auto",
+                            vmin=0,
+                            vmax=2,
+                        )
+                        plt.title(f"truth: {ground_truth[0]}")
+                        plt.show()
 
                 y_true.append(ground_truth[0])
             else:
@@ -230,10 +256,23 @@ def eventwise_metrics(data_dict):
                     assert len(np.unique(gt_slice) == 1)
                     pred_slice = pred[end_idx[i] : end_idx[i + 1]]
 
-                    if np.sum(gt_slice == pred_slice) >= cov_pct * gt_slice.shape[0]:
-                        y_pred.append(ground_truth[0])
+                    if np.sum(gt_slice == pred_slice) >= (cov_pct * gt_slice.shape[0]):
+                        y_pred.append(gt_slice[0])
                     else:
                         y_pred.append(cfg.name_to_class_code["BACKGROUND"])
+                        if debug:
+                            fig, ax = plt.subplots(nrows=2)
+                            ax[0].imshow(spectrograms[j], aspect="auto")
+                            ax[1].imshow(
+                                pred[
+                                    np.newaxis,
+                                ],
+                                aspect="auto",
+                                vmin=0,
+                                vmax=2,
+                            )
+                            plt.title(f"truth: {ground_truth[0]}")
+                            plt.show()
 
         recalls = metrics.recall_score(y_true, y_pred, average=None)
         cmat = metrics.confusion_matrix(y_true, y_pred, labels=[0, 1, 2])
