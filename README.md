@@ -18,7 +18,7 @@ Install directly from git with pip:
 pip install git+https://github.com/TravisWheelerLab/disco.git
 ```
 
-DISCO contains subcommands useful for training and evaluating models on sound data. Deep Learning projects typically follow a series of steps, and DISCO tries to emulate each of these steps:
+DISCO contains subcommands useful for training and evaluating models on sound data. Deep learning projects typically follow a series of steps, and DISCO tries to emulate each of these steps:
 `label`, `extract`, `shuffle`, `train`, `infer`. 
 
 *NOTE*
