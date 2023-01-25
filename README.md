@@ -17,29 +17,12 @@ Install directly from git with pip:
 ```
 pip install git+https://github.com/TravisWheelerLab/disco.git
 ```
-Make sure the package is installed with
-```shell
-disco --help
-```
-This should spit out something like:
-```shell
-usage: disco [-h] [--version] {infer,train,extract,shuffle,label,viz} ...
 
-options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-
-actions:
-  {infer,train,extract,shuffle,label,viz}
-```
+DISCO contains subcommands useful for training and evaluating models on sound data. Deep Learning projects typically follow a series of steps, and DISCO tries to emulate each of these steps:
+`label`, `extract`, `shuffle`, `train`, `infer`. 
 
 *NOTE*
 
 Models were updated in the most recent version. Remove them with `rm ~/.cache/disco/*` before running any `disco` commands.
-
-## Tutorial
-Warning: Information below might be old. For immediate assistance with install/run issues, raise an issue in this repo.
-
-Visit this [YouTube link](https://www.youtube.com/watch?v=g0rIpVOpXZ4) for a thorough setup tutorial.
 
 Learn more about how to use the tools provided in this package in the [wiki](https://github.com/TravisWheelerLab/disco/wiki).
