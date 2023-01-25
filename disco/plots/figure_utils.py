@@ -6,7 +6,7 @@ import pandas as pd
 
 import disco.cfg as cfg
 import disco.util.inference_utils as util
-from disco.accuracy_metrics import load_accuracy_metric_data
+from disco.plots.accuracy_metrics import load_accuracy_metric_data
 
 # constants
 iqr_thresholds = np.logspace(-2.77, np.log(0.999), num=50)[::-1]

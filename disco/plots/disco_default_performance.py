@@ -7,7 +7,7 @@ import numpy as np
 
 plt.style.use("ggplot")
 
-import disco.figure_utils as fig_util
+import disco.plots.figure_utils as fig_util
 
 if __name__ == "__main__":
 

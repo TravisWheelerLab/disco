@@ -9,7 +9,7 @@ import pickle
 import numpy as np
 
 import disco.cfg as cfg
-import disco.figure_utils as fig_utils
+import disco.plots.figure_utils as fig_utils
 
 
 def colorfy(label_array, color_dict):

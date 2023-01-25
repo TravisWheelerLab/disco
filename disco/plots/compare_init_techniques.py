@@ -5,7 +5,7 @@ from glob import glob
 import matplotlib.pyplot as plt
 import numpy as np
 
-import disco.figure_utils as fig_util
+import disco.plots.figure_utils as fig_util
 
 plt.style.use("ggplot")
 

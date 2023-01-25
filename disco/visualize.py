@@ -6,7 +6,7 @@ import numpy as np
 from matplotlib.colors import to_rgb
 from matplotlib.widgets import Slider
 
-import disco.figure_utils as fig_utils
+import disco.plots.figure_utils as fig_utils
 import disco.util.inference_utils as infer
 
 

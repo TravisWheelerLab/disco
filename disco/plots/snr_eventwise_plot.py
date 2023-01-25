@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 
 import disco.cfg as cfg
-import disco.figure_utils as fig_util
+import disco.plots.figure_utils as fig_util
 import disco.util.inference_utils as util
-from disco.accuracy_metrics import eventwise_metrics, load_accuracy_metric_data
+from disco.plots.accuracy_metrics import eventwise_metrics, load_accuracy_metric_data
 
 
 def compute_eventwise_accuracy(

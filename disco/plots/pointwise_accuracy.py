@@ -11,9 +11,9 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix
 
-import disco.figure_utils as fig_util
+import disco.plots.figure_utils as fig_util
 import disco.util.inference_utils as util
-from disco.accuracy_metrics import load_accuracy_metric_data
+from disco.plots.accuracy_metrics import load_accuracy_metric_data
 
 
 def compute_pointwise_accuracy(

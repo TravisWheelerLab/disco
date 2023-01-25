@@ -14,7 +14,7 @@ from disco.util.extract_data import convert_time_to_index, w2s_idx
 hop_length = 200
 sample_rate = 48000
 name_to_class_code = {"A": 0, "B": 1, "X": 2, "BACKGROUND": 2}
-ground_truth_data_root = os.path.join(".", "data", "example.csv")
+ground_truth_data_root = os.path.join("..", "data", "example.csv")
 ground_truth_pickle = True
 
 
