@@ -68,6 +68,8 @@ yarl = "==1.8.1"
 seaborn = "~=0.12.1"
 joypy = "~=0.2.6"
 sacred = "~=0.8.2"
+packaging = "==21.3"
+pyside6 = "~=6.4.1"
 
 [dev-packages]
 

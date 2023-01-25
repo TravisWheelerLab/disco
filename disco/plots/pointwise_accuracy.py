@@ -149,7 +149,17 @@ ax[0].set_ylabel("precision", fontsize=16, color="black")
 ax[0].set_xlim(0, 1.01)
 ax[1].set_xlim(0, 1.01)
 
-fig.text(y=0.035, x=0.51, s="recall", ha="center", fontsize=16, color="black")
+subplot = fig.add_subplot(111, frameon=False)
+plt.tick_params(
+    labelcolor="none", which="both", top=False, bottom=False, left=False, right=False
+)
+plt.xlabel("recall", color="black", fontsize=16)
+subplot.spines["top"].set_visible(False)
+subplot.spines["right"].set_visible(False)
+subplot.spines["bottom"].set_visible(False)
+subplot.spines["left"].set_visible(False)
+subplot.set_facecolor("none")
+subplot.grid(alpha=0.0, color="#808080")
 
 for a in ax:
     a.spines["top"].set_visible(False)

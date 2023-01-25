@@ -277,7 +277,7 @@ def assemble_ensemble(
     if model_directory is None:
         model_directory = default_model_directory
 
-    model_paths = glob(os.path.join(model_directory, f"*"))
+    model_paths = glob(os.path.join(model_directory, f"*pt"))
     model_paths = [f for f in model_paths if os.path.isfile(f)]
 
     if not len(model_paths):

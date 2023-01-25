@@ -3,6 +3,8 @@ import logging
 import numpy as np
 import torch
 
+import disco
+
 logger = logging.getLogger(__name__)
 
 __all__ = ["add_white_noise", "add_gaussian_beeps"]
@@ -36,3 +38,18 @@ def add_gaussian_beeps(waveform, sample_rate):
     waveform += gaussian * bep
 
     return waveform
+
+
+if __name__ == "__main__":
+    import os
+
+    import torchaudio
+
+    for snr in range(0, 100, 10):
+        ex, sample_rate = torchaudio.load(
+            os.path.join(disco.root, "resources/example.wav")
+        )
+        noised = add_white_noise(ex, snr)
+        torchaudio.save(
+            f"/Users/wheelerlab/different_snrs/example_{snr}.wav", noised, sample_rate
+        )

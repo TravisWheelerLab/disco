@@ -1,8 +1,10 @@
 import os
 import pickle
 
-import joypy
 import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.style.use("ggplot")
 import numpy as np
 
 from disco import root
@@ -11,7 +13,8 @@ root = os.path.join(
     root, "resources/noised_iqr/snr_{}_ensemble_{}_random_init/iqrs.pkl"
 )
 
-snrs = [15, 20, 25, 30, 35, 40, 80, 160, 320, 0]
+# snrs = [15, 20, 25, 30, 35, 40, 80, 160, 320, 0]
+snrs = [15, 20, 25, 30, 35, 40, 80, 0]
 
 
 data = []
@@ -23,30 +26,38 @@ for ensemble in [10]:
 
         data.append(np.max(iqr, axis=0))
 
-snrs[-1] = "no noise"
+snrs[-1] = "no\nnoise"
+fig, ax = plt.subplots(nrows=len(data), sharey=True, sharex=True, figsize=(12.2, 8.2))
 
-fig, ax = joypy.joyplot(
-    data, labels=snrs, figsize=(8.2, 8.2), overlap=2, linecolor="k", linewidth=0.5
-)
-for a in ax:
-    a.set_xlim(-0.1, 1.01)
+for s, d, a in zip(snrs, data, ax):
+    sns.violinplot(x=d, ax=a, cut=0, linewidth=1, color="lightblue")
+    a.set_xlim(-0.01, 1.0)
+    a.spines["top"].set_visible(False)
+    a.spines["right"].set_visible(False)
+    a.spines["bottom"].set_color("#808080")
+    a.spines["left"].set_color("#808080")
+    a.set_facecolor("none")
+    a.set_ylabel(s)
+    a.collections[0].set_edgecolor(None)
 
-fig.text(
-    x=0.02,
-    y=0.34,
-    s="signal-to-noise ratio",
-    rotation="vertical",
-    color="black",
-    fontsize=18,
+subplot = fig.add_subplot(111, frameon=False)
+plt.tick_params(
+    labelcolor="none", which="both", top=False, bottom=False, left=False, right=False
 )
+plt.ylabel("signal-to-noise ratio", color="black", fontsize=18)
+subplot.spines["top"].set_visible(False)
+subplot.spines["right"].set_visible(False)
+subplot.spines["bottom"].set_visible(False)
+subplot.spines["left"].set_visible(False)
+subplot.set_facecolor("none")
+subplot.grid(alpha=0.0, color="#808080")
+
 ax[-1].set_xlabel("max iqr", fontsize=18, color="black")
-# fig.text(y=0.025, x=0.52, s="max iqr",
-#          color="black", fontsize=18)
 
-plt.suptitle("iqr histograms, different SN ratios", fontsize=18)
+# ax[0].set_title("iqr violin plots, different SN ratios", fontsize=18)
 plt.subplots_adjust(bottom=0.10)
 plt.savefig(
-    f"{os.path.join(os.environ['HOME'], 'noisy_iqr_histogram.pdf')}",
+    f"{os.path.join(os.environ['HOME'], 'noisy_iqr_violin.pdf')}",
     format="pdf",
     dpi=600,
     bbox_inches="tight",

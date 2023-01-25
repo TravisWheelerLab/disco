@@ -104,51 +104,30 @@ class SimpleLabeler:
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, figsize=(8, 6))
 
+        self.fig.canvas.manager.set_window_title("DISCO labeling app")
         self.ax2.set_title(self.wav_file)
 
         self.n = n
         self.xmin = 0
         self.xmax = 0
         self.interval = 400
-
         self.ax1.imshow(
             self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval],
             origin="upper",
         )
+        self.ax1.set_yticks([])
+
         self.ax1.axis("off")
         self.ax2.axis("off")
 
         self.ax1.set_title(
             "Press left mouse button and drag "
             "to select a region in the top graph. "
-            "{:d} percent through spectrogram".format(
-                int(self.n / self.spectrogram.shape[-1])
-            )
+            # "{:d} percent through spectrogram".format(
+            #     int(self.n / self.spectrogram.shape[-1])
         )
 
-        textstr = (
-            "keys control which label is\n"
-            "assigned to the selected region.\n"
-            "first navigate with <g,d,j> over\n"
-            "the spectrogram, then click and\n"
-            "drag to select a region.\n"
-            "The selected region will appear\n"
-            "on the bottom plot. If it looks good,\n"
-            "save it by pressing the keys "
-            f"{set(self.key_to_label.keys())} (defined in config.py,"
-            f" or in your custom config.yaml)>.\n"
-            "Closing the window will save the labels.\n "
-            "key:\n"
-            "r: delete last label\n"
-            "a: widen window\n"
-            "t: tighten window\n"
-            "g: move window right\n"
-            "d: move window left\n"
-            "j: jump 10 windows forward\n\n"
-        )
-
-        plt.figtext(0.02, 0.25, textstr, fontsize=8)
-        plt.subplots_adjust(left=0.25)
+        # plt.subplots_adjust(left=0.25)
 
         self.fig.canvas.mpl_connect("key_press_event", self.process_keystroke)
 
@@ -195,9 +174,9 @@ class SimpleLabeler:
         self.ax1.set_title(
             "Press left mouse button and drag "
             "to select a region in the top graph "
-            "{:d} percent through spectrogram".format(
-                int(100 * self.n / self.spectrogram.shape[-1])
-            )
+            #             "{:d} percent through spectrogram".format(
+            #                 int(100 * self.n / self.spectrogram.shape[-1])
+            #             )
         )
         if len(self.label_list) != 0:
             for label in self.label_list:

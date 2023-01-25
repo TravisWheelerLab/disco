@@ -6,6 +6,7 @@ import numpy as np
 from matplotlib.colors import to_rgb
 from matplotlib.widgets import Slider
 
+import disco.figure_utils as fig_utils
 import disco.util.inference_utils as infer
 
 
@@ -48,6 +49,10 @@ class Visualizer:
             self.votes,
         ) = load_arrays(data_path)
         self.spectrogram = np.flip(self.spectrogram, axis=0)
+        ground_truth_csv = f"{fig_utils.root}/{fig_utils.label_files[0]}"
+        print(ground_truth_csv)
+        ground_truth = fig_utils.create_label_array(ground_truth_csv, self.spectrogram)
+        self.post_hmm = ground_truth
 
         if self.median_argmax.max() > max(class_code_to_name.keys()):
             self.class_code_to_name[

@@ -43,10 +43,8 @@ def predict_wav_file(
         default_model_directory=cfg.default_model_directory,
         aws_download_link=cfg.aws_download_link,
     )
-    from random import shuffle
 
-    shuffle(models)
-    models = models[:1]
+    log.info(f"Using {len(models)} models from {saved_model_directory}.")
 
     if len(models) < 1:
         raise ValueError(
@@ -54,6 +52,8 @@ def predict_wav_file(
                 len(models)
             )
         )
+
+    print("hello")
 
     spectrogram_dataloader = torch.utils.data.DataLoader(
         dataset, shuffle=False, batch_size=batch_size, drop_last=False

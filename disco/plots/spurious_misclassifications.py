@@ -121,7 +121,7 @@ legend = ax[0, 0].legend(
 )
 
 fig.text(y=0.25, x=0.08, s="DISCO")
-fig.text(y=0.14, x=0.08, s="ground\n truth")
+fig.text(y=0.15, x=0.08, s="human")
 
 # ax[2, 2].set_xlabel("A chirp", fontsize=16)
 

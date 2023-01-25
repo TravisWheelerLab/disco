@@ -163,7 +163,7 @@ leg = ax.legend(
 
 ax.set_ylabel("recall", fontsize=16)
 
-fig.text(y=0.030, x=0.5, s="sn ratio", ha="center", fontsize=16)
+ax.set_xlabel("sn ratio", fontsize=16)
 
 ax.grid(alpha=0.1, color="#808080")
 

@@ -6,9 +6,9 @@ viz_experiment = Experiment()
 @viz_experiment.config
 def config():
 
-    data_path = "/Users/mac/share/disco/disco/resources/example-viz"
+    data_path = "/Users/wheelerlab/share/disco/disco/resources/example-viz"
     medians = True
-    post_process = False
+    post_process = True
     means = False
     iqr = False
     votes = False

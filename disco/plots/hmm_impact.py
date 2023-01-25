@@ -97,8 +97,8 @@ legend = ax[0, 0].legend(
 )
 
 fig.text(y=0.33, x=0.06, s="ensemble\nprediction")
-fig.text(y=0.24, x=0.06, s="post hmm")
-fig.text(y=0.15, x=0.05, s="ground truth")
+fig.text(y=0.24, x=0.06, s="post HMM")
+fig.text(y=0.15, x=0.07, s="human")
 
 ax[2, 0].set_xlabel("B chirp", fontsize=16)
 ax[2, 1].set_xlabel("B chirp", fontsize=16)

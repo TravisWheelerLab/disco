@@ -169,9 +169,28 @@ if __name__ == "__main__":
     ax[0].set_title("A chirp", color="black", fontsize=14)
     ax[1].set_title("B chirp", color="black", fontsize=14)
 
-    fig.text(y=0.047, x=0.51, s="recall", ha="center", fontsize=16, color="black")
+    # fig.text(y=0.047, x=0.51, s="recall", ha="center", fontsize=16, color="black")
 
     ax[0].set_ylabel("precision", color="black", fontsize=16)
+    # from https://stackoverflow.com/questions/16150819/common-xlabel-ylabel-for-matplotlib-subplots
+
+    subplot = fig.add_subplot(111, frameon=False)
+    plt.tick_params(
+        labelcolor="none",
+        which="both",
+        top=False,
+        bottom=False,
+        left=False,
+        right=False,
+    )
+    plt.xlabel("recall", color="black", fontsize=16)
+    subplot.spines["top"].set_visible(False)
+    subplot.spines["right"].set_visible(False)
+    subplot.spines["bottom"].set_visible(False)
+    subplot.spines["left"].set_visible(False)
+
+    subplot.set_facecolor("none")
+    subplot.grid(alpha=0.0, color="#808080")
 
     for a in ax:
         a.spines["top"].set_visible(False)

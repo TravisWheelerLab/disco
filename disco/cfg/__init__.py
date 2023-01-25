@@ -31,6 +31,3 @@ hmm_emission_probabilities = [
     {0: 0.1, 1: 0.88, 2: 0.020},
     {0: 0.05, 1: 0.05, 2: 0.9},
 ]
-
-iqr_thresholds = np.logspace(-2.7, np.log(0.999), num=50)[::-1]
-softmax_thresholds = np.logspace(-2, np.log(0.9999), num=50)

@@ -23,6 +23,8 @@ from disco.cfg import (
 )
 from disco.util.loading import load_dataset_class, load_model_class
 
+root = os.path.dirname(os.path.abspath(__file__))
+
 logger = logging.getLogger(__file__)
 
 
@@ -139,7 +141,7 @@ def label(_config):
 def _infer_semi_permanent():
     default_model_directory = os.path.join(os.path.expanduser("~"), ".cache", "disco")
     model_extension = ".pt"
-    tile_overlap = 128
+    tile_overlap = 108
     tile_size = 1024
     batch_size = 32
     input_channels = 108
@@ -179,22 +181,9 @@ def _load_model_and_dataset(model_name, dataset_name):
     dataset = load_dataset_class(dataset_name)
 
 
-@infer_experiment.config
-def _dataloader_args(dataloader_args):
-    dataloader_args["tile_size"] = 1024
-    dataloader_args["tile_overlap"] = 128
-    dataloader_args["vertical_trim"] = 20
-    dataloader_args["n_fft"] = 1150
-    dataloader_args["hop_length"] = 200
-    dataloader_args["log_spect"] = (True,)
-    dataloader_args["mel_transform"] = (True,)
-    dataloader_args["snr"] = 0
-    dataloader_args["add_beeps"] = False
-
-
 @infer_experiment.main
 def infer(_config):
-    # from disco.infer import run_inference
+
     from disco.infer import predict_wav_file
 
     _config = dict(_config)
@@ -208,7 +197,6 @@ def infer(_config):
     dataloader_args["wav_file"] = _config["wav_file"]
 
     dataset = _config["dataset"](**dataloader_args)
-    print(dataloader_args["snr"])
 
     del _config["dataloader_args"]
     _config["dataset"] = dataset
