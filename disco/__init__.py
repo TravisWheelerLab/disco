@@ -1,9 +1,11 @@
+"""
+DISCO Implements Sound Classification Obediently.
+"""
+__version__ = "0.0.1"
 import logging
 import os
-import pdb
 import sys
 import time
-from argparse import ArgumentParser
 from pathlib import Path
 from types import SimpleNamespace
 

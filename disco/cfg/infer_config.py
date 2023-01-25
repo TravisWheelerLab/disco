@@ -13,7 +13,6 @@ def config():
 
     @to_dict
     class dataloader_args:
-        snr = 0
         vertical_trim = 20
         tile_size = 1024
         tile_overlap = 128
@@ -21,4 +20,3 @@ def config():
         hop_length = 200
         log_spect = (True,)
         mel_transform = (True,)
-        add_beeps = False

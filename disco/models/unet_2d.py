@@ -28,18 +28,18 @@ class ConvBlock(nn.Module):
         return x
 
 
-class UNet1D(pl.LightningModule):
+class UNet2D(pl.LightningModule):
     def __init__(
         self,
         in_channels,
-        n_classes,
+        out_channels,
         mask_character,
         divisible_by=16,
     ):
 
-        super(UNet1D, self).__init__()
+        super(UNet2D, self).__init__()
         self.in_channels = in_channels
-        self.out_channels = n_classes
+        self.out_channels = out_channels
         self.filter_width = 3
         self._setup_layers()
         self.divisible_by = divisible_by

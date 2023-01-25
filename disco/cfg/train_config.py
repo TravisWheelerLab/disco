@@ -12,7 +12,7 @@ def beetles_config():
     @to_dict
     class model_args:
         in_channels = 108
-        n_classes = 3
+        out_channels = 3
         learning_rate = 0.001
         mel = True
         apply_log = True

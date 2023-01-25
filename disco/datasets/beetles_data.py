@@ -6,7 +6,6 @@ import torchaudio
 
 from disco.datasets import DataModule
 from disco.util.inference_utils import load_wav_file
-from disco.util.util import add_gaussian_beeps, add_white_noise
 
 
 def pad_batch(batch, mask_flag=-1):
@@ -133,8 +132,6 @@ class SpectrogramIterator(DataModule):
         hop_length,
         log_spect,
         mel_transform,
-        snr,
-        add_beeps,
         wav_file=None,
         spectrogram=None,
     ):
@@ -160,9 +157,7 @@ class SpectrogramIterator(DataModule):
 
         if self.spectrogram is None:
             waveform, self.sample_rate = load_wav_file(wav_file)
-            self.spectrogram = self.create_spectrogram(
-                waveform, self.sample_rate, snr, add_beeps
-            )
+            self.spectrogram = self.create_spectrogram(waveform, self.sample_rate)
 
         self.spectrogram = self.spectrogram[vertical_trim:]
 
@@ -205,14 +200,7 @@ class SpectrogramIterator(DataModule):
             dim=-1,
         )
 
-    def create_spectrogram(self, waveform, sample_rate, snr, add_beeps):
-        if snr > 0:
-            # add white gaussian noise
-            waveform = add_white_noise(waveform, snr)
-
-        if add_beeps:
-            waveform = add_gaussian_beeps(waveform, sample_rate)
-
+    def create_spectrogram(self, waveform, sample_rate):
         if self.mel_transform:
             spectrogram = torchaudio.transforms.MelSpectrogram(
                 sample_rate=sample_rate, n_fft=self.n_fft, hop_length=self.hop_length
