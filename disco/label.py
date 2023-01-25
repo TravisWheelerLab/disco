@@ -1,17 +1,17 @@
 import logging
 import os
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torchaudio
 from matplotlib.widgets import SpanSelector
 
+import disco.cfg as cfg
+
 np.random.seed(0)
 
-import disco.inference_utils as infer
-from disco.config import Config
+from disco.util import inference_utils as infer
 
 log = logging.getLogger(__name__)
 
@@ -55,17 +55,18 @@ def add_example(
 class SimpleLabeler:
     """
     This class uses matplotlib widgets to label a spectrogram.
-    Can be customized by a disco.Config() object.
     """
 
-    def __init__(self, wav_file, output_csv_path, config):
+    def __init__(
+        self, wav_file, output_csv_path, key_to_label, visualization_n_fft, vertical_cut
+    ):
 
         self.wav_file = wav_file
         self.output_csv_path = output_csv_path
-        self.config = config
         self.forbidden_keys = ("a", "t", "g", "j", "d", "c", "v", "q")
+        self.key_to_label = key_to_label
 
-        for key in set(self.config.key_to_label.keys()):
+        for key in set(key_to_label.keys()):
             if key in self.forbidden_keys:
                 raise ValueError(
                     f"Cannot override default keypress {key}, change"
@@ -76,9 +77,15 @@ class SimpleLabeler:
             os.makedirs(os.path.dirname(os.path.abspath(self.output_csv_path)))
 
         n = 0
+        self.label_list = []
 
         if os.path.isfile(self.output_csv_path):
-            log.info("Already labeled this wav file.")
+            log.info(
+                f"Already labeled this wav file with label file {self.output_csv_path}. Loading labels."
+            )
+            df = pd.read_csv(self.output_csv_path)
+            for _, row in df.iterrows():
+                self.label_list.append(row.to_dict())
 
         self.waveform, self.sample_rate = infer.load_wav_file(self.wav_file)
 
@@ -86,60 +93,41 @@ class SimpleLabeler:
 
         self.spectrogram = torchaudio.transforms.MelSpectrogram(
             sample_rate=self.sample_rate,
-            n_fft=config.visualization_n_fft,
+            n_fft=visualization_n_fft,
             hop_length=self.hop_length,
+            n_mels=110,
         )(self.waveform).squeeze()
 
         self.spectrogram[self.spectrogram == 0] = 1
-        self.vertical_cut = config.vertical_cut
+        self.vertical_cut = vertical_cut
         self.spectrogram = self.spectrogram[self.vertical_cut :].log2()
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, figsize=(8, 6))
+
+        self.fig.canvas.manager.set_window_title("DISCO labeling app")
+        self.ax2.set_title(self.wav_file)
 
         self.n = n
         self.xmin = 0
         self.xmax = 0
         self.interval = 400
-        self.label_list = []
-
         self.ax1.imshow(
             self.spectrogram[self.vertical_cut :, self.n : self.n + self.interval],
             origin="upper",
         )
+        self.ax1.set_yticks([])
+
         self.ax1.axis("off")
         self.ax2.axis("off")
 
         self.ax1.set_title(
             "Press left mouse button and drag "
             "to select a region in the top graph. "
-            "{:d} percent through spectrogram".format(
-                int(self.n / self.spectrogram.shape[-1])
-            )
+            # "{:d} percent through spectrogram".format(
+            #     int(self.n / self.spectrogram.shape[-1])
         )
 
-        textstr = (
-            "keys control which label is\n"
-            "assigned to the selected region.\n"
-            "first navigate with <g,d,j> over\n"
-            "the spectrogram, then click and\n"
-            "drag to select a region.\n"
-            "The selected region will appear\n"
-            "on the bottom plot. If it looks good,\n"
-            "save it by pressing the keys "
-            f"{set(self.config.key_to_label.keys())} (defined in config.py,"
-            f" or in your custom config.yaml)>.\n"
-            "Closing the window will save the labels.\n "
-            "key:\n"
-            "r: delete last label\n"
-            "a: widen window\n"
-            "t: tighten window\n"
-            "g: move window right\n"
-            "d: move window left\n"
-            "j: jump 10 windows forward\n\n"
-        )
-
-        plt.figtext(0.02, 0.25, textstr, fontsize=8)
-        plt.subplots_adjust(left=0.25)
+        # plt.subplots_adjust(left=0.25)
 
         self.fig.canvas.mpl_connect("key_press_event", self.process_keystroke)
 
@@ -186,10 +174,42 @@ class SimpleLabeler:
         self.ax1.set_title(
             "Press left mouse button and drag "
             "to select a region in the top graph "
-            "{:d} percent through spectrogram".format(
-                int(100 * self.n / self.spectrogram.shape[-1])
-            )
+            #             "{:d} percent through spectrogram".format(
+            #                 int(100 * self.n / self.spectrogram.shape[-1])
+            #             )
         )
+        if len(self.label_list) != 0:
+            for label in self.label_list:
+                cls = label["Sound_Type"]
+                begin = infer.convert_time_to_spect_index(
+                    label["Begin Time (s)"],
+                    hop_length=self.hop_length,
+                    sample_rate=self.sample_rate,
+                )
+                end = infer.convert_time_to_spect_index(
+                    label["End Time (s)"],
+                    hop_length=self.hop_length,
+                    sample_rate=self.sample_rate,
+                )
+
+                # if a label intersects the current viewing window, plot it up to the end of the window.
+                # if I start after the start of the current window
+                # and if my end is near the current end i
+                if begin >= (self.n - 200) and end <= (self.n + self.interval + 200):
+                    # then plot me
+                    # starting from begin;
+                    start_plot = max(begin - self.n, 0)
+                    # ending either at interval or the true end (because coordinates are relative)
+                    end_plot = min(end - self.n, self.interval)
+                    self.ax1.plot(
+                        range(start_plot, end_plot),
+                        (end_plot - start_plot) * [1],
+                        color=cfg.name_to_rgb_code[cls],
+                        linewidth=12,
+                    )
+
+                    print(start_plot, end_plot)
+
         self.fig.canvas.draw()
 
     def onselect(self, x_min, x_max):
@@ -200,14 +220,14 @@ class SimpleLabeler:
 
     def process_keystroke(self, key):
 
-        if key.key in set(self.config.key_to_label.keys()):
-            log.info(f"saving {self.config.key_to_label[key.key]} chirp (r to delete)")
+        if key.key in set(self.key_to_label.keys()):
+            log.info(f"saving {self.key_to_label[key.key]} chirp (r to delete)")
             add_example(
                 self.label_list,
                 self.wav_file,
                 self.n + self.xmin,
                 self.n + self.xmax,
-                sound_type=self.config.key_to_label[key.key],
+                sound_type=self.key_to_label[key.key],
                 hop_length=self.hop_length,
                 sample_rate=self.sample_rate,
             )
@@ -250,17 +270,3 @@ class SimpleLabeler:
             log.info("saving and quitting")
         else:
             log.info("unknown key pressed")
-
-
-def label(config, wav_file, output_csv_path):
-    """
-    Runner file to apply the SimpleLabeler to a .wav file.
-    :param config: disco.Config() object.
-    :param wav_file: .wav file to label.
-    :param output_csv_path:  Where to save the labels.
-    :return: None.
-    """
-    labeler = SimpleLabeler(wav_file, output_csv_path, config=config)
-    plt.show()
-    labeler.show()
-    labeler.save_labels()

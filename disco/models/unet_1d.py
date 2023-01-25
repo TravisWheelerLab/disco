@@ -1,11 +1,8 @@
+import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 import torch
 import torchmetrics
 from torch import nn
-
-__all__ = ["UNet1D"]
-# TODO: add mask character to something global
-MASK_CHARACTER = -1
 
 
 class ConvBlock(nn.Module):
@@ -37,16 +34,6 @@ class UNet1D(pl.LightningModule):
         self,
         in_channels,
         out_channels,
-        learning_rate,
-        mel,
-        apply_log,
-        n_fft,
-        vertical_trim,
-        mask_beginning_and_end,
-        begin_mask,
-        end_mask,
-        train_files,
-        val_files,
         mask_character,
         divisible_by=16,
     ):
@@ -57,19 +44,9 @@ class UNet1D(pl.LightningModule):
         self.filter_width = 3
         self._setup_layers()
         self.divisible_by = divisible_by
-        self.accuracy = torchmetrics.Accuracy()
-        self.learning_rate = learning_rate
-        self.mel = mel
-        self.apply_log = apply_log
-        self.n_fft = n_fft
-        self.vertical_trim = vertical_trim
-        self.mask_beginning_and_end = mask_beginning_and_end
-        self.begin_mask = begin_mask
-        self.end_mask = end_mask
-        self.train_files = list(train_files)
-        self.val_files = list(val_files)
-        self.initial_power = 5
+        self.accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=3, top_k=3)
         self.mask_character = mask_character
+        self.final_activation = torch.nn.functional.log_softmax
 
         self.save_hyperparameters()
 
@@ -137,7 +114,7 @@ class UNet1D(pl.LightningModule):
         x9 = self.conv9(u4)
         x = self.conv_out(x9)
         x[x_mask.expand(-1, self.out_channels, -1)] = 0
-        return torch.nn.functional.log_softmax(x, dim=1)
+        return x
 
     def _forward(self, x):
         x1 = self.conv1(x)
@@ -166,7 +143,7 @@ class UNet1D(pl.LightningModule):
 
         x9 = self.conv9(u4)
         x = self.conv_out(x9)
-        return torch.nn.functional.log_softmax(x, dim=1)
+        return x
 
     def forward(self, x, mask=None):
         x, pad_len = self._pad_batch(x)
@@ -200,6 +177,8 @@ class UNet1D(pl.LightningModule):
         else:
             x, y = batch
             logits = self.forward(x)
+
+        logits = self.final_activation(logits, dim=1)
 
         loss = torch.nn.functional.nll_loss(logits, y, ignore_index=self.mask_character)
         preds = logits.argmax(dim=1)
@@ -244,3 +223,34 @@ class UNet1D(pl.LightningModule):
         val_acc = torch.mean(torch.stack(val_acc))
         self.log("val_loss", val_loss)
         self.log("val_acc", val_acc)
+
+
+class WhaleUNet(UNet1D):
+    def _shared_step(self, batch):
+
+        if len(batch) == 3:
+            x, x_mask, y = batch
+            logits = self.forward(x, x_mask)
+        else:
+            x, y = batch
+            logits = self.forward(x)
+
+        # duplicate labels so we can do fully-convolutional predictions
+        y = y.unsqueeze(-1).repeat(1, logits.shape[-1])
+        loss = torch.nn.functional.binary_cross_entropy(
+            torch.sigmoid(logits.ravel()).float(), y.ravel().float()
+        )
+
+        acc = self.accuracy(torch.round(torch.sigmoid(logits)).ravel(), y.ravel())
+
+        if self.global_step % 500 == 0:
+            with torch.no_grad():
+                fig = plt.figure(figsize=(10, 10))
+                plt.imshow(x[0].detach().to("cpu").numpy())
+                plt.title(y[0][0].detach().to("cpu").numpy())
+                plt.colorbar()
+                self.logger.experiment.add_figure(
+                    f"image", plt.gcf(), global_step=self.global_step
+                )
+
+        return loss, acc
