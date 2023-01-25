@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 import torch
 import torchmetrics
@@ -14,10 +13,10 @@ class ConvBlock(nn.Module):
         else:
             pad_width = filter_width // 2
 
-        self.conv1 = nn.Conv1d(
+        self.conv1 = nn.Conv2d(
             in_channels, out_channels, kernel_size=filter_width, padding=pad_width
         )
-        self.conv2 = nn.Conv1d(
+        self.conv2 = nn.Conv2d(
             out_channels, out_channels, kernel_size=filter_width, padding=pad_width
         )
 
@@ -33,14 +32,14 @@ class UNet1D(pl.LightningModule):
     def __init__(
         self,
         in_channels,
-        out_channels,
+        n_classes,
         mask_character,
         divisible_by=16,
     ):
 
         super(UNet1D, self).__init__()
         self.in_channels = in_channels
-        self.out_channels = out_channels
+        self.out_channels = n_classes
         self.filter_width = 3
         self._setup_layers()
         self.divisible_by = divisible_by
@@ -79,7 +78,7 @@ class UNet1D(pl.LightningModule):
             base ** (power + 0), base ** (power + 0), self.filter_width
         )
 
-        self.conv_out = nn.Conv1d(
+        self.conv_out = nn.Conv2d(
             base**power, self.out_channels, kernel_size=1, padding=0
         )
         self.act = nn.ReLU()
@@ -223,34 +222,3 @@ class UNet1D(pl.LightningModule):
         val_acc = torch.mean(torch.stack(val_acc))
         self.log("val_loss", val_loss)
         self.log("val_acc", val_acc)
-
-
-class WhaleUNet(UNet1D):
-    def _shared_step(self, batch):
-
-        if len(batch) == 3:
-            x, x_mask, y = batch
-            logits = self.forward(x, x_mask)
-        else:
-            x, y = batch
-            logits = self.forward(x)
-
-        # duplicate labels so we can do fully-convolutional predictions
-        y = y.unsqueeze(-1).repeat(1, logits.shape[-1])
-        loss = torch.nn.functional.binary_cross_entropy(
-            torch.sigmoid(logits.ravel()).float(), y.ravel().float()
-        )
-
-        acc = self.accuracy(torch.round(torch.sigmoid(logits)).ravel(), y.ravel())
-
-        if self.global_step % 500 == 0:
-            with torch.no_grad():
-                fig = plt.figure(figsize=(10, 10))
-                plt.imshow(x[0].detach().to("cpu").numpy())
-                plt.title(y[0][0].detach().to("cpu").numpy())
-                plt.colorbar()
-                self.logger.experiment.add_figure(
-                    f"image", plt.gcf(), global_step=self.global_step
-                )
-
-        return loss, acc

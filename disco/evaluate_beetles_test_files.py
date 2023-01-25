@@ -7,7 +7,7 @@ from sacred import Experiment
 
 import disco.cfg as cfg
 import disco.util.inference_utils as infer
-from disco.datasets.dataset import SpectrogramDatasetMultiLabel
+from disco.datasets.beetles_data import SpectrogramDatasetMultiLabel
 from disco.util.loading import load_model_class
 
 experiment = Experiment()
