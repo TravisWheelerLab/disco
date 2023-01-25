@@ -1,13 +1,11 @@
-from sacred import Experiment
-
+from disco.cfg import infer_experiment
 from disco.util.util import to_dict
-
-infer_experiment = Experiment()
 
 
 @infer_experiment.config
 def config():
-    wav_file = "/xdisk/twheeler/colligan/ground_truth/180101_0183S34D06.wav"
+    # wav_file = "/xdisk/twheeler/colligan/ground_truth/180101_0183S34D06.wav"
+    wav_file = "disco/resources/example.wav"
     model_name = "UNet1D"
     dataset_name = "SpectrogramIterator"
     saved_model_directory = None

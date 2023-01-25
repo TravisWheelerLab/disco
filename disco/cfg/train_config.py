@@ -1,10 +1,7 @@
 from glob import glob
 
-from sacred import Experiment
-
+from disco.cfg import train_experiment
 from disco.util.util import to_dict
-
-train_experiment = Experiment()
 
 
 def beetles_config():
@@ -15,7 +12,7 @@ def beetles_config():
     @to_dict
     class model_args:
         in_channels = 108
-        out_channels = 3
+        n_classes = 3
         learning_rate = 0.001
         mel = True
         apply_log = True

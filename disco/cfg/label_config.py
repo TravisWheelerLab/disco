@@ -1,9 +1,7 @@
-from sacred import Experiment
-
-label_experiment = Experiment()
+from disco.cfg import label_experiment
 
 
 @label_experiment.config
 def config():
-    wav_file = "/Users/wheelerlab/beetles_testing/unannotated_files_12_12_2022/Trial155_M113_F115-07202021/000102_0280S34D06.wav"
-    output_csv_path = "/tmp/fork"
+    wav_file = "disco/resources/example.wav"
+    output_csv_path = "/tmp/test.csv"

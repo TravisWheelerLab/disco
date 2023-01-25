@@ -4,9 +4,6 @@ import torch
 import torchmetrics
 from torch import nn
 
-# TODO: add mask character to something global
-MASK_CHARACTER = -1
-
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, filter_width):
@@ -36,35 +33,20 @@ class UNet1D(pl.LightningModule):
     def __init__(
         self,
         in_channels,
-        out_channels,
-        learning_rate,
-        mel,
-        apply_log,
-        n_fft,
-        vertical_trim,
-        mask_beginning_and_end,
-        begin_mask,
-        end_mask,
+        n_classes,
         mask_character,
         divisible_by=16,
     ):
 
         super(UNet1D, self).__init__()
         self.in_channels = in_channels
-        self.out_channels = out_channels
+        self.out_channels = n_classes
         self.filter_width = 3
         self._setup_layers()
         self.divisible_by = divisible_by
-        self.accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=3)
-        self.learning_rate = learning_rate
-        self.mel = mel
-        self.apply_log = apply_log
-        self.n_fft = n_fft
-        self.vertical_trim = vertical_trim
-        self.mask_beginning_and_end = mask_beginning_and_end
-        self.begin_mask = begin_mask
-        self.end_mask = end_mask
+        self.accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=3, top_k=3)
         self.mask_character = mask_character
+        self.final_activation = torch.nn.functional.log_softmax
 
         self.save_hyperparameters()
 
@@ -132,7 +114,7 @@ class UNet1D(pl.LightningModule):
         x9 = self.conv9(u4)
         x = self.conv_out(x9)
         x[x_mask.expand(-1, self.out_channels, -1)] = 0
-        return torch.nn.functional.log_softmax(x, dim=1)
+        return x
 
     def _forward(self, x):
         x1 = self.conv1(x)
@@ -161,7 +143,7 @@ class UNet1D(pl.LightningModule):
 
         x9 = self.conv9(u4)
         x = self.conv_out(x9)
-        return torch.nn.functional.log_softmax(x, dim=1)
+        return x
 
     def forward(self, x, mask=None):
         x, pad_len = self._pad_batch(x)
@@ -195,6 +177,8 @@ class UNet1D(pl.LightningModule):
         else:
             x, y = batch
             logits = self.forward(x)
+
+        logits = self.final_activation(logits, dim=1)
 
         loss = torch.nn.functional.nll_loss(logits, y, ignore_index=self.mask_character)
         preds = logits.argmax(dim=1)
@@ -270,32 +254,3 @@ class WhaleUNet(UNet1D):
                 )
 
         return loss, acc
-
-    def _forward(self, x):
-        x1 = self.conv1(x)
-        d1 = self.downsample(x1)
-
-        x2 = self.conv2(d1)
-        d2 = self.downsample(x2)
-
-        x3 = self.conv3(d2)
-        d3 = self.downsample(x3)
-
-        x4 = self.conv4(d3)
-        d4 = self.downsample(x4)
-
-        x5 = self.conv5(d4)
-        u1 = self.upsample(x5) + x4
-
-        x6 = self.conv6(u1)
-        u2 = self.upsample(x6) + x3
-
-        x7 = self.conv7(u2)
-        u3 = self.upsample(x7) + x2
-
-        x8 = self.conv8(u3)
-        u4 = self.upsample(x8) + x1
-
-        x9 = self.conv9(u4)
-        x = self.conv_out(x9)
-        return x

@@ -1,11 +1,8 @@
-from sacred import Experiment
-
-viz_experiment = Experiment()
+from disco.cfg import viz_experiment
 
 
 @viz_experiment.config
 def config():
-
     data_path = "/Users/wheelerlab/share/disco/disco/resources/example-viz"
     medians = True
     post_process = True

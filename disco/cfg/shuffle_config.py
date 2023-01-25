@@ -1,9 +1,7 @@
-from sacred import Experiment
-
-shuffle_experiment = Experiment()
+from disco.cfg import shuffle_experiment
 
 
 @shuffle_experiment.config
 def config():
-    data_directory = None
+    data_directory = "/tmp/extracted_test/"
     move = False

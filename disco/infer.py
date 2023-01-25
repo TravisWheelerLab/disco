@@ -27,8 +27,6 @@ def predict_wav_file(
     num_threads=4,
     seed=None,
 ):
-    # dataset class will already be initialized
-
     if tile_size % 2 != 0:
         raise ValueError("tile_size must be even, got {}".format(tile_size))
 
@@ -44,7 +42,8 @@ def predict_wav_file(
         aws_download_link=cfg.aws_download_link,
     )
 
-    log.info(f"Using {len(models)} models from {saved_model_directory}.")
+    if saved_model_directory is not None:
+        log.info(f"Using {len(models)} models from {saved_model_directory}.")
 
     if len(models) < 1:
         raise ValueError(
@@ -53,14 +52,10 @@ def predict_wav_file(
             )
         )
 
-    print("hello")
-
     spectrogram_dataloader = torch.utils.data.DataLoader(
         dataset, shuffle=False, batch_size=batch_size, drop_last=False
     )
 
-    # require this as a parameter.
-    # this might be OK though if we're just evaluating with a single iterator.
     original_spectrogram = dataset.original_spectrogram
     original_shape = dataset.original_shape
 
