@@ -287,11 +287,8 @@ def assemble_ensemble(
         download_models(default_model_directory, aws_download_link)
         model_paths = glob(os.path.join(default_model_directory, f"*"))
 
-    print(model_directory)
-
     models = []
     for model_path in model_paths:
-        print(model_path)
         model = model_class.load_from_checkpoint(
             model_path,
             map_location=torch.device(device),

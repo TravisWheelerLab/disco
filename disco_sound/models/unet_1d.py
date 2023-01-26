@@ -34,6 +34,7 @@ class UNet1D(pl.LightningModule):
         self,
         in_channels,
         out_channels,
+        learning_rate,
         mask_character,
         divisible_by=16,
     ):
@@ -41,10 +42,13 @@ class UNet1D(pl.LightningModule):
         super(UNet1D, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
+        self.learning_rate = learning_rate
         self.filter_width = 3
         self._setup_layers()
         self.divisible_by = divisible_by
-        self.accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=3, top_k=3)
+        self.accuracy = torchmetrics.Accuracy(
+            task="multiclass", num_classes=out_channels, top_k=1
+        )
         self.mask_character = mask_character
         self.final_activation = torch.nn.functional.log_softmax
 
@@ -214,7 +218,7 @@ class UNet1D(pl.LightningModule):
         self.log("learning_rate", self.learning_rate)
 
     def on_train_start(self):
-        self.log("hp_metric", self.learning_rate + self.n_fft)
+        self.log("hp_metric", self.learning_rate)
 
     def validation_epoch_end(self, outputs):
         val_loss = self.all_gather([x["val_loss"] for x in outputs])

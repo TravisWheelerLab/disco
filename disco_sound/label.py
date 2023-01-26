@@ -211,8 +211,6 @@ class SimpleLabeler:
                         linewidth=12,
                     )
 
-                    print(start_plot, end_plot)
-
         self.fig.canvas.draw()
 
     def onselect(self, x_min, x_max):

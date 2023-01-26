@@ -10,7 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import torch
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
 from sacred.observers import FileStorageObserver
 
@@ -26,7 +26,7 @@ from disco_sound.util.loading import load_dataset_class, load_model_class
 
 root = os.path.dirname(os.path.abspath(__file__))
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger("disco")
 
 
 @train_experiment.config
@@ -51,7 +51,9 @@ def train(_config):
     else:
         val_dataset = None
 
-    print(f"Training model {params.model_name} with dataset {params.dataset_name}.")
+    logger.info(
+        f"Training model {params.model_name} with dataset {params.dataset_name}."
+    )
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         collate_fn=train_dataset.collate_fn(),
@@ -166,7 +168,7 @@ def shuffle(_config):
 
 def main():
     if len(sys.argv) == 1:
-        print(
+        logger.info(
             f"DISCO version {__version__}. Usage: "
             f"disco <label, extract, shuffle, train, infer>. "
             f"See docs at https://github.com/TravisWheelerLab/disco/wiki for more help."

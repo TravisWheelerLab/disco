@@ -1,3 +1,5 @@
+import os
+
 from disco_sound.cfg import infer_experiment
 from disco_sound.util.util import to_dict
 
@@ -5,7 +7,8 @@ from disco_sound.util.util import to_dict
 @infer_experiment.config
 def config():
 
-    wav_file = "disco_sound/resources/example.wav"
+    wav_file = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    wav_file = os.path.join(wav_file, "resources", "example.wav")
     model_name = "UNet1D"
     dataset_name = "SpectrogramIterator"
     saved_model_directory = None

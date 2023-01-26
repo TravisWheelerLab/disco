@@ -11,7 +11,7 @@ import disco_sound.util.inference_utils as infer
 # removes torchaudio warning that spectrogram calculation needs different parameters
 warnings.filterwarnings("ignore", category=UserWarning)
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def predict_wav_file(
@@ -105,7 +105,8 @@ def predict_wav_file(
     viz_path = os.path.join(viz_root, wav_basename + "-viz")
 
     if os.path.isdir(viz_path):
-        print(f"Directory {viz_path} already exists. Overwriting.")
+        logger.info(f"Directory {viz_path} already exists. Not overwriting.")
+        exit()
     else:
         os.makedirs(viz_path)
 
