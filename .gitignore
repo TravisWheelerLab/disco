@@ -145,16 +145,16 @@ cython_debug/
 # pycharm
 .idea/
 
-# disco
-disco/data/
-disco/models/bootstrap-models/
-disco/models/random-init-models/
-disco/models/random_init_models/
-disco/visualization_of_examplewav
-disco/trained_models
+# disco_sound
+disco_sound/data/
+disco_sound/models/bootstrap-models/
+disco_sound/models/random-init-models/
+disco_sound/models/random_init_models/
+disco_sound/visualization_of_examplewav
+disco_sound/trained_models
 
-disco/debug_scripts/
+disco_sound/debug_scripts/
 
-disco/train.sh
-disco/infer.sh
-disco/visualize.sh
+disco_sound/train.sh
+disco_sound/infer.sh
+disco_sound/visualize.sh
