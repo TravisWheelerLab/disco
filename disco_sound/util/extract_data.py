@@ -212,10 +212,7 @@ def save_data(out_path, data_list, filename_prefix, index_to_label, overwrite):
         )
 
         if os.path.isfile(out_fpath) and not overwrite:
-            logger.info(
-                f"Found file already at {out_fpath}. Skipping re-saving."
-                f" Specify --overwrite to overwrite."
-            )
+            logger.info(f"Found file already at {out_fpath}. Not overwriting.")
         else:
             logger.info(f"Saving {out_fpath}.")
             with open(out_fpath, "wb") as dst:

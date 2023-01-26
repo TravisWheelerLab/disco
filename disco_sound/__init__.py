@@ -1,7 +1,7 @@
 """
 DISCO Implements Sound Classification Obediently.
 """
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 import logging
 import os
 import sys
@@ -168,7 +168,7 @@ def shuffle(_config):
 
 def main():
     if len(sys.argv) == 1:
-        logger.info(
+        print(
             f"DISCO version {__version__}. Usage: "
             f"disco <label, extract, shuffle, train, infer>. "
             f"See docs at https://github.com/TravisWheelerLab/disco/wiki for more help."
