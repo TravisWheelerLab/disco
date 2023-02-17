@@ -1,25 +1,17 @@
-This tool is available as a pip package!
-We recommend creating a virtual environment with
-[conda](https://docs.conda.io/en/latest/) and then installing.
-
+This tool is available as a pip package.
+We recommend using a environment manager, such as
+[conda](https://docs.conda.io/en/latest/) or [pipenv](test.com).
+DISCO requires python 3.8.
+Installation is easy:
 ```
-conda create -n <env_name> python=3.8
-conda activate <env_name>
-pip install beetles
+pip install disco_sound
 ```
-If pip fails because of conflicting dependencies, install the package without dependencies and install from requirements.txt
-```
-pip install --no-dependencies beetles
-pip install -r requirements.txt
-```
-If this fails, install each package by hand 😢, or delete the offending package in requirements.txt and try `pip install -r requirements.txt` again, then install the offending package by hand.
 
 ### Developing
-Clone the repo locally and install via setup.py.
+Clone the repo locally and install via `flit`.
+Navigate to the root of the disco project and run
+```
+flit install -s 
+```
+You'll want to clone the repo locally if you want to create custom models or training scripts.
 
-```
-git clone git@github.com:TravisWheelerLab/beetles-cnn.git
-cd beetles-cnn
-pip install -r requirements.txt
-python setup.py develop
-```
