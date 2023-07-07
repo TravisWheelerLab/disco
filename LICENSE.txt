@@ -1,5 +1,7 @@
 The DISCO release is split into two components for licensing purposes.
 
+Copyright (c) 2022, Kayla Irish, Thomas Colligan, and Travis Wheeler
+
 Data
 -----
 All files contained in the directories {resources/ and datasets/} are  
