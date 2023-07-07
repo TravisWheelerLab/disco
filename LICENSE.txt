@@ -14,9 +14,10 @@ any purpose, even commercially).
 
 Software
 --------
-The remaining portions of the database are released under the BSD 3-Clause 
-License, which allows you almost unlimited freedom with the software so 
-long as you include the BSD copyright and license notice in it. (2) 
+The remaining portions of the repository are released under the BSD 
+3-Clause License, which allows you almost unlimited freedom with the 
+software so long as you include the BSD copyright and license notice 
+in it. (2) 
 
 
 (1) https://creativecommons.org/licenses/by/4.0/legalcode
